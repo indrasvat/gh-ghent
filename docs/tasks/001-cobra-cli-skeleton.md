@@ -21,7 +21,7 @@ ghent needs a Cobra command tree with root, comments, checks, resolve, and summa
 
 ## Research References
 
-- `docs/go-project-patterns-research.md` §7 — Cobra RunE pattern, shared flags structs
+- `docs/go-project-patterns-research.md` §4 — Cobra CLI pattern, RunE, shared flags structs
 - `docs/popular-extensions-research.md` §14 — Cross-cutting CLI patterns
 - `docs/gh-extensions-support-research.md` §9 — CLI flags, output formatting, TTY detection
 
@@ -105,7 +105,7 @@ feat(cli): add Cobra command skeleton with TTY detection
 2. Read this task file
 3. **Change this task's status to `IN PROGRESS`**
 4. Read PRD §5.2, §6.1-6.5
-5. Read `docs/go-project-patterns-research.md` §7
+5. Read `docs/go-project-patterns-research.md` §4
 6. Execute steps 1-6
 7. Run verification (L1 → L3)
 8. **Change this task's status to `DONE`**

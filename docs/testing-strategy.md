@@ -242,11 +242,11 @@ gh ghent checks --format json
 # Resolve a specific thread
 gh ghent resolve --thread <thread-id>
 
-# Resolve all threads in a file
-gh ghent resolve --file src/main.go
+# Resolve all unresolved threads
+gh ghent resolve --all
 
-# Dry run (show what would be resolved)
-gh ghent resolve --dry-run
+# Unresolve a thread
+gh ghent resolve --unresolve --thread <thread-id>
 
 # Verify: thread actually resolves on GitHub (check in browser!)
 ```
@@ -1159,7 +1159,7 @@ ghent/
 │   │   ├── test_ghent_agent.py
 │   │   └── test_ghent_install.py
 │   └── screenshots/                  # Visual test screenshots (gitignored)
-├── scripts/
+├── scripts/                          # Created in Phase 2-3 (not in Phase 1)
 │   ├── test-binary.sh               # L3 binary execution tests
 │   └── test-agent-workflow.sh        # L5 agent workflow tests
 ├── testdata/                         # Test fixtures for L1/L2
@@ -1350,8 +1350,8 @@ Every feature implementation MUST complete ALL checks before being considered do
 ### L3: Binary Execution
 - [ ] `gh ghent resolve --thread <id>` resolves on GitHub
 - [ ] VERIFY IN BROWSER: thread is actually resolved
-- [ ] `gh ghent resolve --dry-run` shows what would resolve
-- [ ] `gh ghent resolve --file <path>` resolves all in file
+- [ ] `gh ghent resolve --all` resolves all unresolved threads
+- [ ] `gh ghent resolve --unresolve --thread <id>` unresolves a thread
 - [ ] Error on invalid thread ID
 
 ### L4: Visual Verification

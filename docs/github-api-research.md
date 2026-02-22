@@ -540,7 +540,8 @@ done
 
 ### Check Run Status and Conclusion Values
 
-Status: `queued`, `in_progress`, `completed`, `waiting`, `requested`, `pending`
+Status (check runs): `queued`, `in_progress`, `completed` (only these three)
+Note: `waiting`, `requested`, `pending` exist on check suites/workflow runs, NOT on check runs.
 
 Conclusion (when status=completed): `action_required`, `cancelled`, `failure`, `neutral`,
 `success`, `skipped`, `stale`, `timed_out`, `startup_failure`

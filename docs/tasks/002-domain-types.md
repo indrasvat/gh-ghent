@@ -23,7 +23,7 @@ ghent needs domain types (ReviewThread, CheckRun, Annotation, etc.) and port int
 ## Research References
 
 - `docs/github-api-research.md` §1 — GraphQL reviewThreads response shape
-- `docs/github-api-research.md` §5 — Key GraphQL types
+- `docs/github-api-research.md` §5 — Key GraphQL types (ReviewThread, Comment fields)
 - `docs/github-api-research.md` §6 — REST check runs response shape
 - `docs/vivecaka-large-pr-patterns-research.md` §13 — CI status aggregation (fail > pending > pass)
 

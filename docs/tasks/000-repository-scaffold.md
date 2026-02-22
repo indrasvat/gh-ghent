@@ -19,16 +19,16 @@ ghent needs a Go project skeleton with build tooling, linting, git hooks, and re
 
 ## Research References
 
-- `docs/go-project-patterns-research.md` §3 — Comprehensive Makefile with all targets
-- `docs/go-project-patterns-research.md` §4 — golangci-lint v2 configuration
-- `docs/go-project-patterns-research.md` §6 — lefthook configuration
-- `docs/go-project-patterns-research.md` §8 — GoReleaser v2 configuration
+- `docs/go-project-patterns-research.md` §5 — Comprehensive Makefile with all targets
+- `docs/go-project-patterns-research.md` §9 — golangci-lint v2 configuration
+- `docs/go-project-patterns-research.md` §8 — lefthook configuration
+- `docs/go-project-patterns-research.md` §10 — GoReleaser v2 configuration
 - `docs/popular-extensions-research.md` §13 — gh-extension-precompile GitHub Action
 - `docs/gh-extensions-support-research.md` §3 — Precompiled binary distribution
 
 ## Files to Create
 
-- `go.mod` — Module `github.com/indrasvat/gh-ghent`, Go 1.26
+- `go.mod` — Module `github.com/indrasvat/ghent`, Go 1.26
 - `cmd/ghent/main.go` — Minimal entry point (calls `cli.Execute()`)
 - `internal/cli/root.go` — Placeholder root command
 - `Makefile` — Full target set per CLAUDE.md
@@ -47,10 +47,10 @@ ghent needs a Go project skeleton with build tooling, linting, git hooks, and re
 ### Step 1: Read context
 1. Read CLAUDE.md (conventions, architecture)
 2. Read PRD §4 (tech stack) and §5.1 (directory structure)
-3. Read `docs/go-project-patterns-research.md` §3 (Makefile patterns)
+3. Read `docs/go-project-patterns-research.md` §5 (Makefile patterns)
 
 ### Step 2: Initialize Go module
-- `go mod init github.com/indrasvat/gh-ghent`
+- `go mod init github.com/indrasvat/ghent`
 - Add all deps: go-gh v2.13.0, Cobra, Bubble Tea, Lipgloss, Bubbles
 - `go mod tidy`
 

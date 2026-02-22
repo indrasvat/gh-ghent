@@ -127,10 +127,10 @@ Current workflow requires agents to scrape `gh pr view` output or make raw API c
 | Distribution | gh-extension-precompile | v2 | GitHub Action for extension releases |
 | Testing | stdlib + go-cmp | latest | No testify; table-driven tests |
 
-> **Full SDK details:** `docs/gh-extensions-support-research.md` §4-6
-> **gh-dash TUI patterns:** `docs/popular-extensions-research.md` §3
+> **Full SDK details:** `docs/gh-extensions-support-research.md` §4 (go-gh library), §5 (API access), §6 (auth)
+> **gh-dash TUI patterns:** `docs/popular-extensions-research.md` §3 (gh-dash)
 > **TUI pitfalls (yukti/vivecaka):** `docs/testing-strategy.md` §7
-> **Convention source:** `docs/go-project-patterns-research.md` §1-5
+> **Convention source:** `docs/go-project-patterns-research.md` §1 (directory), §4 (Cobra), §5 (Makefile)
 
 ---
 
@@ -139,7 +139,7 @@ Current workflow requires agents to scrape `gh pr view` output or make raw API c
 ### 5.1 Directory Structure
 
 ```
-gh-ghent/
+ghent/
 ├── cmd/ghent/main.go              # Entry point → cli.Execute()
 ├── internal/
 │   ├── cli/                       # Cobra commands
@@ -227,19 +227,22 @@ User runs: gh ghent comments --pr 42
 
 ```
 tui/app.go (root model)
-├── ViewComments  → tui/comments.go   (bubbles/list + viewport)
-├── ViewChecks    → tui/checks.go     (bubbles/list + viewport)
-├── ViewResolve   → tui/resolve.go    (bubbles/list + checkboxes)
-├── ViewSummary   → tui/summary.go    (lipgloss layout)
-└── ViewWatch     → tui/watcher.go    (spinner + progress + event log)
+├── ViewCommentsList    → tui/comments.go   (bubbles/list, thread list with file:line)
+├── ViewCommentsExpand  → tui/comments.go   (bubbles/viewport, full thread + diff hunk + replies)
+├── ViewChecksList      → tui/checks.go     (bubbles/list, check runs with auto-expanded annotations)
+├── ViewChecksLog       → tui/checks.go     (bubbles/viewport, full job log for selected check)
+├── ViewResolve         → tui/resolve.go    (bubbles/list + checkboxes, multi-select resolve)
+├── ViewSummary         → tui/summary.go    (lipgloss layout, KPI cards + section summaries)
+└── ViewWatch           → tui/watcher.go    (spinner + progress bar + event log)
 
 Shared components:
 ├── components/statusbar.go   (top bar: repo, PR, counts)
 ├── components/helpbar.go     (bottom bar: key bindings per view)
 └── components/diffhunk.go    (syntax-colored diff hunks)
 
-Tab switching: Tab cycles between comments ↔ checks
-View transitions: Enter (expand), Esc (back), c/k/r (from summary)
+Tab switching: Tab cycles between comments ↔ checks (top-level views)
+View transitions: Enter (expand/drill into), Esc (back), c/k/r (from summary)
+Pipe mode: Non-TTY outputs via formatter/ (not a view, handled in cli/ layer)
 ```
 
 ### 5.4 Key Design Decisions
@@ -338,12 +341,15 @@ threads:
 - [ ] FR-COM-06: Pipe mode XML well-formed
 - [ ] FR-COM-07: No ANSI escape codes in piped output
 - [ ] FR-COM-08: Exit code 0 when no unresolved threads
-- [ ] FR-COM-09: Handles PRs with 100+ threads (pagination)
+- [ ] FR-COM-09: Handles PRs with 100+ threads (pagination via `pageInfo.hasNextPage`/`endCursor`)
 - [ ] FR-COM-10: Tab switches to checks view
+- [ ] FR-COM-11: Client-side filtering of `isResolved` (cannot filter server-side)
+
+**Pagination requirement:** The GraphQL client MUST paginate using `pageInfo.hasNextPage` / `endCursor` with `after` parameter. `reviewThreads(first: 100)` only returns the first page. Loop until `hasNextPage` is `false`. Filter `isResolved` client-side (the API returns all threads regardless of resolution status).
 
 > **GraphQL query:** `docs/github-api-research.md` §1
 > **TUI mockup:** `docs/tui-mockups.html` — comments + comments (expanded) tabs
-> **Pagination:** `docs/vivecaka-large-pr-patterns-research.md` §2
+> **Pagination pattern:** `docs/vivecaka-large-pr-patterns-research.md` §2
 
 ### 6.3 Checks Command (`gh ghent checks`)
 
@@ -436,6 +442,9 @@ checks:
 - [ ] FR-RES-05: `--unresolve` unresolves threads
 - [ ] FR-RES-06: Shows spinner during resolution in TUI
 - [ ] FR-RES-07: Requires write permission; clear error if missing
+- [ ] FR-RES-08: Respects `viewerCanResolve`/`viewerCanUnresolve` booleans from API
+
+**Permission check:** The GraphQL thread fetch must capture `viewerCanResolve` and `viewerCanUnresolve` boolean fields for each thread. TUI should disable/hide resolve action for threads where `viewerCanResolve` is false. CLI pipe mode should surface a clear permission error before invoking the mutation.
 
 > **GraphQL mutations:** `docs/github-api-research.md` §2-3
 > **TUI mockup:** `docs/tui-mockups.html` — resolve tab

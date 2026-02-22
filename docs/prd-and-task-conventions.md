@@ -303,8 +303,8 @@ The PRD should be structured so agents **never need to read the whole thing**. E
 ...
 
 ### 1.3 What ghent Is NOT
-- Not a full TUI (CLI output, not BubbleTea)
 - Not a PR review tool (shows comments, doesn't create them)
+- Not a CI dashboard (single PR focus, not repo-wide)
 - ...
 
 ---
@@ -466,8 +466,8 @@ Task files are the primary unit of work. Each is self-contained — an agent sho
 
 ## Research References
 
-- `docs/github-api-research.md` §3 (GraphQL reviewThreads query) — exact query shape
-- `docs/gh-extensions-support-research.md` §9 (go-gh API client) — DefaultGraphQLClient usage
+- `docs/github-api-research.md` §1 (GraphQL reviewThreads query) — exact query shape
+- `docs/gh-extensions-support-research.md` §4 (go-gh library) — DefaultGraphQLClient usage
 
 ## Files to Create
 
@@ -639,22 +639,21 @@ PROGRESS.md serves two purposes:
 ### Phase 1: Walking Skeleton
 - [x] Task 1.1: Repository scaffold — `abc123`
 - [x] Task 1.2: Cobra CLI skeleton — `def456`
-- [x] Task 1.3: GitHub API client — `789abc`
-- [x] Task 1.4: Domain types — `bcd012`
+- [x] Task 1.3: Domain types — `789abc`
+- [x] Task 1.4: GitHub API client — `bcd012`
 
-### Phase 2: Core MVP
-- [ ] Task 2.1: Comments command
-- [ ] Task 2.2: Comments XML/JSON formatters
-- [ ] Task 2.3: Checks command
-- [ ] Task 2.4: Checks --logs
-- [ ] Task 2.5: Resolve command
-- [ ] Task 2.6: --watch mode
+### Phase 2: CLI Commands
+- [ ] Task 2.1: `gh ghent comments`
+- [ ] Task 2.2: `gh ghent checks`
+- [ ] Task 2.3: `gh ghent checks --logs`
+- [ ] Task 2.4: `gh ghent resolve`
+- [ ] Task 2.5: `gh ghent summary`
 
-### Phase 3: Polish & Harden
-- [ ] Task 3.1: Error handling
-- [ ] Task 3.2: Extension packaging
-- [ ] Task 3.3: README, --help
-- [ ] Task 3.4: Agent-oriented features
+### Phase 3: CLI Polish
+- [ ] Task 3.1: Watch mode (pipe)
+- [ ] Task 3.2: Error handling hardening
+- [ ] Task 3.3: Extension packaging
+- [ ] Task 3.4: README + --help
 
 ## Session Log
 
@@ -767,12 +766,12 @@ ghent already has 6 research documents totaling ~7000 lines. These serve as the 
 
 | Research Doc | Sections to Reference From Tasks |
 |-------------|----------------------------------|
-| `gh-extensions-support-research.md` | Extension naming (§1), go-gh SDK (§5-6), Auth (§7), JSON output (§9), testing (§13) |
-| `github-api-research.md` | GraphQL review threads (§3), resolveReviewThread (§4), check runs (§5), job logs (§6), annotations (§7) |
-| `popular-extensions-research.md` | gh-dash patterns (§1), Cobra patterns (§3), testing (§8) |
-| `go-project-patterns-research.md` | Directory structure (§1), Makefile (§3), CLAUDE.md format (§5), Cobra (§7) |
-| `dorikin-patterns-research.md` | BubbleTea patterns (§3), error handling (§6) |
-| `vivecaka-large-pr-patterns-research.md` | Dual field lists (§1), errgroup (§3), caching (§5), CI aggregation (§13) |
+| `gh-extensions-support-research.md` | Extension naming (§1), go-gh SDK (§4), API access (§5), Auth (§6), CLI flags (§9), JSON output (§10), testing (§14) |
+| `github-api-research.md` | GraphQL review threads (§1), resolveReviewThread (§2), unresolveReviewThread (§3), Key GraphQL types (§5), check runs (§6), job logs (§7), go-gh library (§10) |
+| `popular-extensions-research.md` | gh-dash patterns (§3), gh-extension-precompile (§13), Cross-cutting patterns (§14), Recommended architecture (§15) |
+| `go-project-patterns-research.md` | Directory structure (§1), Cobra (§4), Makefile (§5), CLAUDE.md format (§6), lefthook (§8), golangci-lint (§9), GoReleaser (§10) |
+| `dorikin-patterns-research.md` | CLI architecture/Cobra (§5), testing (§6), error handling (§7), design patterns (§14) |
+| `vivecaka-large-pr-patterns-research.md` | Dual field lists (§1), pagination (§2), errgroup (§3), caching (§5), CI aggregation (§13) |
 
 ### Testing strategy integration
 

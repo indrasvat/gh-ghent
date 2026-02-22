@@ -21,7 +21,7 @@ ghent needs a GitHub API adapter that implements the domain port interfaces usin
 
 ## Research References
 
-- `docs/gh-extensions-support-research.md` §5 — DefaultRESTClient(), DefaultGraphQLClient()
+- `docs/gh-extensions-support-research.md` §4 — go-gh library (DefaultRESTClient, DefaultGraphQLClient)
 - `docs/gh-extensions-support-research.md` §6 — Authentication inheritance
 - `docs/github-api-research.md` §10 — go-gh library specifics
 - `docs/vivecaka-large-pr-patterns-research.md` §3 — errgroup pattern
@@ -39,7 +39,7 @@ ghent needs a GitHub API adapter that implements the domain port interfaces usin
 
 ### Step 1: Read context
 1. Read PRD §5.1, §5.4
-2. Read `docs/gh-extensions-support-research.md` §5-6
+2. Read `docs/gh-extensions-support-research.md` §4 (go-gh library), §6 (auth)
 
 ### Step 2: Create GitHub client
 - Functional options: WithRESTClient, WithGraphQLClient (for testing)
