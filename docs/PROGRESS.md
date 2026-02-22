@@ -35,7 +35,8 @@
 - [ ] Task 2.2: `gh ghent checks` — REST + annotations + formatters (parallel: 2.1)
 - [ ] Task 2.3: `gh ghent checks --logs` — job log fetch (depends: 2.2)
 - [ ] Task 2.4: `gh ghent resolve` — GraphQL mutations + pipe mode (depends: 2.1)
-- [ ] Task 2.5: `gh ghent summary` — aggregate data + formatters (depends: 2.1, 2.2)
+- [ ] Task 2.5: `gh ghent reply` — REST reply to review thread (depends: 2.1 | parallel: 2.4)
+- [ ] Task 2.6: `gh ghent summary` — aggregate data + formatters (depends: 2.1, 2.2)
 
 ### Phase 3: CLI Polish
 - [ ] Task 3.1: Watch mode (pipe) — poll loop, fail-fast, `--watch`
@@ -71,7 +72,14 @@
 
 ## Session Log
 
-### 2026-02-22 (Pre-implementation)
+### 2026-02-22 (Pre-implementation, session 2)
+- Added `gh ghent reply` command to PRD v1.2 (§6.5) — pipe-only agent command for replying to review threads
+- Added Phase 2 task 2.5 (reply), renumbered summary to 2.6
+- Updated all cross-references: architecture (§5.1, §5.3), gap analysis (§2.3), domain ports, Phase 1 tasks
+- Uses REST API `POST .../comments/{comment_id}/replies` (simpler than GraphQL for single replies)
+- Flags: `--thread`, `--body`, `--body-file` (with stdin via `-`)
+
+### 2026-02-22 (Pre-implementation, session 1)
 - Completed all research documentation (8 docs, ~7000 lines)
 - Created TUI mockups (7 views: comments, expanded, checks, watch, resolve, summary, pipe)
 - Created PRD v1.1 with full TUI architecture (Bubble Tea + Lipgloss)

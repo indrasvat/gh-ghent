@@ -10,7 +10,7 @@
 
 ## Problem
 
-ghent needs domain types (ReviewThread, CheckRun, Annotation, etc.) and port interfaces (ThreadFetcher, CheckFetcher, ThreadResolver, Formatter) before any adapter, TUI, or command code can be written. These define the contract between all layers.
+ghent needs domain types (ReviewThread, CheckRun, Annotation, ReplyResult, etc.) and port interfaces (ThreadFetcher, CheckFetcher, ThreadResolver, ThreadReplier, Formatter) before any adapter, TUI, or command code can be written. These define the contract between all layers.
 
 ## PRD Reference
 
@@ -18,7 +18,8 @@ ghent needs domain types (ReviewThread, CheckRun, Annotation, etc.) and port int
 - §5.4 (Key Design Decisions) — interface-based ports for testability
 - §6.2 (Comments) — ReviewThread and Comment field requirements, output structure
 - §6.3 (Checks) — CheckRun and Annotation field requirements, output structure
-- §6.5 (Summary) — combined data requirements
+- §6.5 (Reply) — ReplyResult field requirements, output structure
+- §6.6 (Summary) — combined data requirements
 
 ## Research References
 
@@ -49,8 +50,11 @@ ghent needs domain types (ReviewThread, CheckRun, Annotation, etc.) and port int
 ### Step 4: Define summary type
 - SummaryResult combining threads + checks + approvals
 
+### Step 4b: Define reply result type
+- ReplyResult: ThreadID, CommentID, URL, Body, CreatedAt
+
 ### Step 5: Define port interfaces
-- ThreadFetcher, CheckFetcher, ThreadResolver, Formatter
+- ThreadFetcher, CheckFetcher, ThreadResolver, ThreadReplier, Formatter
 
 ### Step 6: Unit tests
 - AggregateStatus logic, JSON serialization, zero value safety
@@ -65,7 +69,7 @@ make test
 ## Completion Criteria
 
 1. All domain types defined with correct JSON tags
-2. Port interfaces defined (ThreadFetcher, CheckFetcher, ThreadResolver, Formatter)
+2. Port interfaces defined (ThreadFetcher, CheckFetcher, ThreadResolver, ThreadReplier, Formatter)
 3. AggregateStatus tested: fail > pending > pass
 4. `make ci` passes
 5. PROGRESS.md updated
@@ -75,9 +79,9 @@ make test
 ```
 feat(domain): add review thread, check run types and port interfaces
 
-- ReviewThread, Comment, CheckRun, Annotation domain types
+- ReviewThread, Comment, CheckRun, Annotation, ReplyResult domain types
 - CommentsResult, ChecksResult, SummaryResult wrapper types
-- Port interfaces for all adapters
+- Port interfaces for all adapters (including ThreadReplier)
 - AggregateStatus with fail > pending > pass precedence
 ```
 

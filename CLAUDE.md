@@ -42,7 +42,7 @@ make test-all           # All levels
 ```
 cmd/ghent/main.go            → cli.Execute()
 internal/
-├── cli/                     # Cobra commands (root, comments, checks, resolve, summary)
+├── cli/                     # Cobra commands (root, comments, checks, resolve, reply, summary)
 ├── domain/                  # Types + interfaces (ReviewThread, CheckRun, ports)
 ├── github/                  # GitHub API adapter (GraphQL + REST via go-gh)
 ├── tui/                     # Bubble Tea interactive TUI

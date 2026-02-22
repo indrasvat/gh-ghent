@@ -69,7 +69,7 @@ make build
 
 ## Completion Criteria
 
-1. Client implements ThreadFetcher, CheckFetcher, ThreadResolver
+1. Client implements ThreadFetcher, CheckFetcher, ThreadResolver, ThreadReplier
 2. Functional options allow mock injection
 3. Client wired to Cobra via PersistentPreRunE
 4. `make ci` passes
@@ -82,7 +82,7 @@ feat(github): wire go-gh API clients with port interface stubs
 
 - Client struct wrapping GraphQL + REST from go-gh
 - Functional options for test dependency injection
-- Implements all domain port interfaces (stub methods)
+- Implements all domain port interfaces including ThreadReplier (stub methods)
 - Wired to Cobra via PersistentPreRunE
 ```
 

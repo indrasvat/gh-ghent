@@ -10,14 +10,14 @@
 
 ## Problem
 
-ghent needs a Cobra command tree with root, comments, checks, resolve, and summary subcommands. All global flags must be wired, including TTY detection for dual-mode (TUI vs pipe) routing.
+ghent needs a Cobra command tree with root, comments, checks, resolve, reply, and summary subcommands. All global flags must be wired, including TTY detection for dual-mode (TUI vs pipe) routing.
 
 ## PRD Reference
 
 - §5.1 (Architecture) — cli/ directory structure
 - §5.2 (Dual-Mode Data Flow) — TTY detection, TUI vs pipe routing
 - §6.1 (Root Command) — global flags, version, repo resolution, TTY detection, `--no-tui`
-- §6.2-6.5 — Subcommand flag definitions
+- §6.2-6.6 — Subcommand flag definitions (comments, checks, resolve, reply, summary)
 
 ## Research References
 
@@ -30,6 +30,7 @@ ghent needs a Cobra command tree with root, comments, checks, resolve, and summa
 - `internal/cli/comments.go` — Comments subcommand stub
 - `internal/cli/checks.go` — Checks subcommand stub
 - `internal/cli/resolve.go` — Resolve subcommand stub
+- `internal/cli/reply.go` — Reply subcommand stub
 - `internal/cli/summary.go` — Summary subcommand stub
 - `internal/cli/flags.go` — GlobalFlags struct (repo, format, verbose, noTUI)
 - `internal/version/version.go` — Version, Commit, Date + Print function
@@ -51,7 +52,7 @@ ghent needs a Cobra command tree with root, comments, checks, resolve, and summa
 - `GlobalFlags` struct: Repo, Format, Verbose, NoTUI, IsTTY (resolved at runtime)
 - PersistentPreRunE: resolve repo, detect TTY via `term.FromEnv()`, set IsTTY
 
-### Step 4: Flesh out root command with all 4 subcommands
+### Step 4: Flesh out root command with all 5 subcommands
 - Each stub returns "not implemented yet" error
 
 ### Step 5: Update main.go with ldflags
@@ -81,7 +82,7 @@ make build
 
 ## Completion Criteria
 
-1. `--help` lists comments, checks, resolve, summary subcommands
+1. `--help` lists comments, checks, resolve, reply, summary subcommands
 2. Each subcommand has its specific flags
 3. `--no-tui` flag recognized
 4. TTY detection wired (IsTTY set in PersistentPreRunE)
@@ -94,7 +95,7 @@ make build
 feat(cli): add Cobra command skeleton with TTY detection
 
 - Root command with -R, --format, --verbose, --no-tui persistent flags
-- Comments, checks, resolve, summary subcommands with specific flags
+- Comments, checks, resolve, reply, summary subcommands with specific flags
 - TTY detection via term.FromEnv() for dual-mode routing
 - Version info via ldflags
 ```

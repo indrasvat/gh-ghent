@@ -2,10 +2,11 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 1.1 |
+| **Version** | 1.2 |
 | **Author** | indrasvat |
 | **Date** | 2026-02-22 |
 | **Status** | Draft |
+| **Feature Guide** | `~/.agent/diagrams/ghent-research-report.html` — authoritative source for all features and agent capabilities |
 
 ---
 
@@ -81,6 +82,7 @@ Current workflow requires agents to scrape `gh pr view` output or make raw API c
 | CI check annotations | No | No | **Yes** |
 | Failing job logs | No | No | **Yes** |
 | Resolve threads from CLI | No | No | **Yes** |
+| Reply to review threads | No | No | **Yes** |
 | Summary dashboard | No | No | **Yes** |
 | Machine-readable output | `--json` | `--json` | **`--format json\|xml\|md`** |
 | Watch mode with fail-fast | No | `--watch` (basic) | **Yes** |
@@ -151,16 +153,18 @@ ghent/
 │   │   ├── comments.go            # gh ghent comments → TUI or pipe
 │   │   ├── checks.go              # gh ghent checks → TUI or pipe
 │   │   ├── resolve.go             # gh ghent resolve → TUI or pipe
+│   │   ├── reply.go               # gh ghent reply → pipe only (agent command)
 │   │   └── summary.go             # gh ghent summary → TUI or pipe
 │   ├── domain/                    # Types + interfaces (no dependencies)
 │   │   ├── types.go               # ReviewThread, CheckRun, Annotation, etc.
-│   │   └── ports.go               # ThreadFetcher, CheckFetcher, ThreadResolver, Formatter
+│   │   └── ports.go               # ThreadFetcher, CheckFetcher, ThreadResolver, ThreadReplier, Formatter
 │   ├── github/                    # GitHub API adapter (implements ports)
 │   │   ├── client.go              # go-gh client wiring
 │   │   ├── threads.go             # GraphQL: fetch review threads
 │   │   ├── checks.go              # REST: fetch check runs + annotations
 │   │   ├── logs.go                # REST: fetch job logs
-│   │   └── resolve.go             # GraphQL: resolve/unresolve mutations
+│   │   ├── resolve.go             # GraphQL: resolve/unresolve mutations
+│   │   └── reply.go               # REST: reply to review comments
 │   ├── tui/                       # Bubble Tea interactive TUI
 │   │   ├── app.go                 # Root model, view switching, key routing
 │   │   ├── comments.go            # Comments list + expanded thread view
@@ -247,6 +251,7 @@ Shared components:
 Tab switching: Tab cycles between comments ↔ checks (top-level views)
 View transitions: Enter (expand/drill into), Esc (back), c/k/r (from summary)
 Pipe mode: Non-TTY outputs via formatter/ (not a view, handled in cli/ layer)
+Reply: No TUI view — pipe-only agent command (cli/reply.go → github/reply.go → formatter/)
 ```
 
 ### 5.4 Key Design Decisions
@@ -362,7 +367,7 @@ threads:
 **Flags:**
 - `--pr <number>` — PR number (required)
 - `--logs` — Include failing job log excerpts (pipe mode; TUI always has log access via Enter)
-- `--watch` — Poll until all checks complete; see §6.6
+- `--watch` — Poll until all checks complete; see §6.7
 - All persistent flags from root
 
 **TUI mode (TTY):** See `docs/tui-mockups.html` — checks view
@@ -402,7 +407,7 @@ checks:
 - [ ] FR-CHK-01: TUI shows check list with pass/fail icons
 - [ ] FR-CHK-02: Failed checks auto-expand annotations
 - [ ] FR-CHK-03: Enter opens log viewer (bubbles/viewport)
-- [ ] FR-CHK-04: `--watch` activates watch mode (see §6.6)
+- [ ] FR-CHK-04: `--watch` activates watch mode (see §6.7)
 - [ ] FR-CHK-05: Pipe mode JSON/XML includes annotations
 - [ ] FR-CHK-06: `--logs` includes failing step log excerpt in pipe mode
 - [ ] FR-CHK-07: Status aggregation: fail > pending > pass
@@ -453,7 +458,67 @@ checks:
 > **GraphQL mutations:** `docs/github-api-research.md` §2-3
 > **TUI mockup:** `docs/tui-mockups.html` — resolve tab
 
-### 6.5 Summary Command (`gh ghent summary`)
+### 6.5 Reply Command (`gh ghent reply`)
+
+**Purpose:** Reply to a specific review thread from the CLI. Enables AI agents to acknowledge feedback, ask clarifying questions, or explain fixes directly in the PR conversation.
+
+**Flags:**
+- `--pr <number>` — PR number (required)
+- `--thread <id>` — Thread node ID to reply to (required; the PRRT_ ID from `gh ghent comments`)
+- `--body <text>` — Reply body text (required; supports markdown)
+- `--body-file <path>` — Read reply body from file (alternative to `--body`; `-` for stdin)
+- All persistent flags from root
+
+**Behavior:**
+1. This is a **pipe-first command** — primarily designed for agent use. No TUI view.
+2. Fetches the thread to validate it exists and `viewerCanReply` is true
+3. Posts the reply via REST API (`POST .../comments/{comment_id}/replies`)
+4. The `comment_id` for the reply target is the last comment in the thread (threading semantics)
+5. Outputs the created comment details (id, url, body) in `--format`
+
+**Pipe mode (non-TTY and TTY):**
+```
+# Reply to a thread
+gh ghent reply --pr 42 --thread PRRT_abc123 --body "Fixed in commit abc123"
+
+# Reply with multiline body from stdin
+echo "Addressed this by..." | gh ghent reply --pr 42 --thread PRRT_abc123 --body-file -
+
+# Reply and get JSON confirmation
+gh ghent reply --pr 42 --thread PRRT_abc123 --body "Done" --format json
+```
+
+**Output (JSON example):**
+```json
+{
+  "thread_id": "PRRT_abc123",
+  "comment_id": 12345678,
+  "url": "https://github.com/owner/repo/pull/42#discussion_r12345678",
+  "body": "Fixed in commit abc123",
+  "created_at": "2026-02-22T10:00:00Z"
+}
+```
+
+**Exit codes:**
+- `0` — Reply posted successfully
+- `1` — Thread not found or `viewerCanReply` is false
+- `2` — Error (API failure, auth, missing permissions)
+
+**Acceptance criteria:**
+- [ ] FR-REP-01: `--thread` + `--body` posts reply to correct thread
+- [ ] FR-REP-02: `--body-file` reads body from file; `-` reads from stdin
+- [ ] FR-REP-03: Validates `viewerCanReply` before posting; clear error if false
+- [ ] FR-REP-04: Output includes comment URL for cross-referencing
+- [ ] FR-REP-05: JSON/XML/MD output formats work correctly
+- [ ] FR-REP-06: Markdown in body is preserved (not escaped)
+- [ ] FR-REP-07: Mutually exclusive: `--body` and `--body-file` cannot both be set
+
+**API note:** The REST API endpoint `POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies` is used rather than GraphQL because it's simpler for single-comment replies and doesn't require creating a review object. The `comment_id` is the numeric ID of the last comment in the thread (available from the GraphQL thread fetch as the `databaseId` field on comment nodes).
+
+> **REST reply endpoint:** `docs/github-api-research.md` §8 (Review Comments)
+> **GraphQL viewerCanReply field:** `docs/github-api-research.md` §5 (Key Types)
+
+### 6.6 Summary Command (`gh ghent summary`)
 
 **Purpose:** Dashboard overview of entire PR state — threads, checks, approvals in one view.
 
@@ -485,7 +550,7 @@ checks:
 
 > **TUI mockup:** `docs/tui-mockups.html` — summary tab
 
-### 6.6 Watch Mode (`--watch` flag on `checks`)
+### 6.7 Watch Mode (`--watch` flag on `checks`)
 
 **Purpose:** Poll CI checks until all complete, with fail-fast behavior.
 
@@ -513,7 +578,7 @@ checks:
 > **TUI mockup:** `docs/tui-mockups.html` — checks --watch tab
 > **Auto-refresh pattern:** `docs/vivecaka-large-pr-patterns-research.md` §11
 
-### 6.7 Output Formats (`--format` flag, pipe mode)
+### 6.8 Output Formats (`--format` flag, pipe mode)
 
 **Three formats for non-TTY/pipe mode:**
 
@@ -600,7 +665,7 @@ Goal: Minimal binary that installs as a gh extension, responds to commands, dete
 | Task | Description | Depends On | Parallel With |
 |------|------------|------------|---------------|
 | 1.1 | Repository scaffold (go.mod, Makefile, linter, hooks, CI, scripts stubs) | — | — |
-| 1.2 | Cobra CLI skeleton (root + 4 subcommands, global flags, TTY detection) | 1.1 | 1.3 |
+| 1.2 | Cobra CLI skeleton (root + 5 subcommands, global flags, TTY detection) | 1.1 | 1.3 |
 | 1.3 | Domain types and port interfaces (ReviewThread, CheckRun, Annotation, ports) | 1.1 | 1.2 |
 | 1.4 | GitHub API client wiring (go-gh DefaultGraphQLClient + DefaultRESTClient) | 1.1, 1.3 | — |
 
@@ -617,9 +682,10 @@ Goal: Each command works end-to-end in pipe mode. Every task delivers a fully te
 | 2.2 | `gh ghent checks` — REST check runs/annotations + status aggregation + formatters | Phase 1 | 2.1 |
 | 2.3 | `gh ghent checks --logs` — REST job log fetch + integrate into checks output | 2.2 | — |
 | 2.4 | `gh ghent resolve` — GraphQL resolve/unresolve mutations + pipe mode (--thread/--all) | 2.1 | 2.3 |
-| 2.5 | `gh ghent summary` — aggregate comments + checks data + formatters + Cobra wiring | 2.1, 2.2 | — |
+| 2.5 | `gh ghent reply` — REST reply to review thread + pipe mode (--thread/--body) | 2.1 | 2.4 |
+| 2.6 | `gh ghent summary` — aggregate comments + checks data + formatters + Cobra wiring | 2.1, 2.2 | — |
 
-**PRD sections needed:** §6.2-6.5 (commands), §6.7 (formats)
+**PRD sections needed:** §6.2-6.6 (commands), §6.8 (formats)
 **Verification:** L1 + L3 + L5 per task (run actual binary, verify JSON with jq, check exit codes)
 
 ### Phase 3: CLI Polish
@@ -633,7 +699,7 @@ Goal: Watch mode works in pipe, error handling is robust, extension is installab
 | 3.3 | Extension packaging — gh-extension-precompile action, test install flow | 3.1, 3.2 | 3.4 |
 | 3.4 | README + --help text + usage examples for all commands | Phase 2 | 3.3 |
 
-**PRD sections needed:** §6.6 (Watch Mode), §7 (NFRs)
+**PRD sections needed:** §6.7 (Watch Mode), §7 (NFRs)
 **Verification:** L1 + L3 + L5 (full agent workflow tests)
 
 > **Milestone: CLI complete.** After Phase 3, the CLI is fully functional, tested, and publishable.
@@ -730,5 +796,6 @@ Goal: All interactive views working per mockups.
 
 | Date | Version | Change |
 |------|---------|--------|
+| 2026-02-22 | 1.2 | Added `gh ghent reply` command (§6.5), renumbered §6.6-6.8, added Phase 2 task 2.5 |
 | 2026-02-22 | 1.1 | Added Bubble Tea TUI, summary command, updated phases and architecture |
 | 2026-02-22 | 1.0 | Initial PRD (incorrectly omitted TUI — corrected in v1.1) |
