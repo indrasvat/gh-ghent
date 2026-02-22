@@ -8,8 +8,8 @@
 ghent (`gh-ghent`) is a GitHub CLI extension for agentic PR monitoring.
 Interactive Bubble Tea TUI for humans, structured output (md/json/xml) for AI agents.
 
-Go 1.26 | go-gh v2.13.0 | Cobra v1.10+ | Bubble Tea v1.3+ | Lipgloss v1.1+
-golangci-lint v2.9.0 | lefthook 2.1.1 | GoReleaser v2
+Go 1.26 | go-gh v2.13.0 | Cobra v1.10+ | Bubble Tea v1.3+ | Lipgloss v1.1.x
+golangci-lint v2.9.0 | lefthook 2.1.1 | gh-extension-precompile v2
 
 - PRD: `docs/PRD.md`
 - Progress: `docs/PROGRESS.md`
@@ -125,6 +125,7 @@ These bugs were discovered in yukti/vivecaka. Apply preventively:
 4. **ANSI bleed:** add explicit `\033[0m` resets between styled elements
 5. **Switch shadowing:** `switch typedMsg := msg.(type)` + reassign to outer var
 6. **AVOID `lipgloss.Width()`** on inner modal elements — causes padding bleed
+7. **WindowSizeMsg:** propagate to ALL sub-models (active AND inactive), not just current view — prevents garbled layout on view switch
 
 > Full list with code examples: `docs/testing-strategy.md` §7
 

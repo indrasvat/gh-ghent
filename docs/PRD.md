@@ -112,19 +112,23 @@ Current workflow requires agents to scrape `gh pr view` output or make raw API c
 
 ## 4. Technology Stack
 
+> **Naming convention:** The GitHub repository is `indrasvat/ghent` (not `gh-ghent`). The compiled
+> binary is named `gh-ghent` to satisfy the `gh` extension naming requirement. The `gh-extension-precompile`
+> action handles the binary naming convention (`gh-ghent-<os>-<arch>`) automatically. Users install via
+> `gh extension install indrasvat/ghent` and invoke via `gh ghent <subcommand>`.
+
 | Component | Choice | Version | Rationale |
 |-----------|--------|---------|-----------|
 | Language | Go | 1.26 | gh CLI is Go; go-gh SDK is Go-native |
 | GitHub SDK | go-gh | v2.13.0 | Official SDK, inherited auth, API clients |
 | CLI framework | Cobra | v1.10+ | Standard for Go CLIs; matches our conventions |
 | **TUI framework** | **Bubble Tea** | **v1.3+** | **Elm architecture, proven by gh-dash** |
-| **TUI styling** | **Lipgloss** | **v1.1+** | **Declarative terminal styling** |
+| **TUI styling** | **Lipgloss** | **v1.1.x** | **Declarative terminal styling** |
 | **TUI components** | **Bubbles** | **latest** | **list, viewport, spinner, key bindings** |
 | Linter | golangci-lint | v2.9.0 | Curated linter set; v2 for latest rules |
 | Formatter | gofumpt | latest | Stricter than gofmt; consistent style |
 | Git hooks | lefthook | 2.1.1 | Pre-push → `make ci` |
-| Release | GoReleaser | v2 | Cross-compilation, changelog, checksums |
-| Distribution | gh-extension-precompile | v2 | GitHub Action for extension releases |
+| Release | gh-extension-precompile | v2 | GitHub Action; handles `gh-ghent-<os>-<arch>` naming + checksums |
 | Testing | stdlib + go-cmp | latest | No testify; table-driven tests |
 
 > **Full SDK details:** `docs/gh-extensions-support-research.md` §4 (go-gh library), §5 (API access), §6 (auth)
@@ -595,7 +599,7 @@ Goal: Minimal binary that installs as a gh extension, responds to commands, dete
 
 | Task | Description | Depends On | Parallel With |
 |------|------------|------------|---------------|
-| 1.1 | Repository scaffold (go.mod, Makefile, linter, hooks, GoReleaser, CI) | — | — |
+| 1.1 | Repository scaffold (go.mod, Makefile, linter, hooks, CI, scripts stubs) | — | — |
 | 1.2 | Cobra CLI skeleton (root + 4 subcommands, global flags, TTY detection) | 1.1 | 1.3 |
 | 1.3 | Domain types and port interfaces (ReviewThread, CheckRun, Annotation, ports) | 1.1 | 1.2 |
 | 1.4 | GitHub API client wiring (go-gh DefaultGraphQLClient + DefaultRESTClient) | 1.1, 1.3 | — |
@@ -626,7 +630,7 @@ Goal: Watch mode works in pipe, error handling is robust, extension is installab
 |------|------------|------------|---------------|
 | 3.1 | Watch mode (pipe) — poll loop, fail-fast logic, `--watch` flag on checks | Phase 2 | 3.2 |
 | 3.2 | Error handling hardening — rate limits, auth errors, network timeouts | Phase 2 | 3.1 |
-| 3.3 | Extension packaging — GoReleaser config, gh-extension-precompile action | 3.1, 3.2 | 3.4 |
+| 3.3 | Extension packaging — gh-extension-precompile action, test install flow | 3.1, 3.2 | 3.4 |
 | 3.4 | README + --help text + usage examples for all commands | Phase 2 | 3.3 |
 
 **PRD sections needed:** §6.6 (Watch Mode), §7 (NFRs)

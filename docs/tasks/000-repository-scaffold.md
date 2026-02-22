@@ -14,7 +14,7 @@ ghent needs a Go project skeleton with build tooling, linting, git hooks, and re
 
 ## PRD Reference
 
-- §4 (Technology Stack) — Go 1.26, go-gh v2.13.0, Cobra v1.10+, Bubble Tea v1.3+, Lipgloss v1.1+, Bubbles, golangci-lint v2.9.0, lefthook 2.1.1, GoReleaser v2
+- §4 (Technology Stack) — Go 1.26, go-gh v2.13.0, Cobra v1.10+, Bubble Tea v1.3+, Lipgloss v1.1.x, Bubbles, golangci-lint v2.9.0, lefthook 2.1.1, gh-extension-precompile v2
 - §5.1 (Directory Structure) — full directory layout including tui/ package
 
 ## Research References
@@ -22,7 +22,7 @@ ghent needs a Go project skeleton with build tooling, linting, git hooks, and re
 - `docs/go-project-patterns-research.md` §5 — Comprehensive Makefile with all targets
 - `docs/go-project-patterns-research.md` §9 — golangci-lint v2 configuration
 - `docs/go-project-patterns-research.md` §8 — lefthook configuration
-- `docs/go-project-patterns-research.md` §10 — GoReleaser v2 configuration
+- `docs/go-project-patterns-research.md` §10 — GoReleaser patterns (reference only; using gh-extension-precompile instead)
 - `docs/popular-extensions-research.md` §13 — gh-extension-precompile GitHub Action
 - `docs/gh-extensions-support-research.md` §3 — Precompiled binary distribution
 
@@ -34,9 +34,10 @@ ghent needs a Go project skeleton with build tooling, linting, git hooks, and re
 - `Makefile` — Full target set per CLAUDE.md
 - `.golangci.yml` — Curated linter set for golangci-lint v2
 - `lefthook.yml` — Pre-push hook → `make ci`
-- `.goreleaser.yml` — Cross-compilation for 5 platform targets
 - `.github/workflows/ci.yml` — Lint + test on push/PR
-- `.github/workflows/release.yml` — GoReleaser on tag push
+- `.github/workflows/release.yml` — `gh-extension-precompile` on tag push (handles binary naming for gh extensions)
+
+Note: Use `gh-extension-precompile` (not GoReleaser) for release binaries. It auto-handles the `gh-ghent-<os>-<arch>` naming convention. GoReleaser is NOT needed — precompile covers cross-compilation + checksums.
 
 ## Files to Modify
 
@@ -67,7 +68,12 @@ ghent needs a Go project skeleton with build tooling, linting, git hooks, and re
 
 ### Step 6: Create CI workflows
 
-### Step 7: Update .gitignore
+### Step 7: Create scripts/ stubs and testdata/
+- `scripts/test-binary.sh` — minimal L3 stub: builds binary, runs `gh-ghent --version`, checks exit 0
+- `scripts/test-agent-workflow.sh` — minimal L5 stub: placeholder that exits 0
+- `testdata/` — empty directory with `.gitkeep` (fixtures added in Phase 2)
+
+### Step 8: Update .gitignore
 
 ## Verification
 
@@ -99,7 +105,7 @@ feat(scaffold): initialize repository with build tooling
 
 - Go module with go-gh v2, Cobra, Bubble Tea, Lipgloss dependencies
 - Comprehensive Makefile with ci, lint, test, build targets
-- golangci-lint v2, lefthook, GoReleaser v2 configs
+- golangci-lint v2, lefthook, gh-extension-precompile configs
 - GitHub Actions CI and release workflows
 ```
 
