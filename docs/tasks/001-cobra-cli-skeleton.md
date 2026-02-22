@@ -58,7 +58,7 @@ ghent needs a Cobra command tree with root, comments, checks, resolve, reply, an
 ### Step 5: Update main.go with ldflags
 
 ### Step 6: Unit tests
-- Root has 4 subcommands
+- Root has 5 subcommands
 - `--version` works
 - Global flags accessible from subcommands
 - TTY detection logic
@@ -105,7 +105,7 @@ feat(cli): add Cobra command skeleton with TTY detection
 1. Read CLAUDE.md
 2. Read this task file
 3. **Change this task's status to `IN PROGRESS`**
-4. Read PRD §5.2, §6.1-6.5
+4. Read PRD §5.2, §6.1-6.6
 5. Read `docs/go-project-patterns-research.md` §4
 6. Execute steps 1-6
 7. Run verification (L1 → L3)

@@ -41,14 +41,17 @@ ghent needs domain types (ReviewThread, CheckRun, Annotation, ReplyResult, etc.)
 2. Read `docs/github-api-research.md` §1, §5, §6
 
 ### Step 2: Define review thread types
-- ReviewThread, Comment, CommentsResult
+- ReviewThread: ID, Path, Line, DiffSide, IsResolved, IsOutdated, ViewerCanResolve, ViewerCanUnresolve, ViewerCanReply, Comments
+- Comment: ID, DatabaseID (int64 — needed by REST reply endpoint), Author, Body, CreatedAt, URL
+- CommentsResult: Threads, ResolvedCount, UnresolvedCount
 
 ### Step 3: Define check run types
 - CheckRun, Annotation, OverallStatus, ChecksResult
 - AggregateStatus: fail > pending > pass
 
-### Step 4: Define summary type
-- SummaryResult combining threads + checks + approvals
+### Step 4: Define review/approval type
+- Review: ID, Author, State (APPROVED/CHANGES_REQUESTED/COMMENTED/PENDING), Body, SubmittedAt
+- SummaryResult combining threads + checks + reviews/approvals
 
 ### Step 4b: Define reply result type
 - ReplyResult: ThreadID, CommentID, URL, Body, CreatedAt
@@ -69,8 +72,10 @@ make test
 ## Completion Criteria
 
 1. All domain types defined with correct JSON tags
-2. Port interfaces defined (ThreadFetcher, CheckFetcher, ThreadResolver, ThreadReplier, Formatter)
-3. AggregateStatus tested: fail > pending > pass
+2. Port interfaces defined (ThreadFetcher, CheckFetcher, ThreadResolver, ThreadReplier, ReviewFetcher, Formatter)
+3. Comment has DatabaseID field (int64, for REST reply endpoint)
+4. Review type with APPROVED/CHANGES_REQUESTED/COMMENTED/PENDING states
+5. AggregateStatus tested: fail > pending > pass
 4. `make ci` passes
 5. PROGRESS.md updated
 
@@ -79,9 +84,9 @@ make test
 ```
 feat(domain): add review thread, check run types and port interfaces
 
-- ReviewThread, Comment, CheckRun, Annotation, ReplyResult domain types
+- ReviewThread (with ViewerCanReply, IsOutdated), Comment (with DatabaseID), CheckRun, Annotation, ReplyResult, Review domain types
 - CommentsResult, ChecksResult, SummaryResult wrapper types
-- Port interfaces for all adapters (including ThreadReplier)
+- Port interfaces for all adapters (ThreadFetcher, CheckFetcher, ThreadResolver, ThreadReplier, ReviewFetcher)
 - AggregateStatus with fail > pending > pass precedence
 ```
 

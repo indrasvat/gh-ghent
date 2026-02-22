@@ -36,12 +36,13 @@ ghent needs a Go project skeleton with build tooling, linting, git hooks, and re
 - `lefthook.yml` — Pre-push hook → `make ci`
 - `.github/workflows/ci.yml` — Lint + test on push/PR
 - `.github/workflows/release.yml` — `gh-extension-precompile` on tag push (handles binary naming for gh extensions)
+- `.claude/automations/.gitkeep` — Empty dir for iterm2-driver L4 test scripts (created in later tasks)
 
 Note: Use `gh-extension-precompile` (not GoReleaser) for release binaries. It auto-handles the `gh-ghent-<os>-<arch>` naming convention. GoReleaser is NOT needed — precompile covers cross-compilation + checksums.
 
 ## Files to Modify
 
-- `.gitignore` — Add Go entries (bin/, dist/, coverage/)
+- `.gitignore` — Add Go entries (bin/, dist/, coverage/, .claude/screenshots/)
 
 ## Execution Steps
 
@@ -63,6 +64,7 @@ Note: Use `gh-extension-precompile` (not GoReleaser) for release binaries. It au
 - All targets listed in CLAUDE.md
 - Binary output to `bin/gh-ghent`
 - Version injection via ldflags
+- Include ALL testing targets from `docs/testing-strategy.md` §9: `test`, `test-race`, `coverage`, `test-integration`, `test-binary`, `test-visual`, `test-agent`, `test-all`, `ci`
 
 ### Step 5: Create linter, hooks, release configs
 
@@ -115,7 +117,7 @@ feat(scaffold): initialize repository with build tooling
 2. Read this task file
 3. **Change this task's status to `IN PROGRESS`**
 4. Read PRD §4, §5.1
-5. Read `docs/go-project-patterns-research.md` §3-4, §6, §8
+5. Read `docs/go-project-patterns-research.md` §5, §8, §9
 6. Execute steps 1-7
 7. Run verification (L1 → L3)
 8. **Change this task's status to `DONE`** (or `BLOCKED` with details in PROGRESS.md)
