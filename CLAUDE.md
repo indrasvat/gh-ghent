@@ -151,4 +151,5 @@ These bugs were discovered in yukti/vivecaka. Apply preventively:
 > **STRICT RULE:** Update this section at the end of every coding session.
 > Format: `- **YYYY-MM-DD (task NNN):** [concrete, actionable insight]`
 
-(No entries yet — project is in pre-implementation phase)
+- **2026-02-22 (task 000):** goimports requires blank line between external (`github.com/spf13/cobra`) and internal (`github.com/indrasvat/ghent/...`) imports — golangci-lint v2 enforces this via the `local-prefixes` setting
+- **2026-02-22 (task 000):** go-gh v2.13.0 pins lipgloss to a pre-release commit (`v1.1.1-0.20250319...`), not `@latest` — always let go-gh's version win for lipgloss

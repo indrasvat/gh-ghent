@@ -8,9 +8,9 @@
 | Field | Value |
 |-------|-------|
 | **Current Phase** | Phase 1: Walking Skeleton |
-| **Current Task** | `docs/tasks/000-repository-scaffold.md` |
+| **Current Task** | `docs/tasks/001-cobra-cli-skeleton.md` |
 | **Blocker** | None |
-| **Last Action** | Created all 28 task files (Phases 1-6), PRD v1.2 |
+| **Last Action** | Task 1.1: Repository scaffold — DONE |
 | **Last Updated** | 2026-02-22 |
 
 ## How to Resume
@@ -25,7 +25,7 @@
 ## Phase Progress
 
 ### Phase 1: Walking Skeleton
-- [ ] Task 1.1: Repository scaffold → `docs/tasks/000-repository-scaffold.md`
+- [x] Task 1.1: Repository scaffold → `docs/tasks/000-repository-scaffold.md`
 - [ ] Task 1.2: Cobra CLI skeleton → `docs/tasks/001-cobra-cli-skeleton.md`
 - [ ] Task 1.3: Domain types and port interfaces → `docs/tasks/002-domain-types.md`
 - [ ] Task 1.4: GitHub API client wiring → `docs/tasks/003-github-api-client.md`
@@ -72,6 +72,19 @@
 (None currently)
 
 ## Session Log
+
+### 2026-02-22 (Task 1.1: Repository scaffold)
+- Initialized Go module (github.com/indrasvat/ghent, Go 1.26)
+- Created minimal main.go → cli.Execute() → Cobra root command
+- Created internal/version package with ldflags injection
+- Created Makefile with full target set (build, test, lint, ci, ci-fast, etc.)
+- Created .golangci.yml (golangci-lint v2, 12 linters + goimports)
+- Created lefthook.yml (pre-push → make ci)
+- Created GitHub Actions: ci.yml (push/PR) + release.yml (gh-extension-precompile)
+- Created script stubs: test-binary.sh (L3), test-agent-workflow.sh (L5)
+- Updated .gitignore with bin/, coverage/, debug artifacts
+- Verification: `make build` ✓, `--help` ✓, `--version` ✓, `make ci` ✓
+- Note: go-gh, bubbletea, lipgloss, bubbles, go-cmp not yet in go.mod (unused); will appear in Tasks 1.2-1.4
 
 ### 2026-02-22 (Pre-implementation, session 3)
 - Created all 24 remaining task files (004-027) for Phases 2-6

@@ -1,6 +1,6 @@
 # Task 1.1: Repository Scaffold
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - None (first task)

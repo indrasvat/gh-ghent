@@ -1,0 +1,53 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/indrasvat/ghent
+
+linters:
+  enable:
+    # Core quality
+    - errcheck
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+    # Style
+    - misspell
+    # Bugs
+    - bodyclose
+    - nilerr
+    # Modern Go
+    - noctx
+    - gocritic
+    # Error handling
+    - errorlint
+    # Security
+    - gosec
+
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Printf
+        - (io.Closer).Close
+    gosec:
+      excludes:
+        - G104
+        - G304
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck

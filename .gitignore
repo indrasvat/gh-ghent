@@ -33,7 +33,22 @@ go.work.sum
 .idea/
 .vscode/
 
+# Build output
+bin/
 dist/
+gh-ghent
+
+# Coverage
+coverage/
+
+# Debug
+__debug_bin*
+
+# Temp
+*.tmp
+*~
+*.swp
+Thumbs.db
 
 .local/
 .codemap/
