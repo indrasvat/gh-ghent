@@ -34,10 +34,27 @@ func (f *MarkdownFormatter) FormatComments(w io.Writer, result *domain.CommentsR
 
 func (f *MarkdownFormatter) FormatChecks(w io.Writer, result *domain.ChecksResult) error {
 	fmt.Fprintf(w, "# PR #%d — Check Runs\n\n", result.PRNumber)
-	fmt.Fprintf(w, "**Status:** %s | **Pass:** %d | **Fail:** %d | **Pending:** %d\n",
+	fmt.Fprintf(w, "**Status:** %s | **Pass:** %d | **Fail:** %d | **Pending:** %d\n\n",
 		result.OverallStatus, result.PassCount, result.FailCount, result.PendingCount)
+	fmt.Fprintf(w, "| Check | Status | Conclusion |\n")
+	fmt.Fprintf(w, "|-------|--------|------------|\n")
 	for _, ch := range result.Checks {
-		fmt.Fprintf(w, "\n- **%s** — %s (%s)\n", ch.Name, ch.Conclusion, ch.Status)
+		conclusion := ch.Conclusion
+		if conclusion == "" {
+			conclusion = "-"
+		}
+		fmt.Fprintf(w, "| %s | %s | %s |\n", ch.Name, ch.Status, conclusion)
+	}
+
+	// Annotations for failed checks
+	for _, ch := range result.Checks {
+		if len(ch.Annotations) == 0 {
+			continue
+		}
+		fmt.Fprintf(w, "\n### %s — Annotations\n\n", ch.Name)
+		for _, a := range ch.Annotations {
+			fmt.Fprintf(w, "- **%s** `%s:%d` — %s\n", a.AnnotationLevel, a.Path, a.StartLine, a.Message)
+		}
 	}
 	return nil
 }
@@ -47,6 +64,27 @@ func (f *MarkdownFormatter) FormatReply(w io.Writer, result *domain.ReplyResult)
 	fmt.Fprintf(w, "**Thread:** %s\n", result.ThreadID)
 	fmt.Fprintf(w, "**URL:** %s\n\n", result.URL)
 	fmt.Fprintf(w, "> %s\n", result.Body)
+	return nil
+}
+
+func (f *MarkdownFormatter) FormatResolveResults(w io.Writer, result *domain.ResolveResults) error {
+	fmt.Fprintf(w, "# Resolve Results\n\n")
+	fmt.Fprintf(w, "**Success:** %d | **Failed:** %d\n\n", result.SuccessCount, result.FailureCount)
+
+	if len(result.Results) > 0 {
+		fmt.Fprintf(w, "| Thread | File | Line | Action |\n")
+		fmt.Fprintf(w, "|--------|------|------|--------|\n")
+		for _, r := range result.Results {
+			fmt.Fprintf(w, "| %s | %s | %d | %s |\n", r.ThreadID, r.Path, r.Line, r.Action)
+		}
+	}
+
+	if len(result.Errors) > 0 {
+		fmt.Fprintf(w, "\n## Errors\n\n")
+		for _, e := range result.Errors {
+			fmt.Fprintf(w, "- **%s:** %s\n", e.ThreadID, e.Message)
+		}
+	}
 	return nil
 }
 

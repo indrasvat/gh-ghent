@@ -79,32 +79,6 @@ func TestStubsReturnNotImplemented(t *testing.T) {
 		fn   func() error
 	}{
 		{
-			name: "FetchChecks",
-			fn: func() error {
-				_, err := c.FetchChecks(ctx, "owner", "repo", 1)
-				return err
-			},
-		},
-		{
-			name: "ResolveThread",
-			fn: func() error {
-				return c.ResolveThread(ctx, "thread-id")
-			},
-		},
-		{
-			name: "UnresolveThread",
-			fn: func() error {
-				return c.UnresolveThread(ctx, "thread-id")
-			},
-		},
-		{
-			name: "ReplyToThread",
-			fn: func() error {
-				_, err := c.ReplyToThread(ctx, "owner", "repo", 1, "thread-id", "body")
-				return err
-			},
-		},
-		{
 			name: "FetchReviews",
 			fn: func() error {
 				_, err := c.FetchReviews(ctx, "owner", "repo", 1)

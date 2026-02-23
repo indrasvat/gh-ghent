@@ -123,6 +123,29 @@ type ReplyResult struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// ResolveResult represents the result of resolving/unresolving a single thread.
+type ResolveResult struct {
+	ThreadID   string `json:"thread_id"`
+	Path       string `json:"path"`
+	Line       int    `json:"line"`
+	IsResolved bool   `json:"is_resolved"`
+	Action     string `json:"action"` // "resolved" or "unresolved"
+}
+
+// ResolveError records a per-thread resolution failure.
+type ResolveError struct {
+	ThreadID string `json:"thread_id"`
+	Message  string `json:"message"`
+}
+
+// ResolveResults wraps results from one or more resolve/unresolve operations.
+type ResolveResults struct {
+	Results      []ResolveResult `json:"results"`
+	SuccessCount int             `json:"success_count"`
+	FailureCount int             `json:"failure_count"`
+	Errors       []ResolveError  `json:"errors,omitempty"`
+}
+
 // SummaryResult combines all PR data for the summary command.
 type SummaryResult struct {
 	PRNumber     int            `json:"pr_number"`

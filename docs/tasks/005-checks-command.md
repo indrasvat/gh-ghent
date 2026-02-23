@@ -1,6 +1,6 @@
 # Task 2.2: Checks Command (`gh ghent checks`)
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Phase 1 complete (all of tasks 1.1-1.4)

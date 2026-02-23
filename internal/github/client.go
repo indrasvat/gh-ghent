@@ -66,21 +66,9 @@ var (
 	_ domain.ReviewFetcher  = (*Client)(nil)
 )
 
-func (c *Client) FetchChecks(ctx context.Context, owner, repo string, pr int) (*domain.ChecksResult, error) {
-	return nil, fmt.Errorf("FetchChecks: not implemented")
-}
+// ResolveThread and UnresolveThread are implemented in resolve.go.
 
-func (c *Client) ResolveThread(ctx context.Context, threadID string) error {
-	return fmt.Errorf("ResolveThread: not implemented")
-}
-
-func (c *Client) UnresolveThread(ctx context.Context, threadID string) error {
-	return fmt.Errorf("UnresolveThread: not implemented")
-}
-
-func (c *Client) ReplyToThread(ctx context.Context, owner, repo string, pr int, threadID, body string) (*domain.ReplyResult, error) {
-	return nil, fmt.Errorf("ReplyToThread: not implemented")
-}
+// ReplyToThread is implemented in reply.go.
 
 func (c *Client) FetchReviews(ctx context.Context, owner, repo string, pr int) ([]domain.Review, error) {
 	return nil, fmt.Errorf("FetchReviews: not implemented")

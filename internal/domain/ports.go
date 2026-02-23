@@ -17,8 +17,8 @@ type CheckFetcher interface {
 
 // ThreadResolver resolves or unresolves review threads.
 type ThreadResolver interface {
-	ResolveThread(ctx context.Context, threadID string) error
-	UnresolveThread(ctx context.Context, threadID string) error
+	ResolveThread(ctx context.Context, threadID string) (*ResolveResult, error)
+	UnresolveThread(ctx context.Context, threadID string) (*ResolveResult, error)
 }
 
 // ThreadReplier posts replies to review threads.
@@ -36,5 +36,6 @@ type Formatter interface {
 	FormatComments(w io.Writer, result *CommentsResult) error
 	FormatChecks(w io.Writer, result *ChecksResult) error
 	FormatReply(w io.Writer, result *ReplyResult) error
+	FormatResolveResults(w io.Writer, result *ResolveResults) error
 	FormatSummary(w io.Writer, result *SummaryResult) error
 }

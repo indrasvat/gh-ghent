@@ -22,6 +22,10 @@ func (f *JSONFormatter) FormatReply(w io.Writer, result *domain.ReplyResult) err
 	return encodeJSON(w, result)
 }
 
+func (f *JSONFormatter) FormatResolveResults(w io.Writer, result *domain.ResolveResults) error {
+	return encodeJSON(w, result)
+}
+
 func (f *JSONFormatter) FormatSummary(w io.Writer, result *domain.SummaryResult) error {
 	return encodeJSON(w, result)
 }
