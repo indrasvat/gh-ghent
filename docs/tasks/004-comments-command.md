@@ -92,13 +92,23 @@ ghent needs its first real command: `gh ghent comments` fetches unresolved PR re
 make test
 ```
 
-### L3: Binary Execution
+### L3: Binary Execution (real repos)
 ```bash
 make build
-./bin/gh-ghent comments --pr 1 --format json | jq .    # Valid JSON
-./bin/gh-ghent comments --pr 1 --format xml             # Well-formed XML
-./bin/gh-ghent comments --pr 1 --format md               # Readable markdown
-./bin/gh-ghent comments --pr 1 | cat                     # No ANSI codes
+
+# tbgs PR #1 — 2 unresolved review threads (best test target)
+./bin/gh-ghent comments -R indrasvat/tbgs --pr 1 --format json | jq .
+./bin/gh-ghent comments -R indrasvat/tbgs --pr 1 --format xml
+./bin/gh-ghent comments -R indrasvat/tbgs --pr 1 --format md
+
+# peek-it PR #1 — 1 unresolved thread
+./bin/gh-ghent comments -R indrasvat/peek-it --pr 1 --format json | jq '.unresolved_count'
+
+# doot PR #1 — 1 resolved thread (exit code 0)
+./bin/gh-ghent comments -R indrasvat/doot --pr 1 --format json; echo "exit: $?"
+
+# No ANSI codes in pipe
+./bin/gh-ghent comments -R indrasvat/tbgs --pr 1 | cat
 ```
 
 ### L4: Visual (iterm2-driver)

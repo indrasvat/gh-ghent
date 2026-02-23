@@ -82,16 +82,46 @@ ghent needs `gh ghent checks` to fetch CI check runs and annotations via REST AP
 make test
 ```
 
-### L3: Binary Execution
+### L3: Binary Execution (real repos)
+
+Test against real PRs with known check states:
+
 ```bash
 make build
-./bin/gh-ghent checks --pr 1 --format json | jq .
-./bin/gh-ghent checks --pr 1 --format json | jq '.overall_status'
+
+# Failing checks — multiple failures + annotations
+./bin/gh-ghent checks -R indrasvat/peek-it --pr 2 --format json | jq .
+# Expected: overall_status "failure", Lint fail, Test fail, some cancelled
+
+# Failing checks — format failure only
+./bin/gh-ghent checks -R indrasvat/visarga --pr 1 --format json | jq '.overall_status'
+# Expected: "failure" (Format check fails, others skipped)
+
+# Passing checks
+./bin/gh-ghent checks -R indrasvat/doot --pr 1 --format json | jq .
+# Expected: overall_status "pass", 1 check (make ci python 3.14)
+
+# All formats
+./bin/gh-ghent checks -R indrasvat/querylastic --pr 1 --format md
+./bin/gh-ghent checks -R indrasvat/context-lens --pr 1 --format xml
 ```
+
+**Real repo test matrix:**
+
+| Repo | PR | Expected Status | Checks |
+|------|-----|----------------|--------|
+| `indrasvat/peek-it` | #2 | failure | Lint fail, Test fail, cancelled, Build pass |
+| `indrasvat/visarga` | #1 | failure | Format fail, 3 skipped |
+| `indrasvat/querylastic` | #1 | failure | CI Pipeline fail, Security Scan fail |
+| `indrasvat/context-lens` | #1 | failure | build-and-test fail, lint/format pass |
+| `indrasvat/doot` | #1 | pass | make ci (python 3.14) pass |
+| `indrasvat/tbgs` | #1 | pass | checks pass |
 
 ### L5: Agent Workflow
 ```bash
-./bin/gh-ghent checks --pr 1 --format json; echo "exit: $?"
+# Exit code reflects check status
+./bin/gh-ghent checks -R indrasvat/doot --pr 1 --format json; echo "exit: $?"        # 0
+./bin/gh-ghent checks -R indrasvat/peek-it --pr 2 --format json; echo "exit: $?"     # 1
 ```
 
 ## Completion Criteria

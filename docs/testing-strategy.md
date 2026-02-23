@@ -400,7 +400,7 @@ async def test_comments(session):
     await asyncio.sleep(3.0)
 
     # Run comments command
-    await session.async_send_text("gh ghent comments -R indrasvat/test-repo --pr 1\n")
+    await session.async_send_text("gh ghent comments -R indrasvat/tbgs --pr 1\n")
     await asyncio.sleep(2.0)
 
     # Verify header
@@ -436,7 +436,7 @@ async def test_comments(session):
 async def test_checks(session):
     """Verify gh ghent checks output."""
 
-    await session.async_send_text("gh ghent checks -R indrasvat/test-repo --pr 1\n")
+    await session.async_send_text("gh ghent checks -R indrasvat/tbgs --pr 1\n")
     await asyncio.sleep(2.0)
 
     # Verify status indicators are present
@@ -464,7 +464,7 @@ async def test_checks(session):
 async def test_watch_mode(session):
     """Verify --watch mode with auto-refresh."""
 
-    await session.async_send_text("gh ghent checks --watch --interval 5 -R indrasvat/test-repo --pr 1\n")
+    await session.async_send_text("gh ghent checks --watch --interval 5 -R indrasvat/tbgs --pr 1\n")
     await asyncio.sleep(3.0)
 
     # Capture initial state
@@ -499,7 +499,7 @@ async def test_json_output(session):
     """Verify JSON output is valid (no ANSI codes, parseable)."""
 
     await session.async_send_text(
-        "gh ghent comments -R indrasvat/test-repo --pr 1 --format json > /tmp/ghent_test.json 2>&1; "
+        "gh ghent comments -R indrasvat/tbgs --pr 1 --format json > /tmp/ghent_test.json 2>&1; "
         "echo EXIT_CODE=$?\n"
     )
     await asyncio.sleep(3.0)
@@ -531,7 +531,7 @@ async def test_json_output(session):
 async def test_layout_integrity(session):
     """Verify box-drawing characters and alignment."""
 
-    await session.async_send_text("gh ghent comments -R indrasvat/test-repo --pr 1\n")
+    await session.async_send_text("gh ghent comments -R indrasvat/tbgs --pr 1\n")
     await asyncio.sleep(2.0)
 
     # Check box-drawing character connectivity
@@ -855,8 +855,8 @@ from datetime import datetime
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SCREENSHOT_DIR = os.path.join(PROJECT_ROOT, ".claude", "screenshots")
 TIMEOUT_SECONDS = 5.0
-TEST_REPO = "indrasvat/ghent"  # Repo with known PRs for testing
-TEST_PR = "1"  # PR number with review threads
+TEST_REPO = "indrasvat/tbgs"  # Repo with 2 unresolved review threads on PR #1
+TEST_PR = "1"  # PR with review threads + passing checks
 
 # ============================================================
 # RESULT TRACKING

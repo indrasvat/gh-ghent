@@ -85,12 +85,30 @@ All commands need robust error handling: rate limit awareness, auth errors, netw
 make test
 ```
 
-### L3: Binary Execution
+### L3: Binary Execution (real repos + error cases)
 ```bash
 make build
-# Test with invalid repo
+
+# Invalid repo → NotFoundError
 ./bin/gh-ghent comments --pr 1 -R nonexistent/repo; echo "exit: $?"
-# Should show user-friendly error, exit 2
+# Expected: user-friendly "not found" message, exit 2
+
+# Invalid PR number → NotFoundError
+./bin/gh-ghent comments --pr 99999 -R indrasvat/tbgs; echo "exit: $?"
+# Expected: "PR #99999 not found", exit 2
+
+# Missing --pr flag
+./bin/gh-ghent comments -R indrasvat/tbgs; echo "exit: $?"
+# Expected: "--pr flag is required", exit 2
+
+# Valid request (should still work after hardening)
+./bin/gh-ghent comments -R indrasvat/tbgs --pr 1 --format json | python3 -m json.tool > /dev/null
+echo "exit: $?"
+# Expected: valid JSON, exit 1 (has unresolved)
+
+# Rate limit check (inspect stderr for warnings)
+./bin/gh-ghent comments -R indrasvat/tbgs --pr 1 --format json 2>/tmp/ghent_stderr.txt
+cat /tmp/ghent_stderr.txt  # Should be empty unless rate limit is low
 ```
 
 ### L4: Visual (iterm2-driver)

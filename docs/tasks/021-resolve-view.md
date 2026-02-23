@@ -81,7 +81,8 @@ Create `.claude/automations/test_ghent_resolve.py` following canonical template 
 uv run .claude/automations/test_ghent_resolve.py
 ```
 Visual assertions:
-- Launch: `gh ghent resolve -R indrasvat/test-repo --pr 1` → TUI renders
+- Launch: `gh ghent resolve -R indrasvat/tbgs --pr 1` → TUI renders (2 unresolved threads with viewerCanResolve=true)
+- **IMPORTANT:** Unresolve threads after testing to restore state
 - Verify: checkboxes visible ([ ] or [x] patterns)
 - Verify: Space toggles checkbox on current item (before/after screenshot)
 - Verify: Enter with selections → confirmation bar visible ("Resolve N threads? [y/N]")

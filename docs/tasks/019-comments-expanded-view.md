@@ -69,7 +69,7 @@ Extend `.claude/automations/test_ghent_comments.py` with expanded view tests:
 ```bash
 uv run .claude/automations/test_ghent_comments.py
 ```
-Visual assertions:
+Visual assertions (use `gh ghent comments -R indrasvat/tbgs --pr 1` — 2 threads with diff hunks):
 - From comments list, press Enter → expanded view renders
 - Verify: diff hunk visible with colored +/- lines (green/red)
 - Verify: all comments shown with author names and timestamps

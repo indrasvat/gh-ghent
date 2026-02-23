@@ -73,12 +73,25 @@ The `--logs` flag on `gh ghent checks` should include failing job log excerpts i
 make test
 ```
 
-### L3: Binary Execution
+### L3: Binary Execution (real repos)
+
 ```bash
 make build
-./bin/gh-ghent checks --pr 1 --logs --format json | jq '.checks[0].log_excerpt'
-./bin/gh-ghent checks --pr 1 --format json | jq '.checks[0].log_excerpt'  # should be null/absent
+
+# Failing checks with logs — peek-it has Lint + Test failures
+./bin/gh-ghent checks -R indrasvat/peek-it --pr 2 --logs --format json | jq '.checks[] | select(.conclusion=="failure") | {name, log_excerpt}'
+
+# Failing checks with logs — querylastic has CI Pipeline + Security Scan failures
+./bin/gh-ghent checks -R indrasvat/querylastic --pr 1 --logs --format json | jq '.checks[0].log_excerpt'
+
+# Without --logs flag, no log_excerpt
+./bin/gh-ghent checks -R indrasvat/peek-it --pr 2 --format json | jq '.checks[0].log_excerpt'  # should be null/absent
+
+# Markdown format shows logs inline
+./bin/gh-ghent checks -R indrasvat/visarga --pr 1 --logs --format md
 ```
+
+**Best repos for log testing:** peek-it #2 (multiple failure types), querylastic #1 (CI + security), visarga #1 (format failure).
 
 ## Completion Criteria
 

@@ -72,17 +72,35 @@
 make test
 ```
 
-### L3: Binary Execution
+### L3: Binary Execution (real repos)
 ```bash
 make build
-./bin/gh-ghent checks --pr 1 --watch --format json  # Watch until done
+
+# Already-complete checks — should return immediately
+./bin/gh-ghent checks -R indrasvat/doot --pr 1 --watch --format json
+# Expected: one status line, exit 0 (all pass, already complete)
+
+# Already-failed checks — should fail-fast immediately
+./bin/gh-ghent checks -R indrasvat/peek-it --pr 2 --watch --format json
+# Expected: one status line, exit 1 (failure detected)
+
+# Ctrl+C test
+./bin/gh-ghent checks -R indrasvat/visarga --pr 1 --watch --format json
 # Ctrl+C should exit cleanly
 ```
+
+**Real repo test matrix:**
+
+| Repo | PR | Watch Behavior | Expected Exit |
+|------|-----|---------------|---------------|
+| `indrasvat/doot` | #1 | Instant complete (all pass) | 0 |
+| `indrasvat/peek-it` | #2 | Instant fail-fast (failures) | 1 |
+| `indrasvat/visarga` | #1 | Instant fail-fast (format fail) | 1 |
 
 ### L5: Agent Workflow
 ```bash
 # Agent waits for CI, acts on result
-./bin/gh-ghent checks --pr 1 --watch --format json
+./bin/gh-ghent checks -R indrasvat/doot --pr 1 --watch --format json
 echo "CI result: $?"
 ```
 

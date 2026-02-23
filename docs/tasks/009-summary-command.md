@@ -79,19 +79,41 @@ ghent needs `gh ghent summary` to aggregate all PR data (threads, checks, approv
 make test
 ```
 
-### L3: Binary Execution
+### L3: Binary Execution (real repos)
+
 ```bash
 make build
-./bin/gh-ghent summary --pr 1 --format json | jq .
-./bin/gh-ghent summary --pr 1 --format json | jq '.merge_ready'
-./bin/gh-ghent summary --pr 1; echo "exit: $?"
+
+# NOT merge-ready: has unresolved threads + passing checks
+./bin/gh-ghent summary -R indrasvat/tbgs --pr 1 --format json | jq .
+# Expected: is_merge_ready=false (2 unresolved threads)
+
+# NOT merge-ready: no threads but failing checks
+./bin/gh-ghent summary -R indrasvat/visarga --pr 1 --format json | jq '{merge_ready: .is_merge_ready, unresolved: .comments.unresolved_count, checks_status: .checks.overall_status}'
+# Expected: is_merge_ready=false (checks failing)
+
+# Passing checks, resolved threads (doot — 1 resolved thread, checks pass)
+./bin/gh-ghent summary -R indrasvat/doot --pr 1 --format json | jq '.is_merge_ready'
+# Expected: true (0 unresolved, checks pass)
+
+# Markdown summary
+./bin/gh-ghent summary -R indrasvat/peek-it --pr 2 --format md
 ```
+
+**Real repo test matrix:**
+
+| Repo | PR | Threads | Checks | Expected Merge Ready |
+|------|-----|---------|--------|---------------------|
+| `indrasvat/tbgs` | #1 | 2 unresolved | pass | **false** (threads) |
+| `indrasvat/visarga` | #1 | 0 | failure | **false** (checks) |
+| `indrasvat/doot` | #1 | 1 resolved | pass | **true** |
+| `indrasvat/peek-it` | #2 | 1 unresolved | failure | **false** (both) |
 
 ### L5: Agent Workflow
 ```bash
 # Agent checks if PR is merge-ready via exit code
-./bin/gh-ghent summary --pr 1 --format json
-if [ $? -eq 0 ]; then echo "READY"; else echo "NOT READY"; fi
+./bin/gh-ghent summary -R indrasvat/doot --pr 1 --format json; echo "exit: $?"    # 0 (ready)
+./bin/gh-ghent summary -R indrasvat/tbgs --pr 1 --format json; echo "exit: $?"    # 1 (not ready)
 ```
 
 ## Completion Criteria

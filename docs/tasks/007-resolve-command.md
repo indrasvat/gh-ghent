@@ -80,13 +80,40 @@ ghent needs `gh ghent resolve` to resolve (or unresolve) review threads via Grap
 make test
 ```
 
-### L3: Binary Execution
+### L3: Binary Execution (real repos)
+
+Test against real PRs with known review threads:
+
 ```bash
 make build
-./bin/gh-ghent resolve --pr 1 --thread PRRT_test123 --format json
-./bin/gh-ghent resolve --pr 1 --all --format json
-./bin/gh-ghent resolve --pr 1 --thread PRRT_test123 --unresolve
+
+# First, list threads to get real thread IDs
+./bin/gh-ghent comments -R indrasvat/tbgs --pr 1 --format json | jq '.threads[] | {id, path, line}'
+# Expected: 2 unresolved threads (PRRT_kwDOQQ76Ts5iIWqn, PRRT_kwDOQQ76Ts5iIWqx)
+
+# Resolve a single thread (use a real thread ID from above)
+./bin/gh-ghent resolve -R indrasvat/tbgs --pr 1 --thread PRRT_kwDOQQ76Ts5iIWqn --format json
+
+# Verify it's resolved
+./bin/gh-ghent comments -R indrasvat/tbgs --pr 1 --format json | jq '.unresolved_count'
+
+# Unresolve it back (restore test state)
+./bin/gh-ghent resolve -R indrasvat/tbgs --pr 1 --thread PRRT_kwDOQQ76Ts5iIWqn --unresolve --format json
+
+# Resolve all (then unresolve to restore)
+./bin/gh-ghent resolve -R indrasvat/tbgs --pr 1 --all --format json
+./bin/gh-ghent resolve -R indrasvat/tbgs --pr 1 --all --unresolve --format json
 ```
+
+**Real repo test matrix:**
+
+| Repo | PR | Threads | Notes |
+|------|-----|---------|-------|
+| `indrasvat/tbgs` | #1 | 2 unresolved | Primary test target — resolve then unresolve to restore state |
+| `indrasvat/peek-it` | #1 | 1 unresolved | Secondary test — single thread |
+| `indrasvat/peek-it` | #2 | 1 unresolved | Secondary test — single thread |
+
+**IMPORTANT:** After testing resolve, always unresolve threads to restore original state.
 
 ## Completion Criteria
 

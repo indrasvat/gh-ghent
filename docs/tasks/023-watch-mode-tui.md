@@ -80,7 +80,8 @@ Create `.claude/automations/test_ghent_watch.py` following canonical template in
 uv run .claude/automations/test_ghent_watch.py
 ```
 Visual assertions (per testing-strategy.md §5 `test_watch_mode` example):
-- Launch: `gh ghent checks --watch -R indrasvat/test-repo --pr 1` → TUI renders
+- Launch: `gh ghent checks --watch -R indrasvat/doot --pr 1` → TUI renders (checks already complete, should show pass immediately)
+- Also test: `gh ghent checks --watch -R indrasvat/peek-it --pr 2` → shows failure state
 - Verify: spinner animation visible (braille dots)
 - Verify: progress bar shows completed/total
 - Verify: event log accumulates timestamped entries

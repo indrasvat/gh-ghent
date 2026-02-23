@@ -79,7 +79,9 @@ Create `.claude/automations/test_ghent_summary.py` following canonical template 
 uv run .claude/automations/test_ghent_summary.py
 ```
 Visual assertions:
-- Launch: `gh ghent summary -R indrasvat/test-repo --pr 1` → TUI renders
+- Launch: `gh ghent summary -R indrasvat/tbgs --pr 1` → TUI renders (NOT READY: 2 unresolved threads, checks pass)
+- Also test: `gh ghent summary -R indrasvat/doot --pr 1` → READY (0 unresolved, checks pass)
+- Also test: `gh ghent summary -R indrasvat/peek-it --pr 2` → NOT READY (threads + failing checks)
 - Verify: KPI cards visible (counts for unresolved, checks, approvals)
 - Verify: READY or NOT READY badge visible
 - Verify: section previews show thread/check summaries

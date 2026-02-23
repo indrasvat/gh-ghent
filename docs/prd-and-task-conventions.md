@@ -512,8 +512,8 @@ make test
 ```bash
 make build
 gh extension install .
-gh ghent comments -R indrasvat/test-repo --pr 1
-gh ghent comments -R indrasvat/test-repo --pr 1 --format json | jq .
+gh ghent comments -R indrasvat/tbgs --pr 1
+gh ghent comments -R indrasvat/tbgs --pr 1 --format json | jq .
 ```
 
 ### L4: Visual (iterm2-driver)

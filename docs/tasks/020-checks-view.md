@@ -78,7 +78,8 @@ Create `.claude/automations/test_ghent_checks.py` following canonical template i
 uv run .claude/automations/test_ghent_checks.py
 ```
 Visual assertions (per testing-strategy.md §5 `test_checks` example):
-- Launch: `gh ghent checks -R indrasvat/test-repo --pr 1` → TUI renders
+- Launch: `gh ghent checks -R indrasvat/peek-it --pr 2` → TUI renders (Lint fail, Test fail, cancelled, Build pass)
+- Also test: `gh ghent checks -R indrasvat/doot --pr 1` → all passing (1 check)
 - Verify: check names visible (CI, test, build patterns)
 - Verify: status icons present (pass/fail/pending indicators)
 - Verify: failed checks auto-expand with annotations inline

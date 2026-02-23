@@ -81,7 +81,7 @@ Create `.claude/automations/test_ghent_comments.py` following canonical template
 uv run .claude/automations/test_ghent_comments.py
 ```
 Visual assertions (per testing-strategy.md §5 `test_comments` example):
-- Launch: `gh ghent comments -R indrasvat/test-repo --pr 1` → TUI renders
+- Launch: `gh ghent comments -R indrasvat/tbgs --pr 1` → TUI renders (2 unresolved threads with file:line)
 - Verify: "Review Threads" header visible
 - Verify: file:line references present (`.go:` pattern)
 - Verify: j/k moves highlighted cursor (capture before/after screenshots)

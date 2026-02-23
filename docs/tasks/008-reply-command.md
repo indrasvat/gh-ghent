@@ -76,18 +76,47 @@ ghent needs `gh ghent reply` so AI agents can reply to review threads directly f
 make test
 ```
 
-### L3: Binary Execution
+### L3: Binary Execution (real repos)
+
+Test against real PRs with known review threads:
+
 ```bash
 make build
-./bin/gh-ghent reply --pr 1 --thread PRRT_test123 --body "Fixed" --format json
-echo "Fixed in abc123" | ./bin/gh-ghent reply --pr 1 --thread PRRT_test123 --body-file -
+
+# Get thread IDs from tbgs PR #1
+./bin/gh-ghent comments -R indrasvat/tbgs --pr 1 --format json | jq '.threads[0].id'
+# Expected: "PRRT_kwDOQQ76Ts5iIWqn"
+
+# Reply with --body
+./bin/gh-ghent reply -R indrasvat/tbgs --pr 1 \
+  --thread PRRT_kwDOQQ76Ts5iIWqn \
+  --body "Testing ghent reply command — will clean up" --format json
+# Expected: JSON with comment_id, url, body
+
+# Reply with --body-file (stdin)
+echo "Testing stdin reply — will clean up" | \
+  ./bin/gh-ghent reply -R indrasvat/tbgs --pr 1 \
+  --thread PRRT_kwDOQQ76Ts5iIWqx --body-file - --format json
+
+# Verify reply appeared
+./bin/gh-ghent comments -R indrasvat/tbgs --pr 1 --format json | jq '.threads[0].comments | length'
 ```
+
+**Real repo test matrix:**
+
+| Repo | PR | Thread ID | Notes |
+|------|-----|-----------|-------|
+| `indrasvat/tbgs` | #1 | `PRRT_kwDOQQ76Ts5iIWqn` | tmux error propagation thread |
+| `indrasvat/tbgs` | #1 | `PRRT_kwDOQQ76Ts5iIWqx` | tmux socket path thread |
+| `indrasvat/peek-it` | #1 | (fetch via comments) | trace.go thread |
+
+**NOTE:** Test replies will appear on real PRs. Use descriptive bodies like "Testing ghent reply — will clean up" so they're clearly test artifacts. Delete via GitHub UI after testing.
 
 ### L5: Agent Workflow
 ```bash
-# Typical agent workflow: read comments, fix code, reply
-./bin/gh-ghent comments --pr 1 --format json | jq '.threads[0].thread_id'
-./bin/gh-ghent reply --pr 1 --thread PRRT_abc --body "Addressed in commit xyz"
+# Full agent workflow: read → reply → verify
+THREAD=$(./bin/gh-ghent comments -R indrasvat/tbgs --pr 1 --format json | jq -r '.threads[0].id')
+./bin/gh-ghent reply -R indrasvat/tbgs --pr 1 --thread "$THREAD" --body "Acknowledged — will fix"
 ```
 
 ## Completion Criteria

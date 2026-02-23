@@ -26,7 +26,7 @@
 
 ### Phase 1: Walking Skeleton
 - [x] Task 1.1: Repository scaffold → `docs/tasks/000-repository-scaffold.md`
-- [ ] Task 1.2: Cobra CLI skeleton → `docs/tasks/001-cobra-cli-skeleton.md`
+- [x] Task 1.2: Cobra CLI skeleton → `docs/tasks/001-cobra-cli-skeleton.md`
 - [x] Task 1.3: Domain types and port interfaces → `docs/tasks/002-domain-types.md`
 - [x] Task 1.4: GitHub API client wiring → `docs/tasks/003-github-api-client.md`
 
