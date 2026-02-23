@@ -10,6 +10,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/indrasvat/gh-ghent/internal/tui/components"
 	"github.com/indrasvat/gh-ghent/internal/tui/styles"
 )
 
@@ -122,7 +123,78 @@ func main() {
 		helpItem("q", "quit"))
 	fmt.Println()
 
+	// ══════════════════════════════════════════════════════════════
+	// SHARED COMPONENTS (Task 4.2)
+	// ══════════════════════════════════════════════════════════════
+	fmt.Println(strings.Repeat("═", w))
+	fmt.Println(styles.BadgeBlue.Render("ghent") + "  Component Demo — Shared TUI Components")
 	fmt.Println(strings.Repeat("─", w))
-	fmt.Println(styles.StatusBarDim.Render("  Theme demo complete. All styles rendered."))
+	fmt.Println()
+
+	// ── Status Bar Component ──
+	fmt.Println("  Status Bar (comments view):")
+	fmt.Println(components.RenderStatusBar(components.StatusBarData{
+		Repo:  "indrasvat/my-project",
+		PR:    42,
+		Right: styles.BadgeRed.Render("5 unresolved") + "  " + styles.StatusBarDim.Render("2 resolved"),
+	}, w))
+	fmt.Println()
+
+	fmt.Println("  Status Bar (checks view):")
+	fmt.Println(components.RenderStatusBar(components.StatusBarData{
+		Repo:  "indrasvat/my-project",
+		PR:    42,
+		Left:  styles.StatusBarDim.Render("HEAD: a1b2c3d"),
+		Right: styles.BadgeGreen.Render("4 passed") + "  " + styles.BadgeRed.Render("1 failed"),
+	}, w))
+	fmt.Println()
+
+	fmt.Println("  Status Bar (summary view):")
+	fmt.Println(components.RenderStatusBar(components.StatusBarData{
+		Repo:       "indrasvat/my-project",
+		PR:         42,
+		PRTitle:    "feat: add GraphQL client",
+		RightBadge: "NOT READY",
+		BadgeColor: lipgloss.Color(string(styles.Red)),
+	}, w))
+	fmt.Println()
+
+	// ── Help Bar Component ──
+	fmt.Println("  Help Bar (comments):")
+	fmt.Println(components.RenderHelpBar(components.CommentsListKeys(), w))
+	fmt.Println()
+
+	fmt.Println("  Help Bar (checks):")
+	fmt.Println(components.RenderHelpBar(components.ChecksListKeys(), w))
+	fmt.Println()
+
+	fmt.Println("  Help Bar (resolve):")
+	fmt.Println(components.RenderHelpBar(components.ResolveKeys(), w))
+	fmt.Println()
+
+	// ── Diff Hunk Component ──
+	fmt.Println("  Diff Hunk (full):")
+	hunk := "@@ -44,8 +44,10 @@\n func (c *Client) FetchThreads(...) {\n     var query threadQuery\n-    if err != nil {\n-        return nil, err\n+    if err != nil {\n+        return nil, fmt.Errorf(\"fetch threads: %w\", err)\n     }"
+	fmt.Println(components.RenderDiffHunk(hunk, w))
+	fmt.Println()
+
+	fmt.Println("  Diff Hunk (compact, 3 lines):")
+	fmt.Println(components.RenderDiffHunkCompact(hunk, 3))
+	fmt.Println()
+
+	// ── Width adaptivity ──
+	fmt.Println("  Width Adaptivity (status bar at width 40):")
+	fmt.Println(components.RenderStatusBar(components.StatusBarData{
+		Repo: "indrasvat/my-project", PR: 42,
+		Right: styles.BadgeRed.Render("5 unresolved"),
+	}, 40))
+	fmt.Println()
+
+	fmt.Println("  Width Adaptivity (help bar at width 40):")
+	fmt.Println(components.RenderHelpBar(components.CommentsListKeys(), 40))
+	fmt.Println()
+
+	fmt.Println(strings.Repeat("─", w))
+	fmt.Println(styles.StatusBarDim.Render("  Theme + component demo complete. All styles rendered."))
 	fmt.Println()
 }

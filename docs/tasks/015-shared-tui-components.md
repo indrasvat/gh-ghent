@@ -1,6 +1,6 @@
 # Task 4.2: Shared TUI Components
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 4.1: Tokyo Night theme (needs styles)
@@ -107,6 +107,41 @@ feat(tui): add shared components — status bar, help bar, diff hunk
 - Diff hunk renderer with green/red line coloring
 - Width-adaptive layout, explicit ANSI resets
 ```
+
+## Visual Test Results
+
+### L1: Unit Tests — 35 tests PASS
+
+- StatusBar: 5 cases (basic, counts, badge, narrow, zero width) + 6 width tests
+- HelpBar: 3 width cases + empty inputs + 6 predefined key binding sets validated
+- DiffHunk: full render, empty, line types, compact mode, compact empty, 6 width tests
+- PadLine: 3 cases (padded, exact, shorter)
+
+### L4: iterm2-driver (`test_ghent_components.py`) — 6/6 PASS
+
+| Test | Status | Details |
+|------|--------|---------|
+| Build | PASS | theme-demo builds with component imports |
+| Status Bar | PASS | repo + PR visible in all three variants |
+| Status Bar Variants | PASS | comments (unresolved), checks (HEAD sha), summary (NOT READY) |
+| Help Bar | PASS | j/k navigate, enter expand, resolve, key hints per view |
+| Diff Hunk | PASS | @@ header, FetchThreads context, +/- lines |
+| Width Adaptivity | PASS | Narrow (40 char) bars truncate gracefully |
+
+### Screenshots Reviewed
+
+- `ghent_components_statusbar_20260222_233236.png` — Three status bar variants. Comments view shows "5 unresolved · 2 resolved". Checks view shows "HEAD: a1b2c3d" + "4 passed · 1 failed". Summary view shows PR title + "NOT READY" badge in red. All properly left/right aligned.
+- `ghent_components_helpbar_20260222_233236.png` — Help bars for comments, checks, resolve views. Blue key highlights, dim action descriptions. Proper spacing between items.
+- `ghent_components_diffhunk_20260222_233236.png` — Full diff hunk with green additions, red deletions, purple @@ header, dim context. Compact mode shows 3 lines + "..." truncation indicator.
+
+### Findings
+
+- All components handle width 40, 80, 120, 200 without panic
+- `strings.Repeat(" ", width)` used for all padding (no lipgloss.Width on inner elements)
+- ANSI resets (`\033[0m`) appended after every styled line in diff hunk renderer
+- Status bar truncates repo name gracefully at narrow widths
+- Help bar drops items that don't fit instead of wrapping/overflowing
+- No background color bleed visible in screenshots
 
 ## Session Protocol
 
