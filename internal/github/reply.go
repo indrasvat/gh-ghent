@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -22,6 +23,9 @@ type replyResponse struct {
 
 // ReplyToThread validates a thread exists via GraphQL, then posts a reply via REST.
 func (c *Client) ReplyToThread(ctx context.Context, owner, repo string, pr int, threadID, body string) (*domain.ReplyResult, error) {
+	start := time.Now()
+	slog.Debug("posting reply", "owner", owner, "repo", repo, "pr", pr, "threadID", threadID, "bodyLen", len(body))
+
 	thread, err := c.findThreadByID(ctx, owner, repo, pr, threadID)
 	if err != nil {
 		return nil, err
@@ -59,6 +63,8 @@ func (c *Client) ReplyToThread(ctx context.Context, owner, repo string, pr int, 
 	if err != nil {
 		return nil, fmt.Errorf("reply: parse created_at %q: %w", resp.CreatedAt, err)
 	}
+
+	slog.Debug("posted reply", "threadID", threadID, "commentID", resp.ID, "url", resp.HTMLURL, "duration", time.Since(start))
 
 	return &domain.ReplyResult{
 		ThreadID:  threadID,

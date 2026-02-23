@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/indrasvat/gh-ghent/internal/domain"
@@ -94,9 +95,13 @@ type commentNode struct {
 // FetchThreads retrieves all review threads for a PR via GraphQL,
 // paginating through results and filtering to unresolved threads only.
 func (c *Client) FetchThreads(ctx context.Context, owner, repo string, pr int) (*domain.CommentsResult, error) {
+	start := time.Now()
+	slog.Debug("fetching review threads", "owner", owner, "repo", repo, "pr", pr)
+
 	var allNodes []threadNode
 	var totalCount int
 	var cursor *string
+	page := 1
 
 	for {
 		vars := map[string]interface{}{
@@ -107,6 +112,8 @@ func (c *Client) FetchThreads(ctx context.Context, owner, repo string, pr int) (
 		if cursor != nil {
 			vars["cursor"] = *cursor
 		}
+
+		slog.Debug("fetching threads page", "page", page)
 
 		var resp threadsResponse
 		if err := c.gql.DoWithContext(ctx, reviewThreadsQuery, vars, &resp); err != nil {
@@ -121,7 +128,11 @@ func (c *Client) FetchThreads(ctx context.Context, owner, repo string, pr int) (
 			break
 		}
 		cursor = &rt.PageInfo.EndCursor
+		page++
 	}
+
+	slog.Debug("fetched review threads", "owner", owner, "repo", repo, "pr", pr,
+		"total", totalCount, "fetched", len(allNodes), "duration", time.Since(start))
 
 	return mapThreadsToResult(pr, totalCount, allNodes)
 }
@@ -129,6 +140,9 @@ func (c *Client) FetchThreads(ctx context.Context, owner, repo string, pr int) (
 // FetchResolvedThreads retrieves all resolved review threads for a PR.
 // Used by --all --unresolve to find threads that can be unresolved.
 func (c *Client) FetchResolvedThreads(ctx context.Context, owner, repo string, pr int) (*domain.CommentsResult, error) {
+	start := time.Now()
+	slog.Debug("fetching resolved threads", "owner", owner, "repo", repo, "pr", pr)
+
 	var allNodes []threadNode
 	var totalCount int
 	var cursor *string
@@ -157,6 +171,9 @@ func (c *Client) FetchResolvedThreads(ctx context.Context, owner, repo string, p
 		}
 		cursor = &rt.PageInfo.EndCursor
 	}
+
+	slog.Debug("fetched resolved threads", "owner", owner, "repo", repo, "pr", pr,
+		"total", totalCount, "fetched", len(allNodes), "duration", time.Since(start))
 
 	return mapThreadsWithFilter(pr, totalCount, allNodes, true)
 }

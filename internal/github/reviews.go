@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/indrasvat/gh-ghent/internal/domain"
@@ -49,6 +50,9 @@ type reviewNode struct {
 
 // FetchReviews retrieves all reviews for a PR via GraphQL.
 func (c *Client) FetchReviews(ctx context.Context, owner, repo string, pr int) ([]domain.Review, error) {
+	start := time.Now()
+	slog.Debug("fetching reviews", "owner", owner, "repo", repo, "pr", pr)
+
 	vars := map[string]interface{}{
 		"owner": owner,
 		"repo":  repo,
@@ -60,7 +64,10 @@ func (c *Client) FetchReviews(ctx context.Context, owner, repo string, pr int) (
 		return nil, fmt.Errorf("graphql reviews: %w", err)
 	}
 
-	return mapReviewsToDomain(resp.Repository.PullRequest.Reviews.Nodes)
+	reviews := resp.Repository.PullRequest.Reviews.Nodes
+	slog.Debug("fetched reviews", "count", len(reviews), "duration", time.Since(start))
+
+	return mapReviewsToDomain(reviews)
 }
 
 // mapReviewsToDomain converts GraphQL review nodes to domain Review types.

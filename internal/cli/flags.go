@@ -6,6 +6,7 @@ type GlobalFlags struct {
 	Format  string
 	Verbose bool
 	NoTUI   bool
+	Debug   bool
 	IsTTY   bool // resolved at runtime in PersistentPreRunE
 	PR      int
 }

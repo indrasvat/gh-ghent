@@ -3,9 +3,11 @@ package github
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 
+	"github.com/indrasvat/gh-ghent/internal/debug"
 	"github.com/indrasvat/gh-ghent/internal/domain"
 )
 
@@ -40,14 +42,26 @@ func New(opts ...Option) (*Client, error) {
 		opt(c)
 	}
 	if c.gql == nil {
-		gql, err := api.DefaultGraphQLClient()
+		clientOpts := api.ClientOptions{}
+		if debug.Enabled() {
+			clientOpts.Log = os.Stderr
+			clientOpts.LogVerboseHTTP = true
+			clientOpts.LogColorize = true
+		}
+		gql, err := api.NewGraphQLClient(clientOpts)
 		if err != nil {
 			return nil, fmt.Errorf("graphql client: %w", err)
 		}
 		c.gql = gql
 	}
 	if c.rest == nil {
-		rest, err := api.DefaultRESTClient()
+		clientOpts := api.ClientOptions{}
+		if debug.Enabled() {
+			clientOpts.Log = os.Stderr
+			clientOpts.LogVerboseHTTP = true
+			clientOpts.LogColorize = true
+		}
+		rest, err := api.NewRESTClient(clientOpts)
 		if err != nil {
 			return nil, fmt.Errorf("rest client: %w", err)
 		}

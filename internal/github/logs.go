@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // maxExcerptLines is the maximum number of lines in an extracted log excerpt.
@@ -41,6 +43,9 @@ var fileLineRegexp = regexp.MustCompile(`\S+\.\w+:\d+`)
 // automatically. We use RequestWithContext to get the raw response since the
 // endpoint returns plain text, not JSON.
 func (c *Client) FetchJobLog(ctx context.Context, owner, repo string, jobID int64) (string, error) {
+	start := time.Now()
+	slog.Debug("fetching job log", "owner", owner, "repo", repo, "jobID", jobID)
+
 	path := fmt.Sprintf("repos/%s/%s/actions/jobs/%d/logs", owner, repo, jobID)
 	resp, err := c.rest.RequestWithContext(ctx, "GET", path, nil)
 	if err != nil {
@@ -52,6 +57,8 @@ func (c *Client) FetchJobLog(ctx context.Context, owner, repo string, jobID int6
 	if err != nil {
 		return "", fmt.Errorf("read job log for %d: %w", jobID, err)
 	}
+
+	slog.Debug("fetched job log", "jobID", jobID, "bytes", len(body), "duration", time.Since(start))
 
 	return string(body), nil
 }

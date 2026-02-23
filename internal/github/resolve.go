@@ -3,6 +3,8 @@ package github
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/indrasvat/gh-ghent/internal/domain"
 )
@@ -54,6 +56,9 @@ type resolvedThreadNode struct {
 
 // ResolveThread marks a review thread as resolved via GraphQL mutation.
 func (c *Client) ResolveThread(ctx context.Context, threadID string) (*domain.ResolveResult, error) {
+	start := time.Now()
+	slog.Debug("resolving thread", "threadID", threadID)
+
 	vars := map[string]interface{}{
 		"threadId": threadID,
 	}
@@ -64,6 +69,8 @@ func (c *Client) ResolveThread(ctx context.Context, threadID string) (*domain.Re
 	}
 
 	t := resp.ResolveReviewThread.Thread
+	slog.Debug("resolved thread", "threadID", t.ID, "path", t.Path, "line", t.Line, "duration", time.Since(start))
+
 	return &domain.ResolveResult{
 		ThreadID:   t.ID,
 		Path:       t.Path,
@@ -75,6 +82,9 @@ func (c *Client) ResolveThread(ctx context.Context, threadID string) (*domain.Re
 
 // UnresolveThread marks a review thread as unresolved via GraphQL mutation.
 func (c *Client) UnresolveThread(ctx context.Context, threadID string) (*domain.ResolveResult, error) {
+	start := time.Now()
+	slog.Debug("unresolving thread", "threadID", threadID)
+
 	vars := map[string]interface{}{
 		"threadId": threadID,
 	}
@@ -85,6 +95,8 @@ func (c *Client) UnresolveThread(ctx context.Context, threadID string) (*domain.
 	}
 
 	t := resp.UnresolveReviewThread.Thread
+	slog.Debug("unresolved thread", "threadID", t.ID, "path", t.Path, "line", t.Line, "duration", time.Since(start))
+
 	return &domain.ResolveResult{
 		ThreadID:   t.ID,
 		Path:       t.Path,

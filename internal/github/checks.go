@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/indrasvat/gh-ghent/internal/domain"
@@ -82,15 +83,20 @@ func (c *Client) fetchAnnotations(ctx context.Context, owner, repo string, check
 // FetchChecks retrieves all check runs for a PR, fetches annotations for
 // failed checks, and aggregates the overall status.
 func (c *Client) FetchChecks(ctx context.Context, owner, repo string, pr int) (*domain.ChecksResult, error) {
+	start := time.Now()
+	slog.Debug("fetching checks", "owner", owner, "repo", repo, "pr", pr)
+
 	sha, err := c.fetchHeadSHA(ctx, owner, repo, pr)
 	if err != nil {
 		return nil, err
 	}
+	slog.Debug("resolved head SHA", "sha", sha)
 
 	runs, err := c.fetchCheckRuns(ctx, owner, repo, sha)
 	if err != nil {
 		return nil, err
 	}
+	slog.Debug("fetched check runs", "count", len(runs), "duration", time.Since(start))
 
 	return mapChecksToDomain(ctx, c, owner, repo, pr, sha, runs)
 }

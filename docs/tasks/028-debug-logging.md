@@ -1,6 +1,6 @@
 # Task 3.5: Debug Logging & Tracing
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 1.4: GitHub API client wiring (needs client.go to add Log field)

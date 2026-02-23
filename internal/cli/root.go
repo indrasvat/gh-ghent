@@ -3,10 +3,12 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/cli/go-gh/v2/pkg/term"
 	"github.com/spf13/cobra"
 
+	"github.com/indrasvat/gh-ghent/internal/debug"
 	"github.com/indrasvat/gh-ghent/internal/github"
 	"github.com/indrasvat/gh-ghent/internal/version"
 )
@@ -53,6 +55,13 @@ func NewRootCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			Flags.Debug, err = f.GetBool("debug")
+			if err != nil {
+				return err
+			}
+
+			// Initialize debug logging: --debug flag or GH_DEBUG env var
+			debug.Init(Flags.Debug || os.Getenv("GH_DEBUG") != "")
 
 			// TTY detection via go-gh
 			Flags.IsTTY = term.FromEnv().IsTerminalOutput()
@@ -82,6 +91,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.PersistentFlags().StringP("format", "f", "json", "output format: json, md, xml")
 	cmd.PersistentFlags().Bool("verbose", false, "verbose output")
 	cmd.PersistentFlags().Bool("no-tui", false, "force pipe mode even in TTY")
+	cmd.PersistentFlags().Bool("debug", false, "enable debug logging to stderr")
 	cmd.PersistentFlags().Int("pr", 0, "pull request number")
 
 	// Subcommands
