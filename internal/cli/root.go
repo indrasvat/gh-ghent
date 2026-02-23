@@ -2,14 +2,25 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/cli/go-gh/v2/pkg/term"
 	"github.com/spf13/cobra"
 
+	"github.com/indrasvat/ghent/internal/github"
 	"github.com/indrasvat/ghent/internal/version"
 )
 
 // Flags holds the resolved global flags for the current invocation.
 var Flags GlobalFlags
+
+// ghClient is the GitHub API client, initialized in PersistentPreRunE.
+var ghClient *github.Client
+
+// GitHubClient returns the initialized GitHub API client.
+func GitHubClient() *github.Client {
+	return ghClient
+}
 
 // NewRootCmd creates the root ghent command.
 func NewRootCmd() *cobra.Command {
@@ -47,6 +58,14 @@ func NewRootCmd() *cobra.Command {
 			Flags.IsTTY = term.FromEnv().IsTerminalOutput()
 			if Flags.NoTUI {
 				Flags.IsTTY = false
+			}
+
+			// Only initialize GitHub client for subcommands (not root help/version)
+			if cmd.Name() != "ghent" {
+				ghClient, err = github.New()
+				if err != nil {
+					return fmt.Errorf("github client: %w", err)
+				}
 			}
 
 			return nil

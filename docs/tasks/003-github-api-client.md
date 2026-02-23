@@ -1,6 +1,6 @@
 # Task 1.4: GitHub API Client Wiring
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 1.1: Repository scaffold (needs go.mod with go-gh)

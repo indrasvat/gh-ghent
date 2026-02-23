@@ -10,7 +10,7 @@
 | **Current Phase** | Phase 1: Walking Skeleton |
 | **Current Task** | `docs/tasks/003-github-api-client.md` |
 | **Blocker** | None |
-| **Last Action** | Task 1.3: Domain types and port interfaces — DONE |
+| **Last Action** | Task 1.4: GitHub API client wiring — DONE |
 | **Last Updated** | 2026-02-22 |
 
 ## How to Resume
@@ -28,7 +28,7 @@
 - [x] Task 1.1: Repository scaffold → `docs/tasks/000-repository-scaffold.md`
 - [ ] Task 1.2: Cobra CLI skeleton → `docs/tasks/001-cobra-cli-skeleton.md`
 - [x] Task 1.3: Domain types and port interfaces → `docs/tasks/002-domain-types.md`
-- [ ] Task 1.4: GitHub API client wiring → `docs/tasks/003-github-api-client.md`
+- [x] Task 1.4: GitHub API client wiring → `docs/tasks/003-github-api-client.md`
 
 ### Phase 2: CLI Commands (pipe mode, end-to-end)
 - [ ] Task 2.1: `gh ghent comments` → `docs/tasks/004-comments-command.md`
@@ -72,6 +72,17 @@
 (None currently)
 
 ## Session Log
+
+### 2026-02-22 (Task 1.4: GitHub API client wiring)
+- Created `internal/github/client.go` — Client struct wrapping `*api.GraphQLClient` and `*api.RESTClient`
+- Functional options: `WithGraphQLClient`, `WithRESTClient` for test injection
+- Compile-time interface checks: ThreadFetcher, CheckFetcher, ThreadResolver, ThreadReplier, ReviewFetcher
+- All 6 stub methods return "not implemented" errors
+- Wired to Cobra via `PersistentPreRunE` — only creates client for subcommands (not root help/version)
+- Exported `GitHubClient()` accessor for subcommands
+- Created `internal/github/client_test.go` — 3 test functions: options injection, auth-required path, all stub errors
+- go-gh's `api.NewGraphQLClient`/`api.NewRESTClient` with `ClientOptions{Host, AuthToken}` used for test mocks
+- Verification: `go test -race -shuffle=on ./...` ✓ (all pass), `go build` ✓, `--help`/`--version` ✓
 
 ### 2026-02-22 (Task 1.3: Domain types and port interfaces)
 - Created `internal/domain/types.go` — all domain types: ReviewThread, Comment, CommentsResult, CheckRun, Annotation, ChecksResult, OverallStatus, Review, ReviewState, ReplyResult, SummaryResult
