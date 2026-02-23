@@ -17,6 +17,7 @@ LDFLAGS := -s -w \
 # Directories
 BIN_DIR := bin
 COVERAGE_DIR := coverage
+GH_EXT_DIR := $(HOME)/.local/share/gh/extensions/$(BINARY_NAME)
 
 # Tools
 GOLANGCI_LINT := golangci-lint
@@ -37,10 +38,11 @@ build: ## Build binary
 	@printf "$(COLOR_GREEN)>> Built $(BIN_DIR)/$(BINARY_NAME)$(COLOR_RESET)\n"
 
 .PHONY: install
-install: build ## Install to GOPATH/bin
-	@printf "$(COLOR_BLUE)>> Installing $(BINARY_NAME)...$(COLOR_RESET)\n"
-	cp $(BIN_DIR)/$(BINARY_NAME) $(shell go env GOPATH)/bin/$(BINARY_NAME)
-	@printf "$(COLOR_GREEN)>> Installed$(COLOR_RESET)\n"
+install: build ## Install as gh extension (symlink into gh extensions dir)
+	@printf "$(COLOR_BLUE)>> Installing $(BINARY_NAME) as gh extension...$(COLOR_RESET)\n"
+	@mkdir -p $(GH_EXT_DIR)
+	@ln -sf $(CURDIR)/$(BIN_DIR)/$(BINARY_NAME) $(GH_EXT_DIR)/$(BINARY_NAME)
+	@printf "$(COLOR_GREEN)>> Installed: gh ghent$(COLOR_RESET)\n"
 
 .PHONY: clean
 clean: ## Remove build artifacts
