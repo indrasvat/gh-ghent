@@ -28,6 +28,9 @@ func launchTUI(startView tui.View, opts ...tuiOption) error {
 	if cfg.reviews != nil {
 		app.SetReviews(cfg.reviews)
 	}
+	if cfg.resolveFunc != nil {
+		app.SetResolver(cfg.resolveFunc)
+	}
 
 	// CRITICAL: Set terminal background BEFORE Bubble Tea starts (pitfall 7.1).
 	output := styles.SetAppBackground()
@@ -48,11 +51,12 @@ func launchTUI(startView tui.View, opts ...tuiOption) error {
 }
 
 type tuiConfig struct {
-	repo     string
-	pr       int
-	comments *domain.CommentsResult
-	checks   *domain.ChecksResult
-	reviews  []domain.Review
+	repo        string
+	pr          int
+	comments    *domain.CommentsResult
+	checks      *domain.ChecksResult
+	reviews     []domain.Review
+	resolveFunc func(threadID string) error
 }
 
 type tuiOption func(*tuiConfig)
@@ -75,4 +79,8 @@ func withChecks(r *domain.ChecksResult) tuiOption {
 
 func withReviews(r []domain.Review) tuiOption {
 	return func(c *tuiConfig) { c.reviews = r }
+}
+
+func withResolver(fn func(threadID string) error) tuiOption {
+	return func(c *tuiConfig) { c.resolveFunc = fn }
 }

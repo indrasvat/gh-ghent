@@ -1,6 +1,6 @@
 # Task 5.4: Resolve View — Multi-Select
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 4.4: Wire TUI to Cobra
@@ -111,6 +111,24 @@ feat(tui): add resolve view with multi-select and confirmation
 - Spinner during resolution with live status updates
 - Permission-disabled threads handled gracefully
 ```
+
+## Visual Test Results
+
+L4 iterm2-driver: **12/12 PASS** (`test_ghent_resolve.py`)
+
+### Screenshots Reviewed
+
+1. **ghent_resolve_launch.png** — Resolve view launches correctly with 2 unresolved threads from indrasvat/tbgs PR #1. Status bar shows "resolve mode" and "of 2 unresolved". Both threads display `[ ]` unchecked checkboxes, `▶` cursor on first thread with highlight background. File paths (internal/tmux/client.go:230, internal/app/app.go:88), authors (@chatgpt-codex-connector), body previews, and truncated thread IDs (PRRT_kwDOQQ76T...) all render correctly. Help bar shows resolve-specific bindings: "j/k navigate space toggle select a select all enter resolve selected esc cancel q quit".
+
+2. **ghent_resolve_selected.png** — After pressing Space, first thread checkbox toggles to `[✓]` (green). Status bar updates to "1 selected of 2 unresolved". Second thread remains `[ ]`. Cursor highlight stays on first thread.
+
+3. **ghent_resolve_confirm.png** — After pressing Enter with 1 selected, confirmation bar appears at bottom: "Resolve 1 thread? Press enter to confirm, esc to cancel". Green styled prompt text with dimmed hint text. Help bar remains visible below.
+
+### Findings
+
+- Fixed Esc routing bug: App's global Esc handler was intercepting Esc before it reached the resolve model's confirmation cancel handler. Added state check so Esc in confirming state forwards to resolve model, Esc in browsing state switches back to previous view.
+- All checkbox states render correctly: `[ ]` unselected, `[✓]` selected, `[-]` no permission (verified in unit tests).
+- Select all ('a') and deselect all work correctly with eligible/ineligible thread filtering.
 
 ## Session Protocol
 

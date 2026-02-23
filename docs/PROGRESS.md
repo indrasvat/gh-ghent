@@ -8,9 +8,9 @@
 | Field | Value |
 |-------|-------|
 | **Current Phase** | Phase 5: TUI Views |
-| **Current Task** | Task 5.3 complete. Next: `docs/tasks/021-resolve-view.md` |
+| **Current Task** | Task 5.4 complete. Next: `docs/tasks/022-summary-dashboard.md` |
 | **Blocker** | None |
-| **Last Action** | Task 5.3 complete. Checks view + log viewer. |
+| **Last Action** | Task 5.4 complete. Resolve view with multi-select. |
 | **Last Updated** | 2026-02-23 |
 
 ## How to Resume
@@ -59,7 +59,7 @@
 - [x] Task 5.1: Comments list view → `docs/tasks/018-comments-list-view.md`
 - [x] Task 5.2: Comments expanded view → `docs/tasks/019-comments-expanded-view.md`
 - [x] Task 5.3: Checks view + log viewer → `docs/tasks/020-checks-view.md`
-- [ ] Task 5.4: Resolve view — multi-select → `docs/tasks/021-resolve-view.md`
+- [x] Task 5.4: Resolve view — multi-select → `docs/tasks/021-resolve-view.md`
 - [ ] Task 5.5: Summary dashboard → `docs/tasks/022-summary-dashboard.md`
 - [ ] Task 5.6: Watch mode TUI → `docs/tasks/023-watch-mode-tui.md`
 
@@ -74,6 +74,15 @@
 (None currently)
 
 ## Session Log
+
+### 2026-02-23 (Task 5.4 — TUI Views: Resolve)
+- **Task 5.4 (Resolve view — multi-select):** Created `internal/tui/resolve.go` — `resolveModel` with four states (browsing, confirming, resolving, done). Multi-select checkboxes: `[ ]` unselected, `[✓]` selected, `[-]` no permission, `[✗]` failed. Key bindings: j/k navigate, Space toggle, a select all/deselect, Enter confirm, Esc cancel, y/n confirm shortcuts, o open in browser. Confirmation bar: "Resolve N threads?" with enter/esc hints. Resolving status: "⟳ Resolving... N/M". Done status: "✓ N resolved" / "✗ N failed". `resolveRequestMsg` emitted to App for API calls via `resolveFunc` callback. `resolveThreadMsg` per-thread results, `resolveAllDoneMsg` when complete. Permission filtering: threads without `viewerCanResolve` get `[-]` and "(no permission)" label. Thread rendering: cursor highlight, file:line, author, body preview, truncated thread ID right-aligned.
+- Wired to `app.go`: resolve sub-model, `resolveFunc` callback, `SetResolver`, `resolveRequestMsg` handler with `tea.Batch`, status bar (resolve mode + selection count + unresolved count), help bar `ResolveKeys()`. Fixed Esc routing: App's global Esc handler now checks `resolve.state == resolveStateConfirming` and forwards to resolve model instead of switching views.
+- Updated `cli/tui.go` with `withResolver` option, `cli/resolve.go` creates resolver callback.
+- 16 unit tests in resolve_test.go + 1 new app_test.go test for Esc routing.
+- L4: 12/12 PASS (test_ghent_resolve.py against indrasvat/tbgs PR #1)
+- Verification: 384 tests pass, lint clean, vet clean (`make ci-fast` ✓)
+- Next: Task 5.5 Summary Dashboard
 
 ### 2026-02-23 (Task 5.3 — TUI Views: Checks)
 - **Task 5.3 (Checks view + log viewer):** Created `internal/tui/checks.go` — `checksListModel` with custom scrollable list, status icons (✓/✗/⟳/◌), auto-expanded annotations for failed checks with error count header and file:line detail. `checksLogModel` line-based viewport with check header, annotations, log excerpt display. Helper functions: `checkIsFailed`, `checkStatusIcon`, `renderCheckStatusText`, `formatCheckDuration`, `openInBrowser`. Wired to `app.go` with `selectCheckMsg` pattern and WindowSizeMsg propagation. Pre-fetch logs for failed checks in `cli/checks.go` before TUI launch. Added `ChecksLogKeys()` to helpbar. 16 unit tests. L4: 15/15 PASS (peek-it fail, doot pass, context-lens mixed).

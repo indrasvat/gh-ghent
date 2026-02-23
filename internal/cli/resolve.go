@@ -79,9 +79,14 @@ func runResolve(cmd *cobra.Command, _ []string) error {
 			return fmt.Errorf("fetch threads: %w", fetchErr)
 		}
 		repoStr := owner + "/" + repo
+		resolverFn := func(threadID string) error {
+			_, err := client.ResolveThread(ctx, threadID)
+			return err
+		}
 		return launchTUI(tui.ViewResolve,
 			withRepo(repoStr), withPR(Flags.PR),
 			withComments(threads),
+			withResolver(resolverFn),
 		)
 	}
 

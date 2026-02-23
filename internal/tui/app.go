@@ -87,6 +87,9 @@ type App struct {
 	checks   *domain.ChecksResult
 	reviews  []domain.Review
 
+	// Resolver callback for resolve view mutations.
+	resolveFunc func(threadID string) error
+
 	// Key map
 	keys AppKeyMap
 
@@ -95,6 +98,7 @@ type App struct {
 	commentsExpanded commentsExpandedModel
 	checksList       checksListModel
 	checksLog        checksLogModel
+	resolve          resolveModel
 }
 
 // NewApp creates a new App model with the given repo, PR, and initial view.
@@ -128,6 +132,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.commentsExpanded.setSize(a.width, contentHeight)
 		a.checksList.setSize(a.width, contentHeight)
 		a.checksLog.setSize(a.width, contentHeight)
+		a.resolve.setSize(a.width, contentHeight)
 		return a, nil
 
 	case tea.KeyMsg:
@@ -140,6 +145,21 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.commentsExpanded = newCommentsExpandedModel(a.comments.Threads, typedMsg.threadIdx)
 			contentHeight := max(a.height-2, 1)
 			a.commentsExpanded.setSize(a.width, contentHeight)
+		}
+		return a, nil
+
+	case resolveRequestMsg:
+		// Execute resolve mutations via the resolver callback.
+		if a.resolveFunc != nil {
+			var cmds []tea.Cmd
+			for _, id := range typedMsg.threadIDs {
+				threadID := id // capture
+				cmds = append(cmds, func() tea.Msg {
+					err := a.resolveFunc(threadID)
+					return resolveThreadMsg{threadID: threadID, err: err}
+				})
+			}
+			return a, tea.Batch(cmds...)
 		}
 		return a, nil
 
@@ -179,6 +199,10 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if a.activeView.isDetail() {
 			a.activeView = a.activeView.parentView()
 			return a, nil
+		}
+		// In resolve confirming state, forward Esc to cancel the confirmation dialog.
+		if a.activeView == ViewResolve && a.resolve.state == resolveStateConfirming {
+			return a.forwardToActiveView(tea.Msg(msg))
 		}
 		// From resolve/summary, return to previous view.
 		if a.activeView == ViewResolve || a.activeView == ViewSummary {
@@ -222,6 +246,8 @@ func (a App) forwardToActiveView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.checksList, cmd = a.checksList.Update(msg)
 	case ViewChecksLog:
 		a.checksLog, cmd = a.checksLog.Update(msg)
+	case ViewResolve:
+		a.resolve, cmd = a.resolve.Update(msg)
 	}
 	return a, cmd
 }
@@ -322,8 +348,22 @@ func (a App) renderStatusBar() string {
 		data.BadgeColor = lipgloss.Color(string(styles.Blue))
 
 	case ViewResolve:
-		data.RightBadge = "RESOLVE"
-		data.BadgeColor = lipgloss.Color(string(styles.Yellow))
+		if a.comments != nil {
+			right := ""
+			sel := a.resolve.selectedCount()
+			if sel > 0 {
+				right += lipgloss.NewStyle().Foreground(lipgloss.Color(string(styles.Green))).
+					Render(fmt.Sprintf("%d selected", sel))
+				right += "  "
+			}
+			right += styles.StatusBarDim.Render(
+				fmt.Sprintf("of %d unresolved", a.comments.UnresolvedCount))
+			data.Left = styles.StatusBarDim.Render("resolve mode")
+			data.Right = right
+		} else {
+			data.RightBadge = "RESOLVE"
+			data.BadgeColor = lipgloss.Color(string(styles.Yellow))
+		}
 	}
 
 	return components.RenderStatusBar(data, a.width)
@@ -364,13 +404,13 @@ func (a App) renderActiveView(contentHeight int) string {
 		return a.checksList.View()
 	case ViewChecksLog:
 		return a.checksLog.View()
+	case ViewResolve:
+		return a.resolve.View()
 	}
 
 	// Placeholder text for views not yet wired.
 	var placeholder string
 	switch a.activeView {
-	case ViewResolve:
-		placeholder = "  [Resolve View — pending task 5.4]"
 	case ViewSummary:
 		placeholder = "  [Summary Dashboard — pending task 5.5]"
 	case ViewWatch:
@@ -393,6 +433,7 @@ func (a *App) SetComments(c *domain.CommentsResult) {
 	a.comments = c
 	if c != nil {
 		a.commentsList = newCommentsListModel(c.Threads)
+		a.resolve = newResolveModel(c.Threads)
 	}
 }
 
@@ -402,6 +443,11 @@ func (a *App) SetChecks(c *domain.ChecksResult) {
 	if c != nil {
 		a.checksList = newChecksListModel(c.Checks)
 	}
+}
+
+// SetResolver sets the callback function for resolving threads.
+func (a *App) SetResolver(fn func(threadID string) error) {
+	a.resolveFunc = fn
 }
 
 // SetReviews updates the shared reviews data.

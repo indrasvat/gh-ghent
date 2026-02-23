@@ -474,6 +474,40 @@ func TestEscFromExpandedReturnsToList(t *testing.T) {
 	}
 }
 
+func TestEscFromResolveConfirmingCancelsNotSwitchesView(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewResolve)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			makeThread("PRRT_aaa", "main.go", 10, true),
+		},
+		UnresolvedCount: 1,
+	})
+	app = sendWindowSize(app, 100, 30)
+
+	// Space to select thread.
+	app = sendKey(app, " ")
+	// Enter to start confirmation.
+	app = sendSpecialKey(app, tea.KeyEnter)
+	if app.resolve.state != resolveStateConfirming {
+		t.Fatalf("expected confirming state, got %d", app.resolve.state)
+	}
+
+	// Esc should cancel confirmation, NOT switch view.
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewResolve {
+		t.Errorf("Esc from confirming: expected ViewResolve, got %v", app.ActiveView())
+	}
+	if app.resolve.state != resolveStateBrowsing {
+		t.Errorf("Esc from confirming: expected browsing state, got %d", app.resolve.state)
+	}
+
+	// Esc again (from browsing) should switch back to prevView.
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() == ViewResolve {
+		t.Error("Esc from browsing should switch away from resolve")
+	}
+}
+
 func TestTruncateSHA(t *testing.T) {
 	tests := []struct {
 		sha  string
