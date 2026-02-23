@@ -8,9 +8,10 @@
 | Field | Value |
 |-------|-------|
 | **Current Phase** | Phase 3: CLI Polish |
-| **Current Task** | `docs/tasks/012-extension-packaging.md` |
+| **Current Phase** | Phase 4: TUI Foundation |
+| **Current Task** | `docs/tasks/014-tokyo-night-theme.md` |
 | **Blocker** | None |
-| **Last Action** | Wave 2: Tasks 3.2, 3.4 — DONE (parallel). 4/5 Phase 3 tasks complete. |
+| **Last Action** | Phase 3 complete. CLI milestone reached. |
 | **Last Updated** | 2026-02-23 |
 
 ## How to Resume
@@ -41,7 +42,7 @@
 ### Phase 3: CLI Polish
 - [x] Task 3.1: Watch mode (pipe) → `docs/tasks/010-watch-mode-pipe.md`
 - [x] Task 3.2: Error handling hardening → `docs/tasks/011-error-handling.md`
-- [ ] Task 3.3: Extension packaging → `docs/tasks/012-extension-packaging.md`
+- [x] Task 3.3: Extension packaging → `docs/tasks/012-extension-packaging.md`
 - [x] Task 3.4: README + --help → `docs/tasks/013-readme-help.md`
 - [x] Task 3.5: Debug logging & tracing → `docs/tasks/028-debug-logging.md`
 
