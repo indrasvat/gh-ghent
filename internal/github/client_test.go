@@ -43,9 +43,11 @@ func TestNewDefaultsRequireAuth(t *testing.T) {
 		t.Skip("gh auth is configured; cannot test auth-required path")
 	}
 
-	// When gh auth is not configured, New() should return an error.
-	if !strings.Contains(err.Error(), "client") {
-		t.Errorf("expected error mentioning 'client', got: %v", err)
+	// When gh auth is not configured, New() should return an error
+	// related to authentication. The exact message varies by go-gh version.
+	msg := strings.ToLower(err.Error())
+	if !strings.Contains(msg, "auth") && !strings.Contains(msg, "client") && !strings.Contains(msg, "token") {
+		t.Errorf("expected auth-related error, got: %v", err)
 	}
 }
 
