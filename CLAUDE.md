@@ -90,6 +90,30 @@ internal/
 - Update task file status at start and end of each task
 - Update `docs/PROGRESS.md` at end of each session
 - If stuck: set status to `BLOCKED`, document issue in PROGRESS.md with details
+- **STRICT: Before starting any task**, query procedural memory (see below) and follow returned rules
+
+## Procedural Memory (cm)
+
+`cm` is the [CASS Memory System](https://github.com/Dicklesworthstone/cass_memory_system) — cross-agent procedural memory that persists patterns across sessions and agents. It has rules from prior Go/TUI projects (vivecaka, yukti, etc.) that are directly relevant to ghent.
+
+```bash
+# Install (if `cm` command not found)
+curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/cass_memory_system/main/install.sh \
+  | bash -s -- --easy-mode --verify
+
+# REQUIRED before every task — returns scored rules + anti-patterns
+cm context "<task description>" --json
+
+# Mark rules during work (in code comments)
+// [cass: helpful b-xxx]   — rule was useful
+// [cass: harmful b-xxx]   — rule was wrong/misleading
+
+# After task completion
+cm outcome success b-xxx,b-yyy   — rules that helped
+cm outcome failure b-xxx         — rules that failed
+```
+
+Repo-level memory lives in `.cass/` (playbook is committed, diary is gitignored).
 
 ## Key Decisions
 
