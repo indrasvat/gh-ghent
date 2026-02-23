@@ -90,8 +90,8 @@ type App struct {
 	// Key map
 	keys AppKeyMap
 
-	// Sub-models will be added in view-specific tasks (4.5+).
-	// For now, the app shell renders placeholder content per view.
+	// Sub-models
+	commentsList commentsListModel
 }
 
 // NewApp creates a new App model with the given repo, PR, and initial view.
@@ -120,18 +120,21 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// CRITICAL: Propagate to ALL sub-models, active AND inactive (pitfall #7).
 		a.width = typedMsg.Width
 		a.height = typedMsg.Height
-		// When sub-models exist, propagate here:
-		// a.commentsList, _ = a.commentsList.Update(typedMsg)
-		// a.checksList, _ = a.checksList.Update(typedMsg)
-		// ... etc for ALL sub-models
+		contentHeight := max(a.height-2, 1) // minus status bar + help bar
+		a.commentsList.setSize(a.width, contentHeight)
 		return a, nil
 
 	case tea.KeyMsg:
 		return a.handleKey(typedMsg)
+
+	// Messages from sub-models
+	case selectThreadMsg:
+		a.activeView = ViewCommentsExpand
+		return a, nil
 	}
 
-	// Forward other messages to the active view's sub-model (when wired).
-	return a, nil
+	// Forward other messages to the active view's sub-model.
+	return a.forwardToActiveView(msg)
 }
 
 // handleKey processes key events with routing based on active view.
@@ -166,15 +169,10 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Enter: drill into detail views from list views.
-	if key.Matches(msg, a.keys.Enter) {
-		switch a.activeView {
-		case ViewCommentsList:
-			a.activeView = ViewCommentsExpand
-			return a, nil
-		case ViewChecksList:
-			a.activeView = ViewChecksLog
-			return a, nil
-		}
+	// Comments list handles Enter via its sub-model (returns selectThreadMsg).
+	// Checks list still uses direct handling until its sub-model is wired.
+	if key.Matches(msg, a.keys.Enter) && a.activeView == ViewChecksList {
+		a.activeView = ViewChecksLog
 		return a, nil
 	}
 
@@ -196,7 +194,17 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// TODO: Forward remaining keys to the active sub-model.
+	// Forward remaining keys to the active sub-model.
+	return a.forwardToActiveView(tea.Msg(msg))
+}
+
+// forwardToActiveView dispatches a message to the active sub-model.
+func (a App) forwardToActiveView(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if a.activeView == ViewCommentsList {
+		var cmd tea.Cmd
+		a.commentsList, cmd = a.commentsList.Update(msg)
+		return a, cmd
+	}
 	return a, nil
 }
 
@@ -318,13 +326,16 @@ func (a App) renderHelpBar() string {
 // renderActiveView renders the content area for the current view.
 // Returns a string sized to fill contentHeight lines.
 func (a App) renderActiveView(contentHeight int) string {
-	// Placeholder text for each view until sub-models are wired in tasks 4.5+.
+	// Comments list uses its sub-model; others use placeholders.
+	if a.activeView == ViewCommentsList {
+		return a.commentsList.View()
+	}
+
+	// Placeholder text for views not yet wired.
 	var placeholder string
 	switch a.activeView {
-	case ViewCommentsList:
-		placeholder = "  [Comments List View — pending task 4.5]"
 	case ViewCommentsExpand:
-		placeholder = "  [Comment Thread Expanded — pending task 4.5]"
+		placeholder = "  [Comment Thread Expanded — pending task 5.2]"
 	case ViewChecksList:
 		placeholder = "  [Checks List View — pending task 4.6]"
 	case ViewChecksLog:
@@ -348,9 +359,12 @@ func (a App) renderActiveView(contentHeight int) string {
 	return content
 }
 
-// SetComments updates the shared comments data.
+// SetComments updates the shared comments data and rebuilds the comments list.
 func (a *App) SetComments(c *domain.CommentsResult) {
 	a.comments = c
+	if c != nil {
+		a.commentsList = newCommentsListModel(c.Threads)
+	}
 }
 
 // SetChecks updates the shared checks data.

@@ -91,19 +91,35 @@ func TestShiftTabCyclesReverse(t *testing.T) {
 }
 
 func TestEnterDrillsIntoDetail(t *testing.T) {
-	tests := []struct {
-		start    View
-		expected View
-	}{
-		{ViewCommentsList, ViewCommentsExpand},
-		{ViewChecksList, ViewChecksLog},
+	// Comments list: Enter goes through sub-model → selectThreadMsg.
+	// Need thread data so the sub-model has something to select.
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			{ID: "t1", Path: "file.go", Line: 10, Comments: []domain.Comment{{Author: "alice", Body: "fix this"}}},
+		},
+		UnresolvedCount: 1,
+	})
+	app = sendWindowSize(app, 80, 24)
+
+	// Enter on the comments list sub-model returns a selectThreadMsg cmd.
+	model, cmd := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app = model.(App)
+	if cmd != nil {
+		// Execute the command to get the selectThreadMsg.
+		msg := cmd()
+		model, _ = app.Update(msg)
+		app = model.(App)
 	}
-	for _, tt := range tests {
-		app := NewApp("owner/repo", 42, tt.start)
-		app = sendSpecialKey(app, tea.KeyEnter)
-		if app.ActiveView() != tt.expected {
-			t.Errorf("Enter from %v: expected %v, got %v", tt.start, tt.expected, app.ActiveView())
-		}
+	if app.ActiveView() != ViewCommentsExpand {
+		t.Errorf("Enter from comments list: expected ViewCommentsExpand, got %v", app.ActiveView())
+	}
+
+	// Checks list: Enter handled directly by app shell.
+	app2 := NewApp("owner/repo", 42, ViewChecksList)
+	app2 = sendSpecialKey(app2, tea.KeyEnter)
+	if app2.ActiveView() != ViewChecksLog {
+		t.Errorf("Enter from checks: expected ViewChecksLog, got %v", app2.ActiveView())
 	}
 }
 
@@ -173,8 +189,9 @@ func TestEscFromResolveReturnsToPrevView(t *testing.T) {
 
 func TestTabFromDetailGoesToNextTopLevel(t *testing.T) {
 	// If you're in comments-expand and press Tab, should go to checks list.
+	// Start directly in CommentsExpand to avoid needing sub-model Enter flow.
 	app := NewApp("owner/repo", 42, ViewCommentsList)
-	app = sendSpecialKey(app, tea.KeyEnter) // → CommentsExpand
+	app.activeView = ViewCommentsExpand
 	if app.ActiveView() != ViewCommentsExpand {
 		t.Fatalf("expected ViewCommentsExpand, got %v", app.ActiveView())
 	}
@@ -196,9 +213,9 @@ func TestViewRenders(t *testing.T) {
 	if !strings.Contains(output, "ghent") {
 		t.Error("missing 'ghent' in status bar")
 	}
-	// Should contain placeholder text
-	if !strings.Contains(output, "Comments List View") {
-		t.Error("missing comments list placeholder")
+	// Should contain comments list content (empty list message or threads)
+	if !strings.Contains(output, "No review threads") {
+		t.Error("missing empty comments list message")
 	}
 }
 

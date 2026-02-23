@@ -1,6 +1,6 @@
 # Task 5.1: Comments List View
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 4.4: Wire TUI to Cobra (needs TUI shell wired to commands)
@@ -110,6 +110,31 @@ feat(tui): add comments list view with thread browsing
 - Threads grouped by file path
 - r (resolve), y (copy ID), o (open browser), f (filter), Tab (checks)
 ```
+
+## Visual Test Results
+
+### L4: test_ghent_comments.py (12/12 PASS)
+- Build & Install: PASS
+- Launch TUI with Real Data (indrasvat/tbgs PR #1): PASS
+- File Grouping Headers: PASS
+- Thread Content (file:line, author, body): PASS
+- Cursor Marker (▶): PASS
+- Status Bar (repo, PR, counts): PASS
+- Help Bar (key bindings): PASS
+- j Key Navigation (cursor down): PASS
+- k Key Navigation (cursor up): PASS
+- Thread ID Visible: PASS
+- Tab to Checks View: PASS
+- Tab Back to Comments: PASS
+
+### L4: test_ghent_openclaw.py (11/11 PASS)
+- Tested against openclaw/openclaw PR #24660 (5 threads, 2 files)
+- File grouping, markdown stripping, time-ago, navigation all verified
+
+### Screenshots
+- `ghent_comments_launch.png` — Comments list with status bar, file headers, threads
+- `ghent_comments_cursor.png` — Cursor navigation (j key moved to second thread)
+- `ghent_comments_grouped.png` — File grouping with cyan headers and ─ separators
 
 ## Session Protocol
 
