@@ -143,7 +143,7 @@ if grep -q '## Visual Test Results' "$TASK_FILE"; then
             fi
             # Count non-empty lines
             if [[ -n "$(echo "$line" | tr -d '[:space:]')" ]]; then
-                ((content_lines++))
+                content_lines=$((content_lines + 1))
             fi
         fi
     done < "$TASK_FILE"

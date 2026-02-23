@@ -79,13 +79,6 @@ func TestStubsReturnNotImplemented(t *testing.T) {
 		fn   func() error
 	}{
 		{
-			name: "FetchThreads",
-			fn: func() error {
-				_, err := c.FetchThreads(ctx, "owner", "repo", 1)
-				return err
-			},
-		},
-		{
 			name: "FetchChecks",
 			fn: func() error {
 				_, err := c.FetchChecks(ctx, "owner", "repo", 1)

@@ -7,10 +7,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 1: Walking Skeleton |
-| **Current Task** | `docs/tasks/003-github-api-client.md` |
+| **Current Phase** | Phase 2: CLI Commands |
+| **Current Task** | `docs/tasks/005-checks-command.md` |
 | **Blocker** | None |
-| **Last Action** | Task 1.4: GitHub API client wiring — DONE |
+| **Last Action** | Task 2.1: Comments command — DONE |
 | **Last Updated** | 2026-02-22 |
 
 ## How to Resume
@@ -31,7 +31,7 @@
 - [x] Task 1.4: GitHub API client wiring → `docs/tasks/003-github-api-client.md`
 
 ### Phase 2: CLI Commands (pipe mode, end-to-end)
-- [ ] Task 2.1: `gh ghent comments` → `docs/tasks/004-comments-command.md`
+- [x] Task 2.1: `gh ghent comments` → `docs/tasks/004-comments-command.md`
 - [ ] Task 2.2: `gh ghent checks` → `docs/tasks/005-checks-command.md`
 - [ ] Task 2.3: `gh ghent checks --logs` → `docs/tasks/006-checks-logs.md`
 - [ ] Task 2.4: `gh ghent resolve` → `docs/tasks/007-resolve-command.md`
@@ -72,6 +72,21 @@
 (None currently)
 
 ## Session Log
+
+### 2026-02-22 (Task 2.1: Comments command)
+- Created `internal/github/threads.go` — GraphQL review thread fetcher with pagination (pageInfo/endCursor loop)
+- Client-side isResolved filtering: only unresolved threads returned in result
+- Response struct mapping with json tags for go-gh `DoWithContext` raw string queries
+- Created `internal/formatter/` package — JSON, XML, Markdown formatters implementing `domain.Formatter`
+- JSON: `json.NewEncoder` with indent, XML: custom wrapper types with `xml.Header`, MD: structured headers/tables
+- Created `internal/cli/repo.go` — `resolveRepo` helper (flag OWNER/REPO or `repository.Current()`)
+- Wired `internal/cli/comments.go` RunE: fetch → format → stdout, exit(1) on unresolved threads
+- Removed FetchThreads stub from client.go, updated client_test.go to remove stale test case
+- Test fixtures: `testdata/graphql/review_threads.json` (3 threads, mix), `review_threads_page2.json` (pagination)
+- Tests: 5 thread tests (mapping, filtering, pagination, multi-comment, empty), 3×3 formatter tests (valid, fields/structure, no ANSI)
+- L4: `test_ghent_pipe.py` iterm2-driver test — 7/7 pass, screenshots captured
+- Fixed verify-visual-tests.sh bash bug: `((content_lines++))` fails with `set -e` when value is 0
+- Verification: `go test -race -shuffle=on ./...` ✓, `go build` ✓, `make ci` ✓
 
 ### 2026-02-22 (Task 1.4: GitHub API client wiring)
 - Created `internal/github/client.go` — Client struct wrapping `*api.GraphQLClient` and `*api.RESTClient`

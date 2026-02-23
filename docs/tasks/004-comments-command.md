@@ -1,6 +1,6 @@
 # Task 2.1: Comments Command (`gh ghent comments`)
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Phase 1 complete (all of tasks 1.1-1.4)
@@ -139,6 +139,28 @@ feat(comments): add comments command with GraphQL fetch and formatters
 - JSON, XML, Markdown formatters with no ANSI bleed
 - Exit codes: 0 (clean), 1 (unresolved), 2 (error)
 ```
+
+## Visual Test Results
+
+**L4 Script:** `.claude/automations/test_ghent_pipe.py`
+**Date:** 2026-02-22
+**Status:** PASS (7/7)
+
+| Test | Result | Detail |
+|------|--------|--------|
+| Build binary | PASS | `make build` succeeded |
+| JSON command ran | PASS | Exit code captured |
+| JSON valid | PASS | `python3 -m json.tool` validates |
+| JSON no ANSI | PASS | No escape sequences in piped output |
+| Markdown command ran | PASS | Exit code captured |
+| XML well-formed | PASS | `xml.etree.ElementTree.parse` validates |
+| --pr required check | PASS | Error message correctly shown |
+
+**Screenshots reviewed:**
+- `ghent_pipe_json.png` — JSON output visible in terminal, valid structure
+- `ghent_pipe_md.png` — Markdown output visible in terminal, headers and formatting correct
+
+**Findings:** All pipe-mode formats produce clean output with no ANSI bleed. JSON is parseable by jq/python, XML is well-formed, --pr flag validation works correctly.
 
 ## Session Protocol
 

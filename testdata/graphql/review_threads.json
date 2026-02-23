@@ -1,0 +1,102 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "totalCount": 3,
+          "nodes": [
+            {
+              "id": "PRRT_thread1",
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "internal/api/graphql.go",
+              "line": 47,
+              "startLine": 45,
+              "viewerCanResolve": true,
+              "viewerCanUnresolve": false,
+              "viewerCanReply": true,
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "PRRC_comment1",
+                    "databaseId": 1001,
+                    "body": "This should handle the nil case",
+                    "author": { "login": "reviewer1" },
+                    "path": "internal/api/graphql.go",
+                    "diffHunk": "@@ -40,6 +40,8 @@\n func fetchData() {\n+\treturn nil\n }",
+                    "createdAt": "2026-02-20T10:00:00Z",
+                    "url": "https://github.com/owner/repo/pull/42#discussion_r1001"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "PRRT_thread2",
+              "isResolved": true,
+              "isOutdated": false,
+              "path": "internal/config/config.go",
+              "line": 12,
+              "startLine": 0,
+              "viewerCanResolve": false,
+              "viewerCanUnresolve": true,
+              "viewerCanReply": true,
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "PRRC_comment2",
+                    "databaseId": 1002,
+                    "body": "Consider using a constant here",
+                    "author": { "login": "reviewer2" },
+                    "path": "internal/config/config.go",
+                    "diffHunk": "@@ -10,3 +10,5 @@\n const timeout = 30",
+                    "createdAt": "2026-02-20T11:30:00Z",
+                    "url": "https://github.com/owner/repo/pull/42#discussion_r1002"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "PRRT_thread3",
+              "isResolved": false,
+              "isOutdated": true,
+              "path": "cmd/main.go",
+              "line": 5,
+              "startLine": 0,
+              "viewerCanResolve": true,
+              "viewerCanUnresolve": false,
+              "viewerCanReply": true,
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "PRRC_comment3a",
+                    "databaseId": 1003,
+                    "body": "Missing error check",
+                    "author": { "login": "reviewer1" },
+                    "path": "cmd/main.go",
+                    "diffHunk": "@@ -3,4 +3,6 @@\n func main() {",
+                    "createdAt": "2026-02-20T12:00:00Z",
+                    "url": "https://github.com/owner/repo/pull/42#discussion_r1003"
+                  },
+                  {
+                    "id": "PRRC_comment3b",
+                    "databaseId": 1004,
+                    "body": "Good catch, will fix",
+                    "author": { "login": "author1" },
+                    "path": "cmd/main.go",
+                    "diffHunk": "",
+                    "createdAt": "2026-02-20T12:15:00Z",
+                    "url": "https://github.com/owner/repo/pull/42#discussion_r1004"
+                  }
+                ]
+              }
+            }
+          ],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": "cursor_abc"
+          }
+        }
+      }
+    }
+  }
+}

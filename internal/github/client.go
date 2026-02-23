@@ -66,10 +66,6 @@ var (
 	_ domain.ReviewFetcher  = (*Client)(nil)
 )
 
-func (c *Client) FetchThreads(ctx context.Context, owner, repo string, pr int) (*domain.CommentsResult, error) {
-	return nil, fmt.Errorf("FetchThreads: not implemented")
-}
-
 func (c *Client) FetchChecks(ctx context.Context, owner, repo string, pr int) (*domain.ChecksResult, error) {
 	return nil, fmt.Errorf("FetchChecks: not implemented")
 }
