@@ -1,6 +1,6 @@
 # Task 1.3: Domain Types and Port Interfaces
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 1.1: Repository scaffold (needs go.mod)

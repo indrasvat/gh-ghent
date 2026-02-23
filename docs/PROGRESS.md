@@ -8,9 +8,9 @@
 | Field | Value |
 |-------|-------|
 | **Current Phase** | Phase 1: Walking Skeleton |
-| **Current Task** | `docs/tasks/001-cobra-cli-skeleton.md` |
+| **Current Task** | `docs/tasks/003-github-api-client.md` |
 | **Blocker** | None |
-| **Last Action** | Task 1.1: Repository scaffold — DONE |
+| **Last Action** | Task 1.3: Domain types and port interfaces — DONE |
 | **Last Updated** | 2026-02-22 |
 
 ## How to Resume
@@ -27,7 +27,7 @@
 ### Phase 1: Walking Skeleton
 - [x] Task 1.1: Repository scaffold → `docs/tasks/000-repository-scaffold.md`
 - [ ] Task 1.2: Cobra CLI skeleton → `docs/tasks/001-cobra-cli-skeleton.md`
-- [ ] Task 1.3: Domain types and port interfaces → `docs/tasks/002-domain-types.md`
+- [x] Task 1.3: Domain types and port interfaces → `docs/tasks/002-domain-types.md`
 - [ ] Task 1.4: GitHub API client wiring → `docs/tasks/003-github-api-client.md`
 
 ### Phase 2: CLI Commands (pipe mode, end-to-end)
@@ -72,6 +72,16 @@
 (None currently)
 
 ## Session Log
+
+### 2026-02-22 (Task 1.3: Domain types and port interfaces)
+- Created `internal/domain/types.go` — all domain types: ReviewThread, Comment, CommentsResult, CheckRun, Annotation, ChecksResult, OverallStatus, Review, ReviewState, ReplyResult, SummaryResult
+- Created `internal/domain/ports.go` — port interfaces: ThreadFetcher, CheckFetcher, ThreadResolver, ThreadReplier, ReviewFetcher, Formatter
+- AggregateStatus: fail > pending > pass precedence with short-circuit on fail
+- Comment.DatabaseID (int64) for REST reply endpoint
+- Used `omitzero` instead of `omitempty` for CheckRun.CompletedAt (time.Time struct — omitempty has no effect)
+- Added go-cmp dependency for tests
+- Created `internal/domain/types_test.go` — 9 AggregateStatus cases, JSON round-trip, zero-value, DatabaseID key verification
+- Verification: `make ci-fast` ✓ (51 tests, lint clean, vet clean)
 
 ### 2026-02-22 (Task 1.1: Repository scaffold)
 - Initialized Go module (github.com/indrasvat/ghent, Go 1.26)
