@@ -15,6 +15,24 @@ func newSummaryCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "summary",
 		Short: "PR status dashboard",
+		Long: `Show a combined status dashboard for a pull request.
+
+Fetches review threads, CI checks, and approvals in parallel, then
+displays a unified view with merge-readiness assessment. In TTY mode,
+shows KPI cards and section summaries. In pipe mode, outputs all
+sections in a single structured response.
+
+Merge-ready when: no unresolved threads + all checks pass + approved.
+
+Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
+		Example: `  # Interactive dashboard
+  gh ghent summary --pr 42
+
+  # Agent: check merge readiness
+  gh ghent summary --pr 42 --format json | jq '.is_merge_ready'
+
+  # Full status as markdown
+  gh ghent summary -R owner/repo --pr 42 --format md`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if Flags.PR == 0 {
 				return fmt.Errorf("--pr flag is required")

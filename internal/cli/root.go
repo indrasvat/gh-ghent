@@ -27,9 +27,26 @@ func GitHubClient() *github.Client {
 // NewRootCmd creates the root ghent command.
 func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "ghent",
-		Short:   "Agentic PR monitoring for GitHub",
-		Long:    "ghent — interactive PR monitoring with TUI for humans and structured output for AI agents.",
+		Use:   "ghent",
+		Short: "Agentic PR monitoring for GitHub",
+		Long: `ghent is a GitHub CLI extension for agentic PR monitoring.
+
+Interactive Bubble Tea TUI for humans, structured output (json/md/xml)
+for AI agents. Works wherever gh is authenticated — zero config.
+
+  TTY detected  → launches interactive TUI (j/k navigation, tabs, views)
+  Piped / no-tui → outputs structured data (default: json)`,
+		Example: `  # Interactive TUI for PR #42
+  gh ghent comments --pr 42
+
+  # Agent: get unresolved threads as JSON
+  gh ghent comments --pr 42 --format json --no-tui
+
+  # Quick merge-readiness check
+  gh ghent summary --pr 42 --format json | jq '.is_merge_ready'
+
+  # Watch CI until done, fail-fast on failure
+  gh ghent checks --pr 42 --watch`,
 		Version: version.String(),
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Root().PersistentFlags()
@@ -87,12 +104,12 @@ func NewRootCmd() *cobra.Command {
 	}
 
 	// Global persistent flags
-	cmd.PersistentFlags().StringP("repo", "R", "", "repository in OWNER/REPO format")
-	cmd.PersistentFlags().StringP("format", "f", "json", "output format: json, md, xml")
-	cmd.PersistentFlags().Bool("verbose", false, "verbose output")
-	cmd.PersistentFlags().Bool("no-tui", false, "force pipe mode even in TTY")
+	cmd.PersistentFlags().StringP("repo", "R", "", "repository in OWNER/REPO format (default: current repo)")
+	cmd.PersistentFlags().StringP("format", "f", "json", "output format: json, md, xml (pipe mode)")
+	cmd.PersistentFlags().Bool("verbose", false, "show additional context (diff hunks, debug info)")
+	cmd.PersistentFlags().Bool("no-tui", false, "force pipe mode even in TTY (for agents)")
 	cmd.PersistentFlags().Bool("debug", false, "enable debug logging to stderr")
-	cmd.PersistentFlags().Int("pr", 0, "pull request number")
+	cmd.PersistentFlags().Int("pr", 0, "pull request number (required by subcommands)")
 
 	// Subcommands
 	cmd.AddCommand(

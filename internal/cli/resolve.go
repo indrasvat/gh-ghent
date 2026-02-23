@@ -16,12 +16,32 @@ func newResolveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "resolve",
 		Short: "Resolve review threads",
-		Long:  "Resolve or unresolve PR review threads. Use --thread for a single thread or --all for bulk resolution.",
-		RunE:  runResolve,
+		Long: `Resolve or unresolve PR review threads.
+
+Use --thread to resolve a single thread by ID, or --all to resolve
+every unresolved thread in bulk. Add --unresolve to reverse the
+operation (unresolve resolved threads).
+
+Requires write permission on the repository. Respects per-thread
+viewerCanResolve / viewerCanUnresolve permissions from GitHub.
+
+Exit codes: 0 = all success, 1 = partial failure, 2 = total failure.`,
+		Example: `  # Resolve a single thread
+  gh ghent resolve --pr 42 --thread PRRT_abc123
+
+  # Resolve all unresolved threads
+  gh ghent resolve --pr 42 --all
+
+  # Unresolve a thread (reopen for discussion)
+  gh ghent resolve --pr 42 --thread PRRT_abc123 --unresolve
+
+  # Agent workflow: resolve all, check result
+  gh ghent resolve --pr 42 --all --format json | jq '.success_count'`,
+		RunE: runResolve,
 	}
 
-	cmd.Flags().String("thread", "", "thread ID to resolve (PRRT_... format)")
-	cmd.Flags().Bool("all", false, "resolve all unresolved threads")
+	cmd.Flags().String("thread", "", "thread ID to resolve (PRRT_... node ID)")
+	cmd.Flags().Bool("all", false, "resolve all unresolved threads in the PR")
 	cmd.Flags().Bool("unresolve", false, "unresolve instead of resolve")
 
 	return cmd

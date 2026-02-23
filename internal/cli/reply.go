@@ -15,6 +15,24 @@ func newReplyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reply",
 		Short: "Reply to a review thread",
+		Long: `Reply to a specific review thread on a pull request.
+
+Post a comment in an existing review thread. Designed primarily for
+AI agent use — accepts body text inline or from a file/stdin.
+Supports markdown in the reply body.
+
+Exit codes: 0 = reply posted, 1 = thread not found, 2 = error.`,
+		Example: `  # Reply inline
+  gh ghent reply --pr 42 --thread PRRT_abc123 --body "Fixed in latest commit"
+
+  # Reply from file
+  gh ghent reply --pr 42 --thread PRRT_abc123 --body-file response.md
+
+  # Reply from stdin (pipe-friendly)
+  echo "Acknowledged, will fix" | gh ghent reply --pr 42 --thread PRRT_abc123 --body-file -
+
+  # JSON confirmation
+  gh ghent reply --pr 42 --thread PRRT_abc123 --body "Done" --format json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if Flags.PR == 0 {
 				return fmt.Errorf("--pr flag is required")
@@ -63,9 +81,9 @@ func newReplyCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("thread", "", "thread ID to reply to")
-	cmd.Flags().String("body", "", "reply body text")
-	cmd.Flags().String("body-file", "", "read reply body from file (use - for stdin)")
+	cmd.Flags().String("thread", "", "thread ID to reply to (PRRT_... node ID)")
+	cmd.Flags().String("body", "", "reply body text (supports markdown)")
+	cmd.Flags().String("body-file", "", "read reply body from file (use '-' for stdin)")
 	_ = cmd.MarkFlagRequired("thread")
 
 	return cmd

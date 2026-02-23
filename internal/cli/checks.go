@@ -15,6 +15,30 @@ func newChecksCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "checks",
 		Short: "Show CI check status",
+		Long: `Show CI check runs, their status, and annotations for a pull request.
+
+In TTY mode, launches an interactive TUI with check list, annotation
+details, and log viewer. In pipe mode, outputs structured data with
+check names, statuses, and annotations.
+
+Use --logs to include failing job log excerpts in pipe output.
+Use --watch to poll until all checks complete (fail-fast on failure).
+
+Exit codes: 0 = all pass, 1 = failure, 3 = pending.`,
+		Example: `  # Interactive TUI
+  gh ghent checks --pr 42
+
+  # JSON status for agents
+  gh ghent checks --pr 42 --format json --no-tui
+
+  # Include error logs for failed checks
+  gh ghent checks --pr 42 --format json --logs
+
+  # Wait for CI to finish (fail-fast)
+  gh ghent checks --pr 42 --watch
+
+  # Check overall status
+  gh ghent checks --pr 42 --format json | jq '.overall_status'`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if Flags.PR == 0 {
 				return fmt.Errorf("--pr flag is required")
@@ -90,8 +114,8 @@ func newChecksCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Bool("logs", false, "show check run logs")
-	cmd.Flags().Bool("watch", false, "poll until all checks complete (fail-fast on failure)")
+	cmd.Flags().Bool("logs", false, "include failing job log excerpts in output")
+	cmd.Flags().Bool("watch", false, "poll until all checks complete, fail-fast on failure")
 
 	return cmd
 }
