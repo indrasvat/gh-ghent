@@ -92,6 +92,16 @@ func ChecksListKeys() []KeyBinding {
 	}
 }
 
+// ChecksLogKeys returns key bindings for the checks log/detail view.
+func ChecksLogKeys() []KeyBinding {
+	return []KeyBinding{
+		{"esc", "back to list"},
+		{"j/k", "scroll"},
+		{"o", "open in browser"},
+		{"q", "quit"},
+	}
+}
+
 // ChecksWatchKeys returns key bindings for watch mode.
 func ChecksWatchKeys() []KeyBinding {
 	return []KeyBinding{

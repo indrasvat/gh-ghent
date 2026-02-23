@@ -93,6 +93,8 @@ type App struct {
 	// Sub-models
 	commentsList     commentsListModel
 	commentsExpanded commentsExpandedModel
+	checksList       checksListModel
+	checksLog        checksLogModel
 }
 
 // NewApp creates a new App model with the given repo, PR, and initial view.
@@ -124,6 +126,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		contentHeight := max(a.height-2, 1) // minus status bar + help bar
 		a.commentsList.setSize(a.width, contentHeight)
 		a.commentsExpanded.setSize(a.width, contentHeight)
+		a.checksList.setSize(a.width, contentHeight)
+		a.checksLog.setSize(a.width, contentHeight)
 		return a, nil
 
 	case tea.KeyMsg:
@@ -136,6 +140,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.commentsExpanded = newCommentsExpandedModel(a.comments.Threads, typedMsg.threadIdx)
 			contentHeight := max(a.height-2, 1)
 			a.commentsExpanded.setSize(a.width, contentHeight)
+		}
+		return a, nil
+
+	case selectCheckMsg:
+		a.activeView = ViewChecksLog
+		if a.checks != nil && typedMsg.checkIdx >= 0 && typedMsg.checkIdx < len(a.checks.Checks) {
+			a.checksLog = newChecksLogModel(&a.checks.Checks[typedMsg.checkIdx])
+			contentHeight := max(a.height-2, 1)
+			a.checksLog.setSize(a.width, contentHeight)
 		}
 		return a, nil
 	}
@@ -175,14 +188,6 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 
-	// Enter: drill into detail views from list views.
-	// Comments list handles Enter via its sub-model (returns selectThreadMsg).
-	// Checks list still uses direct handling until its sub-model is wired.
-	if key.Matches(msg, a.keys.Enter) && a.activeView == ViewChecksList {
-		a.activeView = ViewChecksLog
-		return a, nil
-	}
-
 	// Summary-specific shortcuts: c/k/r jump to views.
 	if a.activeView == ViewSummary {
 		switch {
@@ -213,6 +218,10 @@ func (a App) forwardToActiveView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.commentsList, cmd = a.commentsList.Update(msg)
 	case ViewCommentsExpand:
 		a.commentsExpanded, cmd = a.commentsExpanded.Update(msg)
+	case ViewChecksList:
+		a.checksList, cmd = a.checksList.Update(msg)
+	case ViewChecksLog:
+		a.checksLog, cmd = a.checksLog.Update(msg)
 	}
 	return a, cmd
 }
@@ -331,7 +340,7 @@ func (a App) renderHelpBar() string {
 	case ViewChecksList:
 		bindings = components.ChecksListKeys()
 	case ViewChecksLog:
-		bindings = components.CommentsExpandedKeys() // reuse for log view
+		bindings = components.ChecksLogKeys()
 	case ViewWatch:
 		bindings = components.ChecksWatchKeys()
 	case ViewResolve:
@@ -351,21 +360,21 @@ func (a App) renderActiveView(contentHeight int) string {
 		return a.commentsList.View()
 	case ViewCommentsExpand:
 		return a.commentsExpanded.View()
+	case ViewChecksList:
+		return a.checksList.View()
+	case ViewChecksLog:
+		return a.checksLog.View()
 	}
 
 	// Placeholder text for views not yet wired.
 	var placeholder string
 	switch a.activeView {
-	case ViewChecksList:
-		placeholder = "  [Checks List View — pending task 4.6]"
-	case ViewChecksLog:
-		placeholder = "  [Check Log View — pending task 4.6]"
 	case ViewResolve:
-		placeholder = "  [Resolve View — pending task 4.7]"
+		placeholder = "  [Resolve View — pending task 5.4]"
 	case ViewSummary:
-		placeholder = "  [Summary Dashboard — pending task 4.8]"
+		placeholder = "  [Summary Dashboard — pending task 5.5]"
 	case ViewWatch:
-		placeholder = "  [Watch Mode — pending task 4.9]"
+		placeholder = "  [Watch Mode — pending task 5.6]"
 	default:
 		placeholder = "  [Unknown View]"
 	}
@@ -387,9 +396,12 @@ func (a *App) SetComments(c *domain.CommentsResult) {
 	}
 }
 
-// SetChecks updates the shared checks data.
+// SetChecks updates the shared checks data and rebuilds the checks list.
 func (a *App) SetChecks(c *domain.ChecksResult) {
 	a.checks = c
+	if c != nil {
+		a.checksList = newChecksListModel(c.Checks)
+	}
 }
 
 // SetReviews updates the shared reviews data.

@@ -1,6 +1,6 @@
 # Task 5.3: Checks View + Log Viewer
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 4.4: Wire TUI to Cobra
@@ -107,6 +107,33 @@ feat(tui): add checks view with annotations and log viewer
 - Log viewer via bubbles/viewport for failing checks
 - R to re-run, Tab to comments, o to open in browser
 ```
+
+## Visual Test Results
+
+**L4 iterm2-driver: 15/15 PASS** (`test_ghent_checks.py`)
+
+Repos tested:
+- `indrasvat/peek-it` PR #2 — 2 failing checks with annotations
+- `indrasvat/doot` PR #1 — 1 passing check
+- `indrasvat/context-lens` PR #1 — 4 passed, 2 failed (mixed)
+
+Screenshots reviewed:
+- `ghent_checks_launch.png` — Status bar shows repo/PR/SHA, "2 failed" in red, check names with ✗ icons, auto-expanded annotations with file:line and messages, duration/status on right, help bar with all key bindings
+- `ghent_checks_annotations.png` — Failed checks show "N errors" header + bullet list of .github:line annotations
+- `ghent_checks_logviewer.png` — Check name header with ✗ icon, duration/status, 3 annotations fully expanded, "No log excerpt available" for external CI (graceful degradation), help bar shows esc/back/scroll/browser/quit
+- `ghent_checks_launch_pass.png` — Single check with green ✓, "1 passed" in green, 36s duration, clean layout
+- `ghent_checks_launch_mixed.png` — "4 passed 2 failed" in status bar, both ✓ and ✗ icons, annotations only on failed checks
+- `ghent_checks_tab_comments.png` — Tab switches to comments view correctly, shows "No review threads found."
+- `ghent_checks_tab_back.png` — Tab returns to checks view with full check list restored
+
+Findings:
+- All status icons render correctly (✓/✗/⟳/◌)
+- Auto-expanded annotations show file:line and message text
+- j/k navigation moves cursor through checks
+- Enter opens log viewer, Esc returns to list
+- Tab cycles between checks and comments views
+- Status bar shows accurate pass/fail counts
+- No background bleed, ANSI issues, or layout corruption observed
 
 ## Session Protocol
 

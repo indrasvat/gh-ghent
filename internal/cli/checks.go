@@ -85,6 +85,18 @@ Exit codes: 0 = all pass, 1 = failure, 3 = pending.`,
 
 			// TTY → launch TUI; non-TTY / --no-tui → pipe mode.
 			if Flags.IsTTY {
+				// Pre-fetch logs for failed checks for the TUI log viewer.
+				for i := range result.Checks {
+					ch := &result.Checks[i]
+					if ch.Conclusion != "failure" {
+						continue
+					}
+					logText, logErr := client.FetchJobLog(ctx, owner, repo, ch.ID)
+					if logErr != nil {
+						continue // graceful degradation
+					}
+					ch.LogExcerpt = ghub.ExtractErrorLines(logText)
+				}
 				repoStr := owner + "/" + repo
 				return launchTUI(tui.ViewChecksList,
 					withRepo(repoStr), withPR(Flags.PR),

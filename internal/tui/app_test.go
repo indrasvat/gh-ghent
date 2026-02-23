@@ -115,9 +115,22 @@ func TestEnterDrillsIntoDetail(t *testing.T) {
 		t.Errorf("Enter from comments list: expected ViewCommentsExpand, got %v", app.ActiveView())
 	}
 
-	// Checks list: Enter handled directly by app shell.
+	// Checks list: Enter goes through sub-model → selectCheckMsg.
 	app2 := NewApp("owner/repo", 42, ViewChecksList)
-	app2 = sendSpecialKey(app2, tea.KeyEnter)
+	app2.SetChecks(&domain.ChecksResult{
+		Checks: []domain.CheckRun{
+			{ID: 1, Name: "build", Status: "completed", Conclusion: "success"},
+		},
+		PassCount: 1,
+	})
+	app2 = sendWindowSize(app2, 80, 24)
+	model2, cmd2 := app2.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app2 = model2.(App)
+	if cmd2 != nil {
+		msg2 := cmd2()
+		model2, _ = app2.Update(msg2)
+		app2 = model2.(App)
+	}
 	if app2.ActiveView() != ViewChecksLog {
 		t.Errorf("Enter from checks: expected ViewChecksLog, got %v", app2.ActiveView())
 	}

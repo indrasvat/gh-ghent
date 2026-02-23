@@ -8,9 +8,9 @@
 | Field | Value |
 |-------|-------|
 | **Current Phase** | Phase 5: TUI Views |
-| **Current Task** | Task 5.2 complete. Next: `docs/tasks/020-checks-view.md` |
+| **Current Task** | Task 5.3 complete. Next: `docs/tasks/021-resolve-view.md` |
 | **Blocker** | None |
-| **Last Action** | Tasks 5.1-5.2 complete. Comments list + expanded views. |
+| **Last Action** | Task 5.3 complete. Checks view + log viewer. |
 | **Last Updated** | 2026-02-23 |
 
 ## How to Resume
@@ -58,7 +58,7 @@
 ### Phase 5: TUI Views
 - [x] Task 5.1: Comments list view → `docs/tasks/018-comments-list-view.md`
 - [x] Task 5.2: Comments expanded view → `docs/tasks/019-comments-expanded-view.md`
-- [ ] Task 5.3: Checks view + log viewer → `docs/tasks/020-checks-view.md`
+- [x] Task 5.3: Checks view + log viewer → `docs/tasks/020-checks-view.md`
 - [ ] Task 5.4: Resolve view — multi-select → `docs/tasks/021-resolve-view.md`
 - [ ] Task 5.5: Summary dashboard → `docs/tasks/022-summary-dashboard.md`
 - [ ] Task 5.6: Watch mode TUI → `docs/tasks/023-watch-mode-tui.md`
@@ -74,6 +74,11 @@
 (None currently)
 
 ## Session Log
+
+### 2026-02-23 (Task 5.3 — TUI Views: Checks)
+- **Task 5.3 (Checks view + log viewer):** Created `internal/tui/checks.go` — `checksListModel` with custom scrollable list, status icons (✓/✗/⟳/◌), auto-expanded annotations for failed checks with error count header and file:line detail. `checksLogModel` line-based viewport with check header, annotations, log excerpt display. Helper functions: `checkIsFailed`, `checkStatusIcon`, `renderCheckStatusText`, `formatCheckDuration`, `openInBrowser`. Wired to `app.go` with `selectCheckMsg` pattern and WindowSizeMsg propagation. Pre-fetch logs for failed checks in `cli/checks.go` before TUI launch. Added `ChecksLogKeys()` to helpbar. 16 unit tests. L4: 15/15 PASS (peek-it fail, doot pass, context-lens mixed).
+- Verification: 367 tests pass, lint clean, vet clean (`make ci` ✓)
+- Next: Task 5.4 Resolve View — Multi-Select
 
 ### 2026-02-23 (Tasks 5.1, 5.2 — TUI Views: Comments)
 - **Task 5.1 (Comments list view):** Created `internal/tui/comments.go` — custom scrollable list with file-path grouping, cursor navigation (j/k) skipping file headers, multi-line item viewport (threads=3 lines, headers=1 line). `formatTimeAgo()` for relative timestamps, `stripMarkdown()` regex-based cleanup of images/links/HTML/bold/backticks. 18 unit tests. L4: 12/12 PASS (tbgs), 11/11 PASS (openclaw).
