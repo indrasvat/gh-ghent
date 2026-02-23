@@ -1,6 +1,6 @@
 # Task 6.1: `--since` Filter
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Phase 5 complete (or at minimum Phase 3 — CLI complete)

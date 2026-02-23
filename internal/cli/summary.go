@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -13,6 +14,8 @@ import (
 )
 
 func newSummaryCmd() *cobra.Command {
+	var compact bool
+
 	cmd := &cobra.Command{
 		Use:   "summary",
 		Short: "PR status dashboard",
@@ -31,6 +34,9 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 
   # Agent: check merge readiness
   gh ghent summary --pr 42 --format json | jq '.is_merge_ready'
+
+  # Compact one-line-per-thread digest
+  gh ghent summary --pr 42 --compact --format json
 
   # Full status as markdown
   gh ghent summary -R owner/repo --pr 42 --format md`,
@@ -86,6 +92,10 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 				return err
 			}
 
+			// Apply --since filter (no-op if not set).
+			FilterThreadsBySince(threads, Flags.Since)
+			FilterChecksBySince(checks, Flags.Since)
+
 			// TTY → launch TUI; non-TTY / --no-tui → pipe mode.
 			if Flags.IsTTY {
 				repoStr := owner + "/" + repo
@@ -98,12 +108,17 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			// Merge readiness logic.
 			mergeReady := IsMergeReady(threads, checks, reviews)
 
+			now := time.Now()
+
 			result := &domain.SummaryResult{
 				PRNumber:     Flags.PR,
 				Comments:     *threads,
 				Checks:       *checks,
 				Reviews:      reviews,
 				IsMergeReady: mergeReady,
+				PRAge:        computePRAge(threads, reviews, now),
+				LastUpdate:   computeLastUpdate(threads, reviews, now),
+				ReviewCycles: computeReviewCycles(reviews),
 			}
 
 			f, err := formatter.New(Flags.Format)
@@ -111,8 +126,14 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 				return err
 			}
 
-			if err := f.FormatSummary(os.Stdout, result); err != nil {
-				return fmt.Errorf("format output: %w", err)
+			if compact {
+				if err := f.FormatCompactSummary(os.Stdout, result); err != nil {
+					return fmt.Errorf("format output: %w", err)
+				}
+			} else {
+				if err := f.FormatSummary(os.Stdout, result); err != nil {
+					return fmt.Errorf("format output: %w", err)
+				}
 			}
 
 			// Exit codes: 0=ready, 1=not ready.
@@ -123,6 +144,8 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVar(&compact, "compact", false, "one-line-per-thread compact digest (optimized for agents)")
 
 	return cmd
 }
@@ -164,4 +187,92 @@ func IsMergeReady(threads *domain.CommentsResult, checks *domain.ChecksResult, r
 	}
 
 	return true
+}
+
+// computePRAge derives PR age from the earliest timestamp in threads/reviews.
+func computePRAge(threads *domain.CommentsResult, reviews []domain.Review, now time.Time) string {
+	earliest := findEarliestTimestamp(threads, reviews)
+	if earliest.IsZero() {
+		return ""
+	}
+	return formatRelativeTime(now.Sub(earliest))
+}
+
+// computeLastUpdate finds the most recent comment or review timestamp.
+func computeLastUpdate(threads *domain.CommentsResult, reviews []domain.Review, now time.Time) string {
+	var latest time.Time
+
+	if threads != nil {
+		for _, t := range threads.Threads {
+			for _, c := range t.Comments {
+				if c.CreatedAt.After(latest) {
+					latest = c.CreatedAt
+				}
+			}
+		}
+	}
+
+	for _, r := range reviews {
+		if r.SubmittedAt.After(latest) {
+			latest = r.SubmittedAt
+		}
+	}
+
+	if latest.IsZero() {
+		return ""
+	}
+	return formatRelativeTime(now.Sub(latest))
+}
+
+// computeReviewCycles counts distinct review rounds (unique dates of review submissions).
+func computeReviewCycles(reviews []domain.Review) int {
+	if len(reviews) == 0 {
+		return 0
+	}
+
+	seen := make(map[string]bool)
+	for _, r := range reviews {
+		day := r.SubmittedAt.Format("2006-01-02")
+		seen[day] = true
+	}
+	return len(seen)
+}
+
+// findEarliestTimestamp returns the oldest timestamp across threads and reviews.
+func findEarliestTimestamp(threads *domain.CommentsResult, reviews []domain.Review) time.Time {
+	var earliest time.Time
+
+	if threads != nil {
+		for _, t := range threads.Threads {
+			for _, c := range t.Comments {
+				if earliest.IsZero() || c.CreatedAt.Before(earliest) {
+					earliest = c.CreatedAt
+				}
+			}
+		}
+	}
+
+	for _, r := range reviews {
+		if earliest.IsZero() || r.SubmittedAt.Before(earliest) {
+			earliest = r.SubmittedAt
+		}
+	}
+
+	return earliest
+}
+
+// formatRelativeTime formats a duration as a human-friendly relative string.
+func formatRelativeTime(d time.Duration) string {
+	switch {
+	case d < time.Minute:
+		return "<1m"
+	case d < time.Hour:
+		return fmt.Sprintf("%dm", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh", int(d.Hours()))
+	case d < 7*24*time.Hour:
+		return fmt.Sprintf("%dd", int(d.Hours()/24))
+	default:
+		return fmt.Sprintf("%dw", int(d.Hours()/(24*7)))
+	}
 }

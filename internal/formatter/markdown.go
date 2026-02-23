@@ -12,6 +12,9 @@ type MarkdownFormatter struct{}
 
 func (f *MarkdownFormatter) FormatComments(w io.Writer, result *domain.CommentsResult) error {
 	fmt.Fprintf(w, "# PR #%d — Review Comments\n\n", result.PRNumber)
+	if result.Since != "" {
+		fmt.Fprintf(w, "> Filtered: showing activity since %s\n\n", result.Since)
+	}
 	fmt.Fprintf(w, "**Unresolved:** %d | **Resolved:** %d | **Total:** %d\n",
 		result.UnresolvedCount, result.ResolvedCount, result.TotalCount)
 
@@ -32,8 +35,35 @@ func (f *MarkdownFormatter) FormatComments(w io.Writer, result *domain.CommentsR
 	return nil
 }
 
+func (f *MarkdownFormatter) FormatGroupedComments(w io.Writer, result *domain.GroupedCommentsResult) error {
+	fmt.Fprintf(w, "# PR #%d — Review Comments (by %s)\n\n", result.PRNumber, result.GroupBy)
+	fmt.Fprintf(w, "**Unresolved:** %d | **Resolved:** %d | **Total:** %d\n",
+		result.UnresolvedCount, result.ResolvedCount, result.TotalCount)
+
+	for _, g := range result.Groups {
+		fmt.Fprintf(w, "\n---\n\n")
+		fmt.Fprintf(w, "## %s\n\n", g.Key)
+
+		for _, t := range g.Threads {
+			fmt.Fprintf(w, "### %s:%d\n\n", t.Path, t.Line)
+			for _, c := range t.Comments {
+				fmt.Fprintf(w, "**@%s** — %s\n\n", c.Author, c.CreatedAt.Format("2006-01-02 15:04"))
+				fmt.Fprintf(w, "> %s\n", c.Body)
+				if c.DiffHunk != "" {
+					fmt.Fprintf(w, "\n<details>\n<summary>Diff</summary>\n\n```diff\n%s\n```\n\n</details>\n", c.DiffHunk)
+				}
+				fmt.Fprintln(w)
+			}
+		}
+	}
+	return nil
+}
+
 func (f *MarkdownFormatter) FormatChecks(w io.Writer, result *domain.ChecksResult) error {
 	fmt.Fprintf(w, "# PR #%d — Check Runs\n\n", result.PRNumber)
+	if result.Since != "" {
+		fmt.Fprintf(w, "> Filtered: showing activity since %s\n\n", result.Since)
+	}
 	fmt.Fprintf(w, "**Status:** %s | **Pass:** %d | **Fail:** %d | **Pending:** %d\n\n",
 		result.OverallStatus, result.PassCount, result.FailCount, result.PendingCount)
 	fmt.Fprintf(w, "| Check | Status | Conclusion |\n")
@@ -87,6 +117,51 @@ func (f *MarkdownFormatter) FormatResolveResults(w io.Writer, result *domain.Res
 			fmt.Fprintf(w, "- **%s:** %s\n", e.ThreadID, e.Message)
 		}
 	}
+	return nil
+}
+
+func (f *MarkdownFormatter) FormatCompactSummary(w io.Writer, result *domain.SummaryResult) error {
+	mergeStatus := "NOT READY"
+	if result.IsMergeReady {
+		mergeStatus = "READY"
+	}
+
+	// One-line KPI summary.
+	fmt.Fprintf(w, "PR #%d [%s] — unresolved:%d checks:%s (pass:%d fail:%d)",
+		result.PRNumber, mergeStatus,
+		result.Comments.UnresolvedCount,
+		result.Checks.OverallStatus,
+		result.Checks.PassCount, result.Checks.FailCount)
+
+	if result.PRAge != "" {
+		fmt.Fprintf(w, " age:%s", result.PRAge)
+	}
+	if result.LastUpdate != "" {
+		fmt.Fprintf(w, " last:%s", result.LastUpdate)
+	}
+	if result.ReviewCycles > 0 {
+		fmt.Fprintf(w, " cycles:%d", result.ReviewCycles)
+	}
+	fmt.Fprintln(w)
+
+	// Thread digest table.
+	if len(result.Comments.Threads) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "| File:Line | Author | Preview |")
+		fmt.Fprintln(w, "|-----------|--------|---------|")
+		for _, t := range result.Comments.Threads {
+			if len(t.Comments) == 0 {
+				continue
+			}
+			first := t.Comments[0]
+			preview := first.Body
+			if len(preview) > 60 {
+				preview = preview[:60] + "..."
+			}
+			fmt.Fprintf(w, "| %s:%d | @%s | %s |\n", t.Path, t.Line, first.Author, preview)
+		}
+	}
+
 	return nil
 }
 

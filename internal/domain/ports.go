@@ -34,9 +34,11 @@ type ReviewFetcher interface {
 // Formatter formats output for pipe mode.
 type Formatter interface {
 	FormatComments(w io.Writer, result *CommentsResult) error
+	FormatGroupedComments(w io.Writer, result *GroupedCommentsResult) error
 	FormatChecks(w io.Writer, result *ChecksResult) error
 	FormatReply(w io.Writer, result *ReplyResult) error
 	FormatResolveResults(w io.Writer, result *ResolveResults) error
 	FormatSummary(w io.Writer, result *SummaryResult) error
+	FormatCompactSummary(w io.Writer, result *SummaryResult) error
 	FormatWatchStatus(w io.Writer, status *WatchStatus) error
 }

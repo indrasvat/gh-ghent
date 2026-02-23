@@ -17,6 +17,7 @@ func (f *XMLFormatter) FormatComments(w io.Writer, result *domain.CommentsResult
 		TotalCount:      result.TotalCount,
 		ResolvedCount:   result.ResolvedCount,
 		UnresolvedCount: result.UnresolvedCount,
+		Since:           result.Since,
 	}
 	for _, t := range result.Threads {
 		xt := xmlThread{
@@ -50,6 +51,50 @@ func (f *XMLFormatter) FormatComments(w io.Writer, result *domain.CommentsResult
 	return err
 }
 
+func (f *XMLFormatter) FormatGroupedComments(w io.Writer, result *domain.GroupedCommentsResult) error {
+	out := xmlGroupedComments{
+		PRNumber:        result.PRNumber,
+		GroupBy:         result.GroupBy,
+		TotalCount:      result.TotalCount,
+		ResolvedCount:   result.ResolvedCount,
+		UnresolvedCount: result.UnresolvedCount,
+	}
+	for _, g := range result.Groups {
+		xg := xmlCommentGroup{Key: g.Key}
+		for _, t := range g.Threads {
+			xt := xmlThread{
+				ID:         t.ID,
+				Path:       t.Path,
+				Line:       t.Line,
+				IsResolved: t.IsResolved,
+				IsOutdated: t.IsOutdated,
+			}
+			for _, c := range t.Comments {
+				xt.Comments = append(xt.Comments, xmlComment{
+					ID:        c.ID,
+					Author:    c.Author,
+					Body:      c.Body,
+					CreatedAt: c.CreatedAt.Format(time.RFC3339),
+					URL:       c.URL,
+					DiffHunk:  c.DiffHunk,
+				})
+			}
+			xg.Threads = append(xg.Threads, xt)
+		}
+		out.Groups = append(out.Groups, xg)
+	}
+	if _, err := io.WriteString(w, xml.Header); err != nil {
+		return err
+	}
+	enc := xml.NewEncoder(w)
+	enc.Indent("", "  ")
+	if err := enc.Encode(out); err != nil {
+		return err
+	}
+	_, err := io.WriteString(w, "\n")
+	return err
+}
+
 func (f *XMLFormatter) FormatChecks(w io.Writer, result *domain.ChecksResult) error {
 	out := xmlChecks{
 		PRNumber:      result.PRNumber,
@@ -58,6 +103,7 @@ func (f *XMLFormatter) FormatChecks(w io.Writer, result *domain.ChecksResult) er
 		PassCount:     result.PassCount,
 		FailCount:     result.FailCount,
 		PendingCount:  result.PendingCount,
+		Since:         result.Since,
 	}
 	for _, ch := range result.Checks {
 		xc := xmlCheckRun{
@@ -170,6 +216,48 @@ func (f *XMLFormatter) FormatSummary(w io.Writer, result *domain.SummaryResult) 
 	return err
 }
 
+func (f *XMLFormatter) FormatCompactSummary(w io.Writer, result *domain.SummaryResult) error {
+	out := xmlCompactSummary{
+		PRNumber:     result.PRNumber,
+		IsMergeReady: result.IsMergeReady,
+		PRAge:        result.PRAge,
+		LastUpdate:   result.LastUpdate,
+		ReviewCycles: result.ReviewCycles,
+		Unresolved:   result.Comments.UnresolvedCount,
+		CheckStatus:  string(result.Checks.OverallStatus),
+		PassCount:    result.Checks.PassCount,
+		FailCount:    result.Checks.FailCount,
+	}
+
+	for _, t := range result.Comments.Threads {
+		if len(t.Comments) == 0 {
+			continue
+		}
+		first := t.Comments[0]
+		preview := first.Body
+		if len(preview) > 80 {
+			preview = preview[:80] + "..."
+		}
+		out.Threads = append(out.Threads, xmlCompactThread{
+			File:        t.Path,
+			Line:        t.Line,
+			Author:      first.Author,
+			BodyPreview: preview,
+		})
+	}
+
+	if _, err := io.WriteString(w, xml.Header); err != nil {
+		return err
+	}
+	enc := xml.NewEncoder(w)
+	enc.Indent("", "  ")
+	if err := enc.Encode(out); err != nil {
+		return err
+	}
+	_, err := io.WriteString(w, "\n")
+	return err
+}
+
 func (f *XMLFormatter) FormatWatchStatus(w io.Writer, status *domain.WatchStatus) error {
 	out := xmlWatchStatus{
 		Timestamp:     status.Timestamp.Format(time.RFC3339),
@@ -221,12 +309,28 @@ type xmlWatchEvent struct {
 	Timestamp  string `xml:"timestamp,attr"`
 }
 
+type xmlGroupedComments struct {
+	XMLName         xml.Name          `xml:"grouped_comments"`
+	PRNumber        int               `xml:"pr_number,attr"`
+	GroupBy         string            `xml:"group_by,attr"`
+	TotalCount      int               `xml:"total_count,attr"`
+	ResolvedCount   int               `xml:"resolved_count,attr"`
+	UnresolvedCount int               `xml:"unresolved_count,attr"`
+	Groups          []xmlCommentGroup `xml:"group"`
+}
+
+type xmlCommentGroup struct {
+	Key     string      `xml:"key,attr"`
+	Threads []xmlThread `xml:"thread"`
+}
+
 type xmlComments struct {
 	XMLName         xml.Name    `xml:"comments"`
 	PRNumber        int         `xml:"pr_number,attr"`
 	TotalCount      int         `xml:"total_count,attr"`
 	ResolvedCount   int         `xml:"resolved_count,attr"`
 	UnresolvedCount int         `xml:"unresolved_count,attr"`
+	Since           string      `xml:"since,attr,omitempty"`
 	Threads         []xmlThread `xml:"thread"`
 }
 
@@ -256,6 +360,7 @@ type xmlChecks struct {
 	PassCount     int           `xml:"pass_count,attr"`
 	FailCount     int           `xml:"fail_count,attr"`
 	PendingCount  int           `xml:"pending_count,attr"`
+	Since         string        `xml:"since,attr,omitempty"`
 	Checks        []xmlCheckRun `xml:"check"`
 }
 
@@ -327,4 +432,25 @@ type xmlReview struct {
 	State       string `xml:"state,attr"`
 	SubmittedAt string `xml:"submitted_at,attr"`
 	Body        string `xml:"body,omitempty"`
+}
+
+type xmlCompactSummary struct {
+	XMLName      xml.Name           `xml:"compact_summary"`
+	PRNumber     int                `xml:"pr_number,attr"`
+	IsMergeReady bool               `xml:"is_merge_ready,attr"`
+	PRAge        string             `xml:"pr_age,attr,omitempty"`
+	LastUpdate   string             `xml:"last_update,attr,omitempty"`
+	ReviewCycles int                `xml:"review_cycles,attr,omitempty"`
+	Unresolved   int                `xml:"unresolved,attr"`
+	CheckStatus  string             `xml:"check_status,attr"`
+	PassCount    int                `xml:"pass_count,attr"`
+	FailCount    int                `xml:"fail_count,attr"`
+	Threads      []xmlCompactThread `xml:"thread,omitempty"`
+}
+
+type xmlCompactThread struct {
+	File        string `xml:"file,attr"`
+	Line        int    `xml:"line,attr"`
+	Author      string `xml:"author,attr"`
+	BodyPreview string `xml:"body_preview"`
 }

@@ -94,6 +94,9 @@ Exit codes: 0 = all pass, 1 = failure, 3 = pending.`,
 				return fmt.Errorf("fetch checks: %w", err)
 			}
 
+			// Apply --since filter (no-op if not set).
+			FilterChecksBySince(result, Flags.Since)
+
 			// TTY → launch TUI; non-TTY / --no-tui → pipe mode.
 			if Flags.IsTTY {
 				// Pre-fetch logs for failed checks for the TUI log viewer.

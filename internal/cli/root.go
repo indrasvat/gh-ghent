@@ -77,6 +77,17 @@ for AI agents. Works wherever gh is authenticated — zero config.
 				return err
 			}
 
+			sinceStr, err := f.GetString("since")
+			if err != nil {
+				return err
+			}
+			if sinceStr != "" {
+				Flags.Since, err = ParseSince(sinceStr)
+				if err != nil {
+					return err
+				}
+			}
+
 			// Initialize debug logging: --debug flag or GH_DEBUG env var
 			debug.Init(Flags.Debug || os.Getenv("GH_DEBUG") != "")
 
@@ -110,6 +121,7 @@ for AI agents. Works wherever gh is authenticated — zero config.
 	cmd.PersistentFlags().Bool("no-tui", false, "force pipe mode even in TTY (for agents)")
 	cmd.PersistentFlags().Bool("debug", false, "enable debug logging to stderr")
 	cmd.PersistentFlags().Int("pr", 0, "pull request number (required by subcommands)")
+	cmd.PersistentFlags().String("since", "", "filter by timestamp (ISO 8601 or relative: 1h, 30m, 2d)")
 
 	// Subcommands
 	cmd.AddCommand(
