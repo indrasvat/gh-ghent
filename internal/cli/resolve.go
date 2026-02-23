@@ -10,6 +10,7 @@ import (
 	"github.com/indrasvat/gh-ghent/internal/domain"
 	"github.com/indrasvat/gh-ghent/internal/formatter"
 	"github.com/indrasvat/gh-ghent/internal/github"
+	"github.com/indrasvat/gh-ghent/internal/tui"
 )
 
 func newResolveCmd() *cobra.Command {
@@ -63,6 +64,25 @@ func runResolve(cmd *cobra.Command, _ []string) error {
 	unresolve, err := cmd.Flags().GetBool("unresolve")
 	if err != nil {
 		return err
+	}
+
+	// TTY without explicit --thread/--all → launch interactive resolve TUI.
+	if Flags.IsTTY && threadID == "" && !all {
+		owner, repo, repoErr := resolveRepo(Flags.Repo)
+		if repoErr != nil {
+			return repoErr
+		}
+		ctx := cmd.Context()
+		client := GitHubClient()
+		threads, fetchErr := client.FetchThreads(ctx, owner, repo, Flags.PR)
+		if fetchErr != nil {
+			return fmt.Errorf("fetch threads: %w", fetchErr)
+		}
+		repoStr := owner + "/" + repo
+		return launchTUI(tui.ViewResolve,
+			withRepo(repoStr), withPR(Flags.PR),
+			withComments(threads),
+		)
 	}
 
 	if threadID == "" && !all {

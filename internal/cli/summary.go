@@ -9,6 +9,7 @@ import (
 
 	"github.com/indrasvat/gh-ghent/internal/domain"
 	"github.com/indrasvat/gh-ghent/internal/formatter"
+	"github.com/indrasvat/gh-ghent/internal/tui"
 )
 
 func newSummaryCmd() *cobra.Command {
@@ -83,6 +84,15 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 
 			if err := g.Wait(); err != nil {
 				return err
+			}
+
+			// TTY → launch TUI; non-TTY / --no-tui → pipe mode.
+			if Flags.IsTTY {
+				repoStr := owner + "/" + repo
+				return launchTUI(tui.ViewSummary,
+					withRepo(repoStr), withPR(Flags.PR),
+					withComments(threads), withChecks(checks), withReviews(reviews),
+				)
 			}
 
 			// Merge readiness logic.

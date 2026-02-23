@@ -8,9 +8,9 @@
 | Field | Value |
 |-------|-------|
 | **Current Phase** | Phase 4: TUI Foundation |
-| **Current Task** | `docs/tasks/017-wire-tui-cobra.md` |
+| **Current Task** | Phase 4 complete. Next: `docs/tasks/018-comments-list-view.md` |
 | **Blocker** | None |
-| **Last Action** | Tasks 4.1-4.3 complete. App shell with view switching. |
+| **Last Action** | Phase 4 complete. TUI foundation wired to Cobra. |
 | **Last Updated** | 2026-02-22 |
 
 ## How to Resume
@@ -51,7 +51,9 @@
 - [x] Task 4.1: Tokyo Night theme + Lipgloss styles → `docs/tasks/014-tokyo-night-theme.md`
 - [x] Task 4.2: Shared TUI components → `docs/tasks/015-shared-tui-components.md`
 - [x] Task 4.3: App shell — root model, view switching → `docs/tasks/016-app-shell.md`
-- [ ] Task 4.4: Wire TUI to Cobra commands → `docs/tasks/017-wire-tui-cobra.md`
+- [x] Task 4.4: Wire TUI to Cobra commands → `docs/tasks/017-wire-tui-cobra.md`
+
+> **Milestone: TUI Foundation complete** — all views have placeholder content, dual-mode routing works
 
 ### Phase 5: TUI Views
 - [ ] Task 5.1: Comments list view → `docs/tasks/018-comments-list-view.md`
@@ -77,9 +79,11 @@
 - **Task 4.1 (Tokyo Night theme):** Created `internal/tui/styles/theme.go` (17 color constants), `styles.go` (all Lipgloss style definitions), `styles_test.go`. `cmd/theme-demo/main.go` visual harness. L4 test: 8/8 PASS.
 - **Task 4.2 (Shared components):** Created `internal/tui/components/` — statusbar.go, helpbar.go, diffhunk.go with tests. 6 predefined key binding sets per view. Extended theme-demo. L4 test: 6/6 PASS.
 - **Task 4.3 (App shell):** Created `internal/tui/app.go` — root Bubble Tea model with View enum (7 views), key routing (Tab cycle, Enter drill-in, Esc back, summary shortcuts c/k/r), WindowSizeMsg propagation to all sub-models. `keymap.go` — bubbles/key bindings. `cmd/shell-demo/main.go` — interactive demo. 23 unit tests, L4 test: 6/6 PASS. No switch shadowing (pitfall #5), termenv background set/reset.
+- **Task 4.4 (Wire TUI to Cobra):** Created `internal/cli/tui.go` — `launchTUI()` helper with functional options (withRepo, withPR, withComments, withChecks, withReviews). Modified `comments.go`, `checks.go`, `summary.go`, `resolve.go` — if `Flags.IsTTY` → launch TUI with pre-fetched data, else pipe mode. Resolve: TTY without --thread/--all → interactive TUI, else pipe mode. Watch mode stays pipe-only. L3: all pipe mode tests pass. L4 test: 6/6 PASS (TUI launch, Tab switching, --no-tui, piped output, checks TUI).
 - Added charmbracelet/bubbletea v1.3.10, bubbles v1.0.0 dependencies
+- **Phase 4 complete** — TUI foundation wired to Cobra, dual-mode routing works
 - Verification: 302 tests pass, lint clean, vet clean (`make ci` ✓)
-- Next: Task 4.4 (Wire TUI to Cobra commands)
+- Next: Phase 5 (TUI Views) — Task 5.1 Comments List View
 
 ### 2026-02-23 (Tasks 2.3, 2.6 — parallel execution)
 - Ran two agents in parallel via worktree isolation

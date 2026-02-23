@@ -9,6 +9,7 @@ import (
 	"github.com/indrasvat/gh-ghent/internal/domain"
 	"github.com/indrasvat/gh-ghent/internal/formatter"
 	ghub "github.com/indrasvat/gh-ghent/internal/github"
+	"github.com/indrasvat/gh-ghent/internal/tui"
 )
 
 func newChecksCmd() *cobra.Command {
@@ -80,6 +81,15 @@ Exit codes: 0 = all pass, 1 = failure, 3 = pending.`,
 			result, err := client.FetchChecks(ctx, owner, repo, Flags.PR)
 			if err != nil {
 				return fmt.Errorf("fetch checks: %w", err)
+			}
+
+			// TTY → launch TUI; non-TTY / --no-tui → pipe mode.
+			if Flags.IsTTY {
+				repoStr := owner + "/" + repo
+				return launchTUI(tui.ViewChecksList,
+					withRepo(repoStr), withPR(Flags.PR),
+					withChecks(result),
+				)
 			}
 
 			// Fetch logs for failed checks when --logs is set

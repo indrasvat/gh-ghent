@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/indrasvat/gh-ghent/internal/formatter"
+	"github.com/indrasvat/gh-ghent/internal/tui"
 )
 
 func newCommentsCmd() *cobra.Command {
@@ -47,6 +48,15 @@ Exit codes: 0 = no unresolved threads, 1 = has unresolved threads.`,
 			result, err := client.FetchThreads(ctx, owner, repo, Flags.PR)
 			if err != nil {
 				return fmt.Errorf("fetch threads: %w", err)
+			}
+
+			// TTY → launch TUI; non-TTY / --no-tui → pipe mode.
+			if Flags.IsTTY {
+				repoStr := owner + "/" + repo
+				return launchTUI(tui.ViewCommentsList,
+					withRepo(repoStr), withPR(Flags.PR),
+					withComments(result),
+				)
 			}
 
 			f, err := formatter.New(Flags.Format)

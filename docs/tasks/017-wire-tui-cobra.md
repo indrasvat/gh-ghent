@@ -1,6 +1,6 @@
 # Task 4.4: Wire TUI to Cobra Commands
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 4.3: App shell (needs root model and view switching)
@@ -111,6 +111,49 @@ feat(tui): wire Bubble Tea TUI to Cobra commands with dual-mode routing
 - Pre-fetched data passed to TUI for instant rendering
 - Exit codes propagated from TUI model state
 ```
+
+## Visual Test Results
+
+### L1: Unit Tests — 302 tests PASS
+
+- All existing tests pass (no regressions from TUI wiring)
+- CLI commands: pipe mode path unchanged, TUI path added
+- `make ci` passes (lint clean, vet clean)
+
+### L3: Binary Execution — 3/3 PASS
+
+| Test | Status | Details |
+|------|--------|---------|
+| Pipe mode (--no-tui) | PASS | `gh ghent comments -R indrasvat/tbgs --pr 1 --format json --no-tui` outputs JSON |
+| Pipe mode (piped) | PASS | `gh ghent checks -R indrasvat/doot --pr 1 --format json \| jq '.overall_status'` → "pass" |
+| Summary pipe | PASS | `gh ghent summary -R indrasvat/tbgs --pr 1 --format json \| jq '.is_merge_ready'` → false |
+
+### L4: iterm2-driver (`test_ghent_layout.py`) — 6/6 PASS
+
+| Test | Status | Details |
+|------|--------|---------|
+| Build & Install | PASS | `make install` succeeds |
+| TUI Launch (comments) | PASS | Alt screen, status bar + help bar, "2 unresolved" |
+| Tab to Checks | PASS | Tab switches to checks view with "view logs" help |
+| Pipe Mode (--no-tui) | PASS | JSON output, no TUI, PIPE_EXIT=1 |
+| Pipe Mode (piped) | PASS | `\| head -3` shows JSON, PIPE2_EXIT=0 |
+| Checks TUI Launch | PASS | `gh ghent checks` → TUI with checks help bar |
+
+### Screenshots Reviewed
+
+- `ghent_tui_launch_20260222_234815.png` — `gh ghent comments -R indrasvat/tbgs --pr 1` in TTY. TUI launches in alt screen. Status bar: "ghent" (blue bold), "indrasvat/tbgs" (dim), "PR #1" (purple), "2 unresolved" (red). Help bar: comments-specific keys. Tokyo Night background fills screen. Window title: "gh-ghent".
+- `ghent_no_tui_flag_20260222_234825.png` — `--no-tui --format json` outputs raw JSON to terminal (no TUI). Full thread data with diff hunks visible. PIPE_EXIT=1.
+- `ghent_pipe_mode_20260222_234834.png` — Piped output (`| head -3`). Shows first 3 lines: `{ "pr_number": 1, "threads": [`. PIPE2_EXIT=0. No TUI launched.
+
+### Findings
+
+- Dual-mode routing works correctly: TTY → TUI, non-TTY → pipe, --no-tui → pipe
+- Pre-fetched data passed to TUI — "2 unresolved" appears immediately (no loading delay)
+- Tab cycling works in real TUI (comments → checks)
+- Exit codes preserved in pipe mode (1 for unresolved threads)
+- termenv background properly set/reset around TUI lifecycle
+- All 4 commands wired: comments, checks, resolve (TTY without --thread/--all), summary
+- Watch mode remains pipe-only (correct per PRD)
 
 ## Session Protocol
 
