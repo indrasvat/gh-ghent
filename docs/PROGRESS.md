@@ -7,11 +7,11 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 4: TUI Foundation |
-| **Current Task** | Phase 4 complete. Next: `docs/tasks/018-comments-list-view.md` |
+| **Current Phase** | Phase 5: TUI Views |
+| **Current Task** | Task 5.2 complete. Next: `docs/tasks/020-checks-view.md` |
 | **Blocker** | None |
-| **Last Action** | Phase 4 complete. TUI foundation wired to Cobra. |
-| **Last Updated** | 2026-02-22 |
+| **Last Action** | Tasks 5.1-5.2 complete. Comments list + expanded views. |
+| **Last Updated** | 2026-02-23 |
 
 ## How to Resume
 
@@ -56,8 +56,8 @@
 > **Milestone: TUI Foundation complete** — all views have placeholder content, dual-mode routing works
 
 ### Phase 5: TUI Views
-- [ ] Task 5.1: Comments list view → `docs/tasks/018-comments-list-view.md`
-- [ ] Task 5.2: Comments expanded view → `docs/tasks/019-comments-expanded-view.md`
+- [x] Task 5.1: Comments list view → `docs/tasks/018-comments-list-view.md`
+- [x] Task 5.2: Comments expanded view → `docs/tasks/019-comments-expanded-view.md`
 - [ ] Task 5.3: Checks view + log viewer → `docs/tasks/020-checks-view.md`
 - [ ] Task 5.4: Resolve view — multi-select → `docs/tasks/021-resolve-view.md`
 - [ ] Task 5.5: Summary dashboard → `docs/tasks/022-summary-dashboard.md`
@@ -74,6 +74,13 @@
 (None currently)
 
 ## Session Log
+
+### 2026-02-23 (Tasks 5.1, 5.2 — TUI Views: Comments)
+- **Task 5.1 (Comments list view):** Created `internal/tui/comments.go` — custom scrollable list with file-path grouping, cursor navigation (j/k) skipping file headers, multi-line item viewport (threads=3 lines, headers=1 line). `formatTimeAgo()` for relative timestamps, `stripMarkdown()` regex-based cleanup of images/links/HTML/bold/backticks. 18 unit tests. L4: 12/12 PASS (tbgs), 11/11 PASS (openclaw).
+- **Task 5.2 (Comments expanded view):** Added `commentsExpandedModel` to comments.go — line-based viewport for scrollable thread content. Renders: thread header (file:line + ID), diff hunk via `components.RenderDiffHunk`, all comments with author coloring and time-ago, reply indentation with `│` left borders. n/p thread cycling, j/k viewport scrolling, Esc back to list. Status bar shows "Thread X of Y". 15 unit tests. L4: 11/14 PASS (tbgs, 3 unverified), 11/11 PASS (openclaw).
+- Wired both sub-models to `app.go` with WindowSizeMsg propagation to ALL sub-models (active + inactive)
+- Verification: 352 tests pass, lint clean, vet clean (`make ci` ✓)
+- Next: Task 5.3 Checks View + Log Viewer
 
 ### 2026-02-22 (Tasks 4.1, 4.2, 4.3 — TUI Foundation)
 - **Task 4.1 (Tokyo Night theme):** Created `internal/tui/styles/theme.go` (17 color constants), `styles.go` (all Lipgloss style definitions), `styles_test.go`. `cmd/theme-demo/main.go` visual harness. L4 test: 8/8 PASS.

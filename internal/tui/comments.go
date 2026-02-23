@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/indrasvat/gh-ghent/internal/domain"
+	"github.com/indrasvat/gh-ghent/internal/tui/components"
 	"github.com/indrasvat/gh-ghent/internal/tui/styles"
 )
 
@@ -385,6 +386,209 @@ func stripMarkdown(s string) string {
 	return strings.TrimSpace(s)
 }
 
+// ── Expanded view model ─────────────────────────────────────────
+
+// commentsExpandedModel renders a single expanded thread with diff hunk and all
+// comments in a scrollable viewport.
+type commentsExpandedModel struct {
+	threads   []domain.ReviewThread
+	threadIdx int      // index into threads slice
+	content   []string // pre-rendered content lines
+	offset    int      // scroll offset (line-based viewport)
+	width     int
+	height    int
+}
+
+func newCommentsExpandedModel(threads []domain.ReviewThread, threadIdx int) commentsExpandedModel {
+	m := commentsExpandedModel{
+		threads:   threads,
+		threadIdx: threadIdx,
+	}
+	return m
+}
+
+func (m *commentsExpandedModel) setSize(w, h int) {
+	m.width = w
+	m.height = h
+	m.buildContent()
+}
+
+func (m *commentsExpandedModel) setThread(idx int) {
+	if idx >= 0 && idx < len(m.threads) {
+		m.threadIdx = idx
+		m.offset = 0
+		m.buildContent()
+	}
+}
+
+// ThreadIndex returns the current thread index.
+func (m commentsExpandedModel) ThreadIndex() int {
+	return m.threadIdx
+}
+
+// ThreadCount returns the total number of threads.
+func (m commentsExpandedModel) ThreadCount() int {
+	return len(m.threads)
+}
+
+func (m *commentsExpandedModel) buildContent() {
+	if len(m.threads) == 0 || m.threadIdx < 0 || m.threadIdx >= len(m.threads) {
+		m.content = nil
+		return
+	}
+
+	t := m.threads[m.threadIdx]
+	var lines []string
+
+	// ── Thread header ──
+	// file.go:47  PRRT_kwDON1...
+	filePart := styles.FilePath.Render(t.Path)
+	lineStr := fmt.Sprintf(":%d", t.Line)
+	if t.StartLine > 0 && t.StartLine != t.Line {
+		lineStr = fmt.Sprintf(":%d-%d", t.StartLine, t.Line)
+	}
+	linePart := styles.LineNumber.Render(lineStr)
+
+	idPart := ""
+	if t.ID != "" {
+		idDisplay := t.ID
+		if len(idDisplay) > 20 {
+			idDisplay = idDisplay[:20] + "..."
+		}
+		idPart = "  " + styles.ThreadID.Render(idDisplay)
+	}
+
+	lines = append(lines, " "+filePart+linePart+idPart+styles.ANSIReset)
+	lines = append(lines, "")
+
+	// ── Diff hunk ──
+	diffHunk := ""
+	if len(t.Comments) > 0 {
+		diffHunk = t.Comments[0].DiffHunk
+	}
+	if diffHunk != "" {
+		lines = append(lines, " "+styles.StatusBarDim.Render("Diff context:")+styles.ANSIReset)
+		hunkW := max(m.width-4, 20)
+		hunkRendered := components.RenderDiffHunk(diffHunk, hunkW)
+		for _, hl := range strings.Split(hunkRendered, "\n") {
+			lines = append(lines, "  "+hl)
+		}
+		lines = append(lines, "")
+	}
+
+	// ── Comments ──
+	for i, c := range t.Comments {
+		isReply := i > 0
+		commentLines := m.renderComment(c, isReply)
+		lines = append(lines, commentLines...)
+		lines = append(lines, "")
+	}
+
+	m.content = lines
+}
+
+func (m commentsExpandedModel) renderComment(c domain.Comment, isReply bool) []string {
+	var lines []string
+
+	// Author styling: orange for reviewers (default).
+	authorStr := styles.Author.Render("@" + c.Author)
+
+	// Time ago.
+	timeStr := ""
+	if !c.CreatedAt.IsZero() {
+		timeStr = "  " + styles.StatusBarDim.Render(formatTimeAgo(c.CreatedAt))
+	}
+
+	if isReply {
+		// Indented reply with colored left border.
+		border := styles.Author.Render("│")
+		sep := styles.StatusBarDim.Render(strings.Repeat("─", max(m.width-8, 10)))
+		lines = append(lines, "    "+border+styles.ANSIReset)
+		lines = append(lines, "    "+border+" "+authorStr+timeStr+styles.ANSIReset)
+
+		// Body lines with left border.
+		bodyLines := strings.Split(c.Body, "\n")
+		for _, bl := range bodyLines {
+			lines = append(lines, "    "+border+" "+bl+styles.ANSIReset)
+		}
+		_ = sep
+	} else {
+		// Root comment — no border indent.
+		lines = append(lines, " "+authorStr+timeStr+styles.ANSIReset)
+
+		// Body lines.
+		bodyLines := strings.Split(c.Body, "\n")
+		for _, bl := range bodyLines {
+			lines = append(lines, "  "+bl)
+		}
+	}
+
+	return lines
+}
+
+// Update handles key events for the expanded view.
+func (m commentsExpandedModel) Update(msg tea.Msg) (commentsExpandedModel, tea.Cmd) {
+	if typedMsg, ok := msg.(tea.KeyMsg); ok {
+		switch {
+		case key.Matches(typedMsg, expandedKeys.ScrollDown):
+			m.scrollDown()
+		case key.Matches(typedMsg, expandedKeys.ScrollUp):
+			m.scrollUp()
+		case key.Matches(typedMsg, expandedKeys.NextThread):
+			m.nextThread()
+		case key.Matches(typedMsg, expandedKeys.PrevThread):
+			m.prevThread()
+		}
+	}
+	return m, nil
+}
+
+func (m *commentsExpandedModel) scrollDown() {
+	maxOffset := max(len(m.content)-m.height, 0)
+	if m.offset < maxOffset {
+		m.offset++
+	}
+}
+
+func (m *commentsExpandedModel) scrollUp() {
+	if m.offset > 0 {
+		m.offset--
+	}
+}
+
+func (m *commentsExpandedModel) nextThread() {
+	if m.threadIdx < len(m.threads)-1 {
+		m.setThread(m.threadIdx + 1)
+	}
+}
+
+func (m *commentsExpandedModel) prevThread() {
+	if m.threadIdx > 0 {
+		m.setThread(m.threadIdx - 1)
+	}
+}
+
+// View renders the expanded thread content with line-based viewport scrolling.
+func (m commentsExpandedModel) View() string {
+	if len(m.content) == 0 {
+		return styles.StatusBarDim.Render("  No thread selected.")
+	}
+
+	// Viewport: show lines from offset to offset+height.
+	end := min(m.offset+m.height, len(m.content))
+	visible := m.content[m.offset:end]
+
+	result := strings.Join(visible, "\n")
+
+	// Pad remaining height.
+	visibleCount := len(visible)
+	if visibleCount < m.height {
+		result += strings.Repeat("\n", m.height-visibleCount)
+	}
+
+	return result
+}
+
 // ── Key bindings ────────────────────────────────────────────────
 
 type commentsKeyMap struct {
@@ -405,5 +609,31 @@ var commentsKeys = commentsKeyMap{
 	Enter: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("enter", "expand"),
+	),
+}
+
+type expandedKeyMap struct {
+	ScrollDown key.Binding
+	ScrollUp   key.Binding
+	NextThread key.Binding
+	PrevThread key.Binding
+}
+
+var expandedKeys = expandedKeyMap{
+	ScrollDown: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("j", "scroll down"),
+	),
+	ScrollUp: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("k", "scroll up"),
+	),
+	NextThread: key.NewBinding(
+		key.WithKeys("n"),
+		key.WithHelp("n", "next thread"),
+	),
+	PrevThread: key.NewBinding(
+		key.WithKeys("p"),
+		key.WithHelp("p", "prev thread"),
 	),
 }

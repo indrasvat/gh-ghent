@@ -393,3 +393,263 @@ func TestScreenLinesBetween(t *testing.T) {
 		t.Errorf("screenLinesBetween(0, 2) = %d, want 4", got)
 	}
 }
+
+// ── Expanded view tests ─────────────────────────────────────────
+
+func expandedThreads() []domain.ReviewThread {
+	return []domain.ReviewThread{
+		{
+			ID: "PRRT_1", Path: "internal/api/graphql.go", Line: 47,
+			Comments: []domain.Comment{
+				{
+					Author:    "reviewer1",
+					Body:      "Wrap this error with context.",
+					DiffHunk:  "@@ -44,8 +44,10 @@\n func (c *Client) Fetch() {\n-    return nil, err\n+    return nil, fmt.Errorf(\"fetch: %w\", err)\n }",
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+				},
+				{
+					Author:    "you",
+					Body:      "Fixed, thanks!",
+					CreatedAt: time.Now().Add(-1 * time.Hour),
+				},
+				{
+					Author:    "reviewer1",
+					Body:      "Looks great!",
+					CreatedAt: time.Now().Add(-45 * time.Minute),
+				},
+			},
+		},
+		{
+			ID: "PRRT_2", Path: "internal/api/graphql.go", Line: 102,
+			Comments: []domain.Comment{
+				{
+					Author:    "reviewer2",
+					Body:      "This should use a context parameter.",
+					CreatedAt: time.Now().Add(-3 * time.Hour),
+				},
+			},
+		},
+	}
+}
+
+func TestExpandedModelInitialization(t *testing.T) {
+	threads := expandedThreads()
+	m := newCommentsExpandedModel(threads, 0)
+	m.setSize(120, 30)
+
+	if m.ThreadIndex() != 0 {
+		t.Errorf("expected ThreadIndex 0, got %d", m.ThreadIndex())
+	}
+	if m.ThreadCount() != 2 {
+		t.Errorf("expected ThreadCount 2, got %d", m.ThreadCount())
+	}
+}
+
+func TestExpandedModelRendersFilePath(t *testing.T) {
+	threads := expandedThreads()
+	m := newCommentsExpandedModel(threads, 0)
+	m.setSize(120, 30)
+
+	output := m.View()
+	if !strings.Contains(output, "internal/api/graphql.go") {
+		t.Error("missing file path in expanded view")
+	}
+	if !strings.Contains(output, ":47") {
+		t.Error("missing line number in expanded view")
+	}
+}
+
+func TestExpandedModelRendersThreadID(t *testing.T) {
+	threads := expandedThreads()
+	m := newCommentsExpandedModel(threads, 0)
+	m.setSize(120, 30)
+
+	output := m.View()
+	if !strings.Contains(output, "PRRT_1") {
+		t.Error("missing thread ID in expanded view")
+	}
+}
+
+func TestExpandedModelRendersDiffHunk(t *testing.T) {
+	threads := expandedThreads()
+	m := newCommentsExpandedModel(threads, 0)
+	m.setSize(120, 30)
+
+	output := m.View()
+	if !strings.Contains(output, "Diff context:") {
+		t.Error("missing 'Diff context:' label")
+	}
+	if !strings.Contains(output, "@@") {
+		t.Error("missing diff hunk @@ header")
+	}
+}
+
+func TestExpandedModelRendersAllComments(t *testing.T) {
+	threads := expandedThreads()
+	m := newCommentsExpandedModel(threads, 0)
+	m.setSize(120, 30)
+
+	output := m.View()
+
+	// Root comment.
+	if !strings.Contains(output, "@reviewer1") {
+		t.Error("missing root comment author")
+	}
+	if !strings.Contains(output, "Wrap this error") {
+		t.Error("missing root comment body")
+	}
+
+	// Reply 1.
+	if !strings.Contains(output, "@you") {
+		t.Error("missing reply author @you")
+	}
+	if !strings.Contains(output, "Fixed, thanks!") {
+		t.Error("missing reply body")
+	}
+
+	// Reply 2.
+	if !strings.Contains(output, "Looks great!") {
+		t.Error("missing second reply body")
+	}
+}
+
+func TestExpandedModelRendersTimeAgo(t *testing.T) {
+	threads := expandedThreads()
+	m := newCommentsExpandedModel(threads, 0)
+	m.setSize(120, 30)
+
+	output := m.View()
+	if !strings.Contains(output, "2h ago") {
+		t.Error("missing time-ago for root comment")
+	}
+	if !strings.Contains(output, "1h ago") {
+		t.Error("missing time-ago for reply")
+	}
+}
+
+func TestExpandedModelRepliesHaveBorder(t *testing.T) {
+	threads := expandedThreads()
+	m := newCommentsExpandedModel(threads, 0)
+	m.setSize(120, 30)
+
+	output := m.View()
+	// Replies should have the │ border character.
+	if !strings.Contains(output, "│") {
+		t.Error("missing left border │ on replies")
+	}
+}
+
+func TestExpandedModelNextPrevThread(t *testing.T) {
+	threads := expandedThreads()
+	m := newCommentsExpandedModel(threads, 0)
+	m.setSize(120, 30)
+
+	// Start at thread 0.
+	if m.ThreadIndex() != 0 {
+		t.Fatalf("expected thread 0, got %d", m.ThreadIndex())
+	}
+
+	// Next thread.
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+	if m.ThreadIndex() != 1 {
+		t.Errorf("expected thread 1 after 'n', got %d", m.ThreadIndex())
+	}
+
+	// Next again — should stay at last.
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+	if m.ThreadIndex() != 1 {
+		t.Errorf("expected thread to stay at 1, got %d", m.ThreadIndex())
+	}
+
+	// Prev thread.
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
+	if m.ThreadIndex() != 0 {
+		t.Errorf("expected thread 0 after 'p', got %d", m.ThreadIndex())
+	}
+
+	// Prev again — should stay at first.
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
+	if m.ThreadIndex() != 0 {
+		t.Errorf("expected thread to stay at 0, got %d", m.ThreadIndex())
+	}
+}
+
+func TestExpandedModelNextThreadChangesContent(t *testing.T) {
+	threads := expandedThreads()
+	m := newCommentsExpandedModel(threads, 0)
+	m.setSize(120, 30)
+
+	output1 := m.View()
+	if !strings.Contains(output1, "Wrap this error") {
+		t.Fatal("thread 0 should show 'Wrap this error'")
+	}
+
+	// Switch to thread 1.
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+	output2 := m.View()
+	if !strings.Contains(output2, "context parameter") {
+		t.Error("thread 1 should show 'context parameter'")
+	}
+	if strings.Contains(output2, "Wrap this error") {
+		t.Error("thread 1 should NOT show thread 0's content")
+	}
+}
+
+func TestExpandedModelScrolling(t *testing.T) {
+	threads := expandedThreads()
+	m := newCommentsExpandedModel(threads, 0)
+	m.setSize(120, 5) // very small viewport
+
+	if m.offset != 0 {
+		t.Fatalf("expected offset 0, got %d", m.offset)
+	}
+
+	// Scroll down.
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	if m.offset != 1 {
+		t.Errorf("expected offset 1 after scroll down, got %d", m.offset)
+	}
+
+	// Scroll back up.
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	if m.offset != 0 {
+		t.Errorf("expected offset 0 after scroll up, got %d", m.offset)
+	}
+
+	// Scroll up from top — should stay at 0.
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	if m.offset != 0 {
+		t.Errorf("expected offset to stay at 0, got %d", m.offset)
+	}
+}
+
+func TestExpandedModelEmptyThreads(t *testing.T) {
+	m := newCommentsExpandedModel(nil, 0)
+	m.setSize(80, 24)
+
+	output := m.View()
+	if !strings.Contains(output, "No thread selected") {
+		t.Error("expected empty state message")
+	}
+}
+
+func TestExpandedModelNoDiffHunk(t *testing.T) {
+	threads := []domain.ReviewThread{
+		{
+			ID: "PRRT_X", Path: "file.go", Line: 10,
+			Comments: []domain.Comment{
+				{Author: "alice", Body: "No diff hunk here"},
+			},
+		},
+	}
+	m := newCommentsExpandedModel(threads, 0)
+	m.setSize(120, 30)
+
+	output := m.View()
+	if strings.Contains(output, "Diff context:") {
+		t.Error("should NOT show diff context label when no diff hunk")
+	}
+	if !strings.Contains(output, "No diff hunk here") {
+		t.Error("missing comment body")
+	}
+}

@@ -363,6 +363,104 @@ func TestFormatCount(t *testing.T) {
 	}
 }
 
+func TestStatusBarShowsThreadCount(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			{ID: "t1", Path: "a.go", Line: 10, Comments: []domain.Comment{{Author: "alice", Body: "fix"}}},
+			{ID: "t2", Path: "b.go", Line: 20, Comments: []domain.Comment{{Author: "bob", Body: "nit"}}},
+		},
+		UnresolvedCount: 2,
+	})
+	app = sendWindowSize(app, 120, 40)
+
+	// Enter to expand thread 0.
+	model, cmd := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app = model.(App)
+	if cmd != nil {
+		msg := cmd()
+		model, _ = app.Update(msg)
+		app = model.(App)
+	}
+	if app.ActiveView() != ViewCommentsExpand {
+		t.Fatalf("expected ViewCommentsExpand, got %v", app.ActiveView())
+	}
+
+	output := app.View()
+	if !strings.Contains(output, "Thread 1 of 2") {
+		t.Error("missing 'Thread 1 of 2' in expanded view status bar")
+	}
+}
+
+func TestExpandedViewRendersContent(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			{
+				ID: "t1", Path: "internal/api.go", Line: 42,
+				Comments: []domain.Comment{
+					{Author: "reviewer1", Body: "This needs error wrapping."},
+					{Author: "you", Body: "Done!"},
+				},
+			},
+		},
+		UnresolvedCount: 1,
+	})
+	app = sendWindowSize(app, 120, 40)
+
+	// Enter to expand.
+	model, cmd := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app = model.(App)
+	if cmd != nil {
+		msg := cmd()
+		model, _ = app.Update(msg)
+		app = model.(App)
+	}
+
+	output := app.View()
+	if !strings.Contains(output, "internal/api.go") {
+		t.Error("missing file path in expanded view")
+	}
+	if !strings.Contains(output, ":42") {
+		t.Error("missing line number in expanded view")
+	}
+	if !strings.Contains(output, "@reviewer1") {
+		t.Error("missing author in expanded view")
+	}
+	if !strings.Contains(output, "error wrapping") {
+		t.Error("missing comment body in expanded view")
+	}
+}
+
+func TestEscFromExpandedReturnsToList(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			{ID: "t1", Path: "a.go", Line: 10, Comments: []domain.Comment{{Author: "alice", Body: "fix"}}},
+		},
+		UnresolvedCount: 1,
+	})
+	app = sendWindowSize(app, 120, 40)
+
+	// Enter to expand.
+	model, cmd := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app = model.(App)
+	if cmd != nil {
+		msg := cmd()
+		model, _ = app.Update(msg)
+		app = model.(App)
+	}
+	if app.ActiveView() != ViewCommentsExpand {
+		t.Fatalf("expected expanded, got %v", app.ActiveView())
+	}
+
+	// Esc to return.
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewCommentsList {
+		t.Errorf("expected ViewCommentsList after Esc, got %v", app.ActiveView())
+	}
+}
+
 func TestTruncateSHA(t *testing.T) {
 	tests := []struct {
 		sha  string

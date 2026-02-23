@@ -91,7 +91,8 @@ type App struct {
 	keys AppKeyMap
 
 	// Sub-models
-	commentsList commentsListModel
+	commentsList     commentsListModel
+	commentsExpanded commentsExpandedModel
 }
 
 // NewApp creates a new App model with the given repo, PR, and initial view.
@@ -122,6 +123,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.height = typedMsg.Height
 		contentHeight := max(a.height-2, 1) // minus status bar + help bar
 		a.commentsList.setSize(a.width, contentHeight)
+		a.commentsExpanded.setSize(a.width, contentHeight)
 		return a, nil
 
 	case tea.KeyMsg:
@@ -130,6 +132,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Messages from sub-models
 	case selectThreadMsg:
 		a.activeView = ViewCommentsExpand
+		if a.comments != nil {
+			a.commentsExpanded = newCommentsExpandedModel(a.comments.Threads, typedMsg.threadIdx)
+			contentHeight := max(a.height-2, 1)
+			a.commentsExpanded.setSize(a.width, contentHeight)
+		}
 		return a, nil
 	}
 
@@ -200,12 +207,14 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // forwardToActiveView dispatches a message to the active sub-model.
 func (a App) forwardToActiveView(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if a.activeView == ViewCommentsList {
-		var cmd tea.Cmd
+	var cmd tea.Cmd
+	switch a.activeView {
+	case ViewCommentsList:
 		a.commentsList, cmd = a.commentsList.Update(msg)
-		return a, cmd
+	case ViewCommentsExpand:
+		a.commentsExpanded, cmd = a.commentsExpanded.Update(msg)
 	}
-	return a, nil
+	return a, cmd
 }
 
 // cycleView switches between top-level views (comments ↔ checks).
@@ -268,6 +277,16 @@ func (a App) renderStatusBar() string {
 				right += styles.StatusBarDim.Render(
 					formatCount(a.comments.ResolvedCount, "resolved"))
 			}
+			// Show "Thread X of Y" in expanded view.
+			if a.activeView == ViewCommentsExpand && a.commentsExpanded.ThreadCount() > 0 {
+				if right != "" {
+					right += "  "
+				}
+				right += styles.StatusBarDim.Render(
+					fmt.Sprintf("Thread %d of %d",
+						a.commentsExpanded.ThreadIndex()+1,
+						a.commentsExpanded.ThreadCount()))
+			}
 			data.Right = right
 		}
 
@@ -326,16 +345,17 @@ func (a App) renderHelpBar() string {
 // renderActiveView renders the content area for the current view.
 // Returns a string sized to fill contentHeight lines.
 func (a App) renderActiveView(contentHeight int) string {
-	// Comments list uses its sub-model; others use placeholders.
-	if a.activeView == ViewCommentsList {
+	// Sub-models with real views.
+	switch a.activeView {
+	case ViewCommentsList:
 		return a.commentsList.View()
+	case ViewCommentsExpand:
+		return a.commentsExpanded.View()
 	}
 
 	// Placeholder text for views not yet wired.
 	var placeholder string
 	switch a.activeView {
-	case ViewCommentsExpand:
-		placeholder = "  [Comment Thread Expanded — pending task 5.2]"
 	case ViewChecksList:
 		placeholder = "  [Checks List View — pending task 4.6]"
 	case ViewChecksLog:

@@ -1,6 +1,6 @@
 # Task 5.2: Comments Expanded View
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 5.1: Comments list view (needs list to drill into)
@@ -98,6 +98,43 @@ feat(tui): add comments expanded view with diff hunk and thread display
 - All comments with author coloring and timestamps
 - n/p thread cycling, Esc back to list
 ```
+
+## Visual Test Results
+
+### L4: test_ghent_expanded.py (14/14 — 11 PASS, 3 UNVERIFIED, 0 FAIL)
+- Build & Install: PASS
+- Launch TUI: PASS
+- Enter Expand: PASS
+- Thread Header (file:line): PASS
+- Diff Hunk (@@ header, +/- lines): PASS
+- Comments (@author, body): PASS
+- Replies with │ Border: UNVERIFIED (tbgs threads have 1 comment each)
+- Time Ago: UNVERIFIED (timestamps may not capture in alt-screen)
+- Help Bar (esc, scroll, n/p, resolve): PASS
+- Status Bar (Thread X of Y): PASS
+- Next Thread (n): UNVERIFIED (tbgs threads have similar content)
+- Prev Thread (p): PASS
+- Viewport Scroll (j/k): PASS
+- Esc Back to List: PASS
+
+### L4: test_ghent_expanded_openclaw.py (11/11 PASS)
+- Tested against openclaw/openclaw PR #24660 (5 threads, 2 files)
+- Build: PASS
+- Launch with threads: PASS
+- Enter to expand: PASS
+- Diff hunk: PASS
+- Author visible: PASS
+- Next thread (n) — content changed: PASS
+- Navigate to thread 5: PASS
+- Prev thread (p) — content changed: PASS
+- Status bar (Thread X of Y, unresolved): PASS
+- Esc back to list: PASS
+- Expand 2nd thread: PASS
+
+### Screenshots
+- `ghent_comments_expanded.png` — Expanded thread with diff hunk, file:line, thread ID
+- `ghent_comments_diffhunk.png` — Diff context with green/red syntax coloring
+- `ghent_comments_next_thread.png` — Different thread after n key press
 
 ## Session Protocol
 
