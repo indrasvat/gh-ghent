@@ -108,9 +108,9 @@ func TestLastCommentDatabaseID(t *testing.T) {
 	nodes := resp.Repository.PullRequest.ReviewThreads.Nodes
 
 	tests := []struct {
-		threadID   string
-		wantDBID   int64
-		wantCount  int
+		threadID  string
+		wantDBID  int64
+		wantCount int
 	}{
 		{threadID: "PRRT_thread1", wantDBID: 1001, wantCount: 1},
 		{threadID: "PRRT_thread3", wantDBID: 1004, wantCount: 2}, // last comment's databaseId

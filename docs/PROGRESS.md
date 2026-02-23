@@ -8,9 +8,9 @@
 | Field | Value |
 |-------|-------|
 | **Current Phase** | Phase 2: CLI Commands |
-| **Current Task** | `docs/tasks/005-checks-command.md` |
+| **Current Task** | `docs/tasks/006-checks-logs.md` |
 | **Blocker** | None |
-| **Last Action** | Task 2.1: Comments command — DONE |
+| **Last Action** | Tasks 2.2, 2.4, 2.5 — DONE (parallel) |
 | **Last Updated** | 2026-02-22 |
 
 ## How to Resume
@@ -32,10 +32,10 @@
 
 ### Phase 2: CLI Commands (pipe mode, end-to-end)
 - [x] Task 2.1: `gh ghent comments` → `docs/tasks/004-comments-command.md`
-- [ ] Task 2.2: `gh ghent checks` → `docs/tasks/005-checks-command.md`
+- [x] Task 2.2: `gh ghent checks` → `docs/tasks/005-checks-command.md`
 - [ ] Task 2.3: `gh ghent checks --logs` → `docs/tasks/006-checks-logs.md`
-- [ ] Task 2.4: `gh ghent resolve` → `docs/tasks/007-resolve-command.md`
-- [ ] Task 2.5: `gh ghent reply` → `docs/tasks/008-reply-command.md`
+- [x] Task 2.4: `gh ghent resolve` → `docs/tasks/007-resolve-command.md`
+- [x] Task 2.5: `gh ghent reply` → `docs/tasks/008-reply-command.md`
 - [ ] Task 2.6: `gh ghent summary` → `docs/tasks/009-summary-command.md`
 
 ### Phase 3: CLI Polish
@@ -72,6 +72,14 @@
 (None currently)
 
 ## Session Log
+
+### 2026-02-22 (Tasks 2.2, 2.4, 2.5 — parallel execution)
+- Ran three agents in parallel via worktree isolation
+- **Task 2.2 (checks):** `internal/github/checks.go` — REST check runs + annotations fetch, HEAD SHA resolution, status aggregation (fail > pending > pass). Formatters extended with FormatChecks. Exit codes: 0/1/3. Tests with fixtures.
+- **Task 2.4 (resolve):** `internal/github/resolve.go` — GraphQL `resolveReviewThread`/`unresolveReviewThread` mutations. `cli/resolve.go` wired with --thread/--all/--unresolve flags, viewerCanResolve permission check. New domain types: ResolveResult, ResolveError, ResolveResults.
+- **Task 2.5 (reply):** `internal/github/reply.go` — REST reply via POST .../comments/{id}/replies. Thread validation via GraphQL, viewerCanReply check, databaseId targeting. cli/reply.go with --body/--body-file (stdin via -) mutual exclusion.
+- Fixed gofmt lint issue in reply_test.go (struct alignment)
+- Verification: `go test -race -shuffle=on ./...` ✓, `go build` ✓, `make lint` ✓
 
 ### 2026-02-22 (Task 2.1: Comments command)
 - Created `internal/github/threads.go` — GraphQL review thread fetcher with pagination (pageInfo/endCursor loop)
