@@ -1,6 +1,6 @@
 # Task 4.3: App Shell — Root Model, View Switching, Key Routing
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 4.2: Shared TUI components (needs status bar, help bar)
@@ -108,6 +108,54 @@ feat(tui): add app shell with view switching and key routing
 - termenv background set/reset around Bubble Tea lifecycle
 - Status bar + help bar framing with context-sensitive hints
 ```
+
+## Visual Test Results
+
+### L1: Unit Tests — 23 tests PASS
+
+- NewApp: initial view, zero dimensions
+- WindowSizeMsg: stores width/height, propagates across all views
+- Tab cycling: comments → checks → comments (wraps)
+- Shift+Tab: reverse cycling
+- Enter: comments→expand, checks→log drill-in
+- Esc: expand→list, log→list, summary→prevView, resolve→prevView
+- Quit: q sends tea.Quit command
+- Summary shortcuts: c→comments, k→checks, r→resolve
+- View rendering: status bar with "ghent", placeholder content, help bar
+- Status bar: comment counts (5 unresolved, 2 resolved), check counts (4 passed, 1 failed, HEAD SHA)
+- Help bar: changes per view (expand vs view logs)
+- View.String(): all 7 views + unknown
+- SetData: comments, checks, reviews setters
+- No-ops: Enter from non-list views, Esc from top-level views
+- formatCount, truncateSHA helpers
+
+### L4: iterm2-driver (`test_ghent_shell.py`) — 6/6 PASS
+
+| Test | Status | Details |
+|------|--------|---------|
+| Build | PASS | shell-demo builds successfully |
+| Launch | PASS | Alt screen, status bar + help bar visible |
+| Comments Status Bar | PASS | "5 unresolved" (red) + "2 resolved" (dim) |
+| Tab to Checks | PASS | HEAD: a1b2c3d + "4 passed" (green) + "1 failed" (red) |
+| Tab Back to Comments | PASS | Returns to comments list view |
+| Enter/Esc Navigation | PASS | Drill into expanded, Esc back to list |
+
+### Screenshots Reviewed
+
+- `ghent_shell_launch_20260222_234105.png` — Comments list view. Status bar: "ghent" (blue bold), "indrasvat/my-project" (dim), "PR #42" (purple), "5 unresolved" (red), "2 resolved" (dim). Help bar: blue key highlights with "j/k navigate", "enter expand", "r resolve", "y copy ID", "o open in browser", "f filter by file", "tab checks view", "q quit". Tokyo Night dark background fills entire screen.
+- `ghent_shell_tab_comments_20260222_234105.png` — Same as launch (initial view is comments). All status bar elements and help bar keys correctly rendered.
+- `ghent_shell_tab_checks_20260222_234106.png` — Checks list view. Status bar: "HEAD: a1b2c3d" (dim), "4 passed" (green), "1 failed" (red). Help bar updated: "enter view logs", "l view full log", "o open in browser", "R re-run failed", "tab comments view". Content placeholder shows "[Checks List View — pending task 4.6]".
+
+### Findings
+
+- termenv background color (#1a1b26) properly fills entire alt screen — no terminal default background showing
+- No ANSI color bleed between status bar and content area
+- Help bar content correctly switches per active view (comments vs checks bindings)
+- Status bar right-aligns counts/badges with proper padding
+- Tab cycling wraps correctly (comments → checks → comments)
+- Enter/Esc navigation drill-in/back works without visual glitches
+- `switch typedMsg := msg.(type)` pattern used — no switch shadowing (pitfall #5)
+- WindowSizeMsg stored on root model, ready for sub-model propagation (pitfall #7)
 
 ## Session Protocol
 
