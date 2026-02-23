@@ -36,6 +36,23 @@ type CommentsResult struct {
 	TotalCount      int            `json:"total_count"`
 	ResolvedCount   int            `json:"resolved_count"`
 	UnresolvedCount int            `json:"unresolved_count"`
+	Since           string         `json:"since,omitempty"`
+}
+
+// CommentGroup represents a group of threads under a common key.
+type CommentGroup struct {
+	Key     string         `json:"key"`
+	Threads []ReviewThread `json:"threads"`
+}
+
+// GroupedCommentsResult wraps grouped comment output.
+type GroupedCommentsResult struct {
+	PRNumber        int            `json:"pr_number"`
+	GroupBy         string         `json:"group_by"`
+	Groups          []CommentGroup `json:"groups"`
+	TotalCount      int            `json:"total_count"`
+	ResolvedCount   int            `json:"resolved_count"`
+	UnresolvedCount int            `json:"unresolved_count"`
 }
 
 // OverallStatus represents the aggregate CI status.
@@ -93,6 +110,7 @@ type ChecksResult struct {
 	PassCount     int           `json:"pass_count"`
 	FailCount     int           `json:"fail_count"`
 	PendingCount  int           `json:"pending_count"`
+	Since         string        `json:"since,omitempty"`
 }
 
 // ReviewState represents the state of a PR review.
@@ -144,7 +162,9 @@ type ResolveResults struct {
 	Results      []ResolveResult `json:"results"`
 	SuccessCount int             `json:"success_count"`
 	FailureCount int             `json:"failure_count"`
+	SkippedCount int             `json:"skipped_count,omitempty"`
 	Errors       []ResolveError  `json:"errors,omitempty"`
+	DryRun       bool            `json:"dry_run,omitempty"`
 }
 
 // WatchEvent represents a single check status change during watch mode.
@@ -175,4 +195,7 @@ type SummaryResult struct {
 	Checks       ChecksResult   `json:"checks"`
 	Reviews      []Review       `json:"reviews"`
 	IsMergeReady bool           `json:"is_merge_ready"`
+	PRAge        string         `json:"pr_age,omitempty"`
+	LastUpdate   string         `json:"last_update,omitempty"`
+	ReviewCycles int            `json:"review_cycles,omitempty"`
 }
