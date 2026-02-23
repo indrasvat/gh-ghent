@@ -118,7 +118,10 @@ Exit codes: 0 = all pass, 1 = failure, 3 = pending.`,
 				)
 			}
 
-			// Fetch logs for failed checks when --logs is set
+			// Fetch logs for failed checks when --logs is set.
+			// Note: ch.ID is a check run ID, which equals the job ID for GitHub
+			// Actions but may differ for external CI providers. FetchJobLog returns
+			// 404 for non-Actions checks, so we skip gracefully on error.
 			withLogs, _ := cmd.Flags().GetBool("logs")
 			if withLogs {
 				for i := range result.Checks {

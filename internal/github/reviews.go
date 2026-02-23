@@ -9,18 +9,22 @@ import (
 	"github.com/indrasvat/gh-ghent/internal/domain"
 )
 
-// reviewsQuery is the GraphQL query for fetching PR reviews.
+// reviewsQuery is the GraphQL query for fetching PR reviews with pagination.
 const reviewsQuery = `
-query($owner: String!, $repo: String!, $pr: Int!) {
+query($owner: String!, $repo: String!, $pr: Int!, $after: String) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $pr) {
-      reviews(first: 100) {
+      reviews(first: 100, after: $after) {
         nodes {
           id
           author { login }
           state
           body
           submittedAt
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
         }
       }
     }
@@ -32,7 +36,11 @@ type reviewsResponse struct {
 	Repository struct {
 		PullRequest *struct {
 			Reviews struct {
-				Nodes []reviewNode `json:"nodes"`
+				Nodes    []reviewNode `json:"nodes"`
+				PageInfo struct {
+					HasNextPage bool   `json:"hasNextPage"`
+					EndCursor   string `json:"endCursor"`
+				} `json:"pageInfo"`
 			} `json:"reviews"`
 		} `json:"pullRequest"`
 	} `json:"repository"`
@@ -48,7 +56,7 @@ type reviewNode struct {
 	SubmittedAt string `json:"submittedAt"`
 }
 
-// FetchReviews retrieves all reviews for a PR via GraphQL.
+// FetchReviews retrieves all reviews for a PR via GraphQL with pagination.
 func (c *Client) FetchReviews(ctx context.Context, owner, repo string, pr int) ([]domain.Review, error) {
 	ctx, cancel := withTimeout(ctx)
 	defer cancel()
@@ -56,30 +64,42 @@ func (c *Client) FetchReviews(ctx context.Context, owner, repo string, pr int) (
 	start := time.Now()
 	slog.Debug("fetching reviews", "owner", owner, "repo", repo, "pr", pr)
 
-	vars := map[string]interface{}{
-		"owner": owner,
-		"repo":  repo,
-		"pr":    pr,
-	}
+	var allNodes []reviewNode
+	var cursor *string
 
-	var resp reviewsResponse
-	if err := doWithRetry(func() error {
-		return c.gql.DoWithContext(ctx, reviewsQuery, vars, &resp)
-	}); err != nil {
-		return nil, classifyWithContext(err, "pull request", fmt.Sprintf("PR #%d in %s/%s", pr, owner, repo))
-	}
-
-	if resp.Repository.PullRequest == nil {
-		return nil, &NotFoundError{
-			Resource: "pull request",
-			Detail:   fmt.Sprintf("PR #%d in %s/%s", pr, owner, repo),
+	for {
+		vars := map[string]interface{}{
+			"owner": owner,
+			"repo":  repo,
+			"pr":    pr,
+			"after": cursor,
 		}
+
+		var resp reviewsResponse
+		if err := doWithRetry(func() error {
+			return c.gql.DoWithContext(ctx, reviewsQuery, vars, &resp)
+		}); err != nil {
+			return nil, classifyWithContext(err, "pull request", fmt.Sprintf("PR #%d in %s/%s", pr, owner, repo))
+		}
+
+		if resp.Repository.PullRequest == nil {
+			return nil, &NotFoundError{
+				Resource: "pull request",
+				Detail:   fmt.Sprintf("PR #%d in %s/%s", pr, owner, repo),
+			}
+		}
+
+		allNodes = append(allNodes, resp.Repository.PullRequest.Reviews.Nodes...)
+
+		if !resp.Repository.PullRequest.Reviews.PageInfo.HasNextPage {
+			break
+		}
+		cursor = &resp.Repository.PullRequest.Reviews.PageInfo.EndCursor
 	}
 
-	reviews := resp.Repository.PullRequest.Reviews.Nodes
-	slog.Debug("fetched reviews", "count", len(reviews), "duration", time.Since(start))
+	slog.Debug("fetched reviews", "count", len(allNodes), "duration", time.Since(start))
 
-	return mapReviewsToDomain(reviews)
+	return mapReviewsToDomain(allNodes)
 }
 
 // mapReviewsToDomain converts GraphQL review nodes to domain Review types.

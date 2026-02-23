@@ -59,6 +59,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			var threads *domain.CommentsResult
 			var checks *domain.ChecksResult
 			var reviews []domain.Review
+			var reviewFetchFailed bool
 
 			g.Go(func() error {
 				var fetchErr error
@@ -82,8 +83,10 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 				var fetchErr error
 				reviews, fetchErr = client.FetchReviews(ctx, owner, repo, Flags.PR)
 				if fetchErr != nil {
-					// Tolerate review fetch failure — reviews are optional.
+					// Tolerate review fetch failure — degrade gracefully, but
+					// mark as failed so merge-readiness defaults to not-ready.
 					reviews = nil
+					reviewFetchFailed = true
 				}
 				return nil
 			})
@@ -105,8 +108,8 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 				)
 			}
 
-			// Merge readiness logic.
-			mergeReady := IsMergeReady(threads, checks, reviews)
+			// Merge readiness logic. If review fetch failed, not merge-ready.
+			mergeReady := !reviewFetchFailed && IsMergeReady(threads, checks, reviews)
 
 			now := time.Now()
 
