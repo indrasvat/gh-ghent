@@ -90,6 +90,19 @@ func (f *MarkdownFormatter) FormatResolveResults(w io.Writer, result *domain.Res
 	return nil
 }
 
+func (f *MarkdownFormatter) FormatWatchStatus(w io.Writer, status *domain.WatchStatus) error {
+	fmt.Fprintf(w, "[%s] %s — %d/%d completed (pass:%d fail:%d pending:%d)",
+		status.Timestamp.Format("15:04:05"),
+		status.OverallStatus,
+		status.Completed, status.Total,
+		status.PassCount, status.FailCount, status.PendingCount)
+	for _, ev := range status.Events {
+		fmt.Fprintf(w, " | %s→%s", ev.Name, ev.Conclusion)
+	}
+	_, err := fmt.Fprintln(w)
+	return err
+}
+
 func (f *MarkdownFormatter) FormatSummary(w io.Writer, result *domain.SummaryResult) error {
 	mergeStatus := "NOT READY"
 	if result.IsMergeReady {

@@ -170,6 +170,57 @@ func (f *XMLFormatter) FormatSummary(w io.Writer, result *domain.SummaryResult) 
 	return err
 }
 
+func (f *XMLFormatter) FormatWatchStatus(w io.Writer, status *domain.WatchStatus) error {
+	out := xmlWatchStatus{
+		Timestamp:     status.Timestamp.Format(time.RFC3339),
+		OverallStatus: string(status.OverallStatus),
+		Completed:     status.Completed,
+		Total:         status.Total,
+		PassCount:     status.PassCount,
+		FailCount:     status.FailCount,
+		PendingCount:  status.PendingCount,
+		Final:         status.Final,
+	}
+	for _, ev := range status.Events {
+		out.Events = append(out.Events, xmlWatchEvent{
+			Name:       ev.Name,
+			Status:     ev.Status,
+			Conclusion: ev.Conclusion,
+			Timestamp:  ev.Timestamp.Format(time.RFC3339),
+		})
+	}
+	if _, err := io.WriteString(w, xml.Header); err != nil {
+		return err
+	}
+	enc := xml.NewEncoder(w)
+	enc.Indent("", "  ")
+	if err := enc.Encode(out); err != nil {
+		return err
+	}
+	_, err := io.WriteString(w, "\n")
+	return err
+}
+
+type xmlWatchStatus struct {
+	XMLName       xml.Name        `xml:"watch_status"`
+	Timestamp     string          `xml:"timestamp,attr"`
+	OverallStatus string          `xml:"overall_status,attr"`
+	Completed     int             `xml:"completed,attr"`
+	Total         int             `xml:"total,attr"`
+	PassCount     int             `xml:"pass_count,attr"`
+	FailCount     int             `xml:"fail_count,attr"`
+	PendingCount  int             `xml:"pending_count,attr"`
+	Final         bool            `xml:"final,attr"`
+	Events        []xmlWatchEvent `xml:"event,omitempty"`
+}
+
+type xmlWatchEvent struct {
+	Name       string `xml:"name,attr"`
+	Status     string `xml:"status,attr"`
+	Conclusion string `xml:"conclusion,attr"`
+	Timestamp  string `xml:"timestamp,attr"`
+}
+
 type xmlComments struct {
 	XMLName         xml.Name    `xml:"comments"`
 	PRNumber        int         `xml:"pr_number,attr"`

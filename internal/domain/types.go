@@ -147,6 +147,27 @@ type ResolveResults struct {
 	Errors       []ResolveError  `json:"errors,omitempty"`
 }
 
+// WatchEvent represents a single check status change during watch mode.
+type WatchEvent struct {
+	Name       string    `json:"name"`
+	Status     string    `json:"status"`
+	Conclusion string    `json:"conclusion"`
+	Timestamp  time.Time `json:"timestamp"`
+}
+
+// WatchStatus represents the aggregate status emitted on each poll cycle.
+type WatchStatus struct {
+	Timestamp     time.Time     `json:"timestamp"`
+	OverallStatus OverallStatus `json:"overall_status"`
+	Completed     int           `json:"completed"`
+	Total         int           `json:"total"`
+	PassCount     int           `json:"pass_count"`
+	FailCount     int           `json:"fail_count"`
+	PendingCount  int           `json:"pending_count"`
+	Events        []WatchEvent  `json:"events,omitempty"`
+	Final         bool          `json:"final"`
+}
+
 // SummaryResult combines all PR data for the summary command.
 type SummaryResult struct {
 	PRNumber     int            `json:"pr_number"`

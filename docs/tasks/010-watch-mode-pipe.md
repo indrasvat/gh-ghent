@@ -1,6 +1,6 @@
 # Task 3.1: Watch Mode — Pipe (`gh ghent checks --watch`)
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Phase 2 complete (needs checks command working end-to-end)

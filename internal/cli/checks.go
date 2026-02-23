@@ -28,6 +28,31 @@ func newChecksCmd() *cobra.Command {
 			ctx := cmd.Context()
 			client := GitHubClient()
 
+			f, err := formatter.New(Flags.Format)
+			if err != nil {
+				return err
+			}
+
+			// Watch mode: poll until terminal status.
+			watch, _ := cmd.Flags().GetBool("watch")
+			if watch {
+				finalStatus, watchErr := client.WatchChecks(
+					ctx, os.Stdout, f,
+					owner, repo, Flags.PR,
+					ghub.DefaultPollInterval, nil,
+				)
+				if watchErr != nil {
+					return fmt.Errorf("watch checks: %w", watchErr)
+				}
+				switch finalStatus {
+				case domain.StatusFail:
+					os.Exit(1)
+				case domain.StatusPending:
+					os.Exit(3)
+				}
+				return nil
+			}
+
 			result, err := client.FetchChecks(ctx, owner, repo, Flags.PR)
 			if err != nil {
 				return fmt.Errorf("fetch checks: %w", err)
@@ -49,11 +74,6 @@ func newChecksCmd() *cobra.Command {
 				}
 			}
 
-			f, err := formatter.New(Flags.Format)
-			if err != nil {
-				return err
-			}
-
 			if err := f.FormatChecks(os.Stdout, result); err != nil {
 				return fmt.Errorf("format output: %w", err)
 			}
@@ -71,7 +91,7 @@ func newChecksCmd() *cobra.Command {
 	}
 
 	cmd.Flags().Bool("logs", false, "show check run logs")
-	cmd.Flags().Bool("watch", false, "watch for check status changes")
+	cmd.Flags().Bool("watch", false, "poll until all checks complete (fail-fast on failure)")
 
 	return cmd
 }
