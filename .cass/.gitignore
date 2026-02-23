@@ -1,0 +1,4 @@
+# Ignore diary (session-specific data)
+diary/
+# Ignore temporary files
+*.tmp
