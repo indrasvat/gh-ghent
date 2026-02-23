@@ -7,10 +7,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 5: TUI Views |
-| **Current Task** | Task 5.6 complete. Phase 5 done. Next: Phase 6 or `docs/tasks/029-rename-repo-gh-ghent.md` |
+| **Current Phase** | Phase 6: Agent Optimization — COMPLETE |
+| **Current Task** | All 30 tasks DONE. Project feature-complete. |
 | **Blocker** | None |
-| **Last Action** | Task 5.6 complete. Watch mode TUI with live CI testing. |
+| **Last Action** | Phase 6 complete. --since, --group-by, --compact, batch resolve. 489 tests. |
 | **Last Updated** | 2026-02-23 |
 
 ## How to Resume
@@ -65,17 +65,31 @@
 
 > **Milestone: TUI Views complete** — all interactive views implemented, verified with live CI
 
-### Phase 6: Agent Optimization (Future)
-- [ ] Task 6.1: --since flag → `docs/tasks/024-since-filter.md`
-- [ ] Task 6.2: --group-by flag → `docs/tasks/025-group-by-flag.md`
-- [ ] Task 6.3: Summary enhancements → `docs/tasks/026-summary-enhancements.md`
-- [ ] Task 6.4: Batch resolve → `docs/tasks/027-batch-resolve.md`
+### Phase 6: Agent Optimization
+- [x] Task 6.1: --since flag → `docs/tasks/024-since-filter.md`
+- [x] Task 6.2: --group-by flag → `docs/tasks/025-group-by-flag.md`
+- [x] Task 6.3: Summary enhancements → `docs/tasks/026-summary-enhancements.md`
+- [x] Task 6.4: Batch resolve → `docs/tasks/027-batch-resolve.md`
+
+> **Milestone: Agent Optimization complete** — all agent-facing features implemented, 489 tests passing
 
 ## Blockers
 
 (None currently)
 
 ## Session Log
+
+### 2026-02-23 (Phase 6: Agent Optimization — all 4 tasks parallel)
+- **Tasks 3.2, 3.4 (error handling, README):** Already code-complete from prior sessions but task files still showed TODO. Created L4 visual tests (`test_ghent_errors.py` 6/6 PASS, `test_ghent_help.py` 8/8 PASS, `test_ghent_agent.py` 8/8 PASS) to satisfy pre-task-done-gate hook, added Visual Test Results sections, marked DONE.
+- **Task 6.1 (--since filter):** Added `internal/cli/since.go` — `ParseSince()` for ISO 8601 + relative durations (30d, 2w, 24h), `FilterThreadsBySince()`, `FilterChecksBySince()`. `--since` persistent flag on root. 15 tests.
+- **Task 6.2 (--group-by flag):** Added `--group-by` flag to comments (file/author/status). `groupThreads()` + `threadKeyFunc()` in comments.go. `FormatGroupedComments` on all 3 formatters — JSON groups array, XML groups/group, Markdown `##` headers. 8 grouping tests + 6 formatter tests.
+- **Task 6.3 (--compact summary):** Added `--compact` flag to summary. `FormatCompactSummary` with `pr_age`, `last_update`, `review_cycles`, `is_merge_ready`. `computePRAge`, `computeLastUpdate`, `computeReviewCycles`, `formatRelativeTime` helpers. All 3 formatters support compact mode.
+- **Task 6.4 (batch resolve):** Added `--file`, `--author`, `--dry-run` flags to resolve. `matchesFilters()` with `path.Match` glob, `resolveBatch()` with per-thread results. `SkippedCount`/`DryRun` on domain.ResolveResults. 15 tests.
+- All 4 tasks ran in parallel via agent teams in git worktrees, merged sequentially with `make ci-fast` verification after each.
+- **L4 Phase 6 visual test:** `test_ghent_phase6.py` — 8/8 PASS against indrasvat/tbgs PR #1 (--since, --group-by file/author, --compact, batch resolve --dry-run/--file, relative 30d)
+- **TUI visual regression:** All 4 core TUI tests re-run — comments 12/12, checks 15/15, resolve 12/12, summary 9/9 PASS.
+- Test count: 419 → 489 (70 new tests)
+- **Phase 6 complete. All 30 tasks DONE. Project feature-complete.**
 
 ### 2026-02-23 (Task 5.6 — TUI Views: Watch Mode)
 - **Task 5.6 (Watch mode TUI):** Created `internal/tui/watcher.go` — `watcherModel` with `bubbles/spinner` (dot animation), `tea.Tick` polling (10s interval), three states (polling/done/failed). Check list with `checkStatusIcon()` reuse, color-coded status. Event log with timestamps, auto-scroll, dedup via `seen` map. `formatDuration()` helper for elapsed/check times.
