@@ -188,6 +188,21 @@ func sampleSummaryResult() *domain.SummaryResult {
 			TotalCount:      3,
 			ResolvedCount:   1,
 			UnresolvedCount: 2,
+			Threads: []domain.ReviewThread{
+				{
+					ID:   "PRRT_1",
+					Path: "main.go",
+					Line: 10,
+					Comments: []domain.Comment{
+						{
+							ID:        "PRRC_1",
+							Author:    "alice",
+							Body:      "Please fix this",
+							CreatedAt: time.Date(2026, 2, 20, 10, 0, 0, 0, time.UTC),
+						},
+					},
+				},
+			},
 		},
 		Checks: domain.ChecksResult{
 			PRNumber:      42,
@@ -214,6 +229,9 @@ func sampleSummaryResult() *domain.SummaryResult {
 			},
 		},
 		IsMergeReady: false,
+		PRAge:        "3d",
+		LastUpdate:   "5h",
+		ReviewCycles: 1,
 	}
 }
 
@@ -298,5 +316,164 @@ func TestJSONSummaryMergeReady(t *testing.T) {
 
 	if v, ok := parsed["is_merge_ready"].(bool); !ok || !v {
 		t.Errorf("is_merge_ready = %v, want true", parsed["is_merge_ready"])
+	}
+}
+
+func TestJSONCompactSummaryValid(t *testing.T) {
+	var buf bytes.Buffer
+	f := &JSONFormatter{}
+
+	if err := f.FormatCompactSummary(&buf, sampleSummaryResult()); err != nil {
+		t.Fatalf("FormatCompactSummary: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput:\n%s", err, buf.String())
+	}
+}
+
+func TestJSONCompactSummaryFlat(t *testing.T) {
+	var buf bytes.Buffer
+	f := &JSONFormatter{}
+
+	if err := f.FormatCompactSummary(&buf, sampleSummaryResult()); err != nil {
+		t.Fatalf("FormatCompactSummary: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	// Compact format has flat fields, not nested comments/checks objects.
+	if v, ok := parsed["pr_number"].(float64); !ok || int(v) != 42 {
+		t.Errorf("pr_number = %v, want 42", parsed["pr_number"])
+	}
+	if v, ok := parsed["unresolved"].(float64); !ok || int(v) != 2 {
+		t.Errorf("unresolved = %v, want 2", parsed["unresolved"])
+	}
+	if parsed["check_status"] != "pass" {
+		t.Errorf("check_status = %v, want pass", parsed["check_status"])
+	}
+	if v, ok := parsed["pass_count"].(float64); !ok || int(v) != 3 {
+		t.Errorf("pass_count = %v, want 3", parsed["pass_count"])
+	}
+	if parsed["pr_age"] != "3d" {
+		t.Errorf("pr_age = %v, want 3d", parsed["pr_age"])
+	}
+	if parsed["last_update"] != "5h" {
+		t.Errorf("last_update = %v, want 5h", parsed["last_update"])
+	}
+	if v, ok := parsed["review_cycles"].(float64); !ok || int(v) != 1 {
+		t.Errorf("review_cycles = %v, want 1", parsed["review_cycles"])
+	}
+
+	// Should NOT have nested "comments" or "checks" objects.
+	if _, ok := parsed["comments"]; ok {
+		t.Error("compact format should not have nested 'comments' object")
+	}
+	if _, ok := parsed["checks"]; ok {
+		t.Error("compact format should not have nested 'checks' object")
+	}
+
+	// Threads should be flat array with preview.
+	threads, ok := parsed["threads"].([]any)
+	if !ok || len(threads) != 1 {
+		t.Fatalf("threads count = %v, want 1", len(threads))
+	}
+	thread := threads[0].(map[string]any)
+	if thread["file"] != "main.go" {
+		t.Errorf("thread.file = %v, want main.go", thread["file"])
+	}
+	if thread["author"] != "alice" {
+		t.Errorf("thread.author = %v, want alice", thread["author"])
+	}
+	if thread["body_preview"] != "Please fix this" {
+		t.Errorf("thread.body_preview = %v, want 'Please fix this'", thread["body_preview"])
+	}
+}
+
+func TestJSONCompactSummaryShorterThanFull(t *testing.T) {
+	f := &JSONFormatter{}
+	result := sampleSummaryResult()
+
+	var fullBuf, compactBuf bytes.Buffer
+	if err := f.FormatSummary(&fullBuf, result); err != nil {
+		t.Fatalf("FormatSummary: %v", err)
+	}
+	if err := f.FormatCompactSummary(&compactBuf, result); err != nil {
+		t.Fatalf("FormatCompactSummary: %v", err)
+	}
+
+	if compactBuf.Len() >= fullBuf.Len() {
+		t.Errorf("compact (%d bytes) should be shorter than full (%d bytes)", compactBuf.Len(), fullBuf.Len())
+	}
+}
+
+func TestJSONCompactSummaryNoThreads(t *testing.T) {
+	f := &JSONFormatter{}
+	result := &domain.SummaryResult{
+		PRNumber: 99,
+		Comments: domain.CommentsResult{},
+		Checks: domain.ChecksResult{
+			OverallStatus: domain.StatusPass,
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := f.FormatCompactSummary(&buf, result); err != nil {
+		t.Fatalf("FormatCompactSummary: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	// threads should be null/absent when empty.
+	if threads, ok := parsed["threads"]; ok && threads != nil {
+		t.Errorf("threads should be null/absent for empty result, got %v", threads)
+	}
+}
+
+func TestJSONCompactSummaryBodyTruncation(t *testing.T) {
+	f := &JSONFormatter{}
+	longBody := strings.Repeat("x", 100)
+	result := &domain.SummaryResult{
+		PRNumber: 1,
+		Comments: domain.CommentsResult{
+			Threads: []domain.ReviewThread{
+				{
+					Path: "a.go",
+					Line: 1,
+					Comments: []domain.Comment{
+						{Author: "bob", Body: longBody},
+					},
+				},
+			},
+			UnresolvedCount: 1,
+		},
+		Checks: domain.ChecksResult{OverallStatus: domain.StatusFail},
+	}
+
+	var buf bytes.Buffer
+	if err := f.FormatCompactSummary(&buf, result); err != nil {
+		t.Fatalf("FormatCompactSummary: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	threads := parsed["threads"].([]any)
+	thread := threads[0].(map[string]any)
+	preview := thread["body_preview"].(string)
+	if len(preview) > 84 { // 80 + "..."
+		t.Errorf("body_preview not truncated: len=%d", len(preview))
+	}
+	if !strings.HasSuffix(preview, "...") {
+		t.Errorf("body_preview should end with '...', got %q", preview)
 	}
 }
