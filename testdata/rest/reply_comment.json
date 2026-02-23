@@ -1,0 +1,11 @@
+{
+  "id": 2001,
+  "node_id": "PRRC_reply1",
+  "body": "Acknowledged — will fix in next push",
+  "html_url": "https://github.com/owner/repo/pull/42#discussion_r2001",
+  "created_at": "2026-02-22T14:00:00Z",
+  "updated_at": "2026-02-22T14:00:00Z",
+  "user": {
+    "login": "agent-bot"
+  }
+}

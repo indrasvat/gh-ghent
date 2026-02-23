@@ -1,6 +1,6 @@
 # Task 2.5: Reply Command (`gh ghent reply`)
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 2.1: Comments command (needs GraphQL thread fetch to validate thread + get comment IDs)
