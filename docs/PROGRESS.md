@@ -43,7 +43,7 @@
 - [ ] Task 3.2: Error handling hardening → `docs/tasks/011-error-handling.md`
 - [ ] Task 3.3: Extension packaging → `docs/tasks/012-extension-packaging.md`
 - [ ] Task 3.4: README + --help → `docs/tasks/013-readme-help.md`
-- [ ] Task 3.5: Debug logging & tracing → `docs/tasks/028-debug-logging.md`
+- [x] Task 3.5: Debug logging & tracing → `docs/tasks/028-debug-logging.md`
 
 > **Milestone: CLI complete** — all commands work in pipe mode, fully tested
 
