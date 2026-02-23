@@ -8,9 +8,9 @@
 | Field | Value |
 |-------|-------|
 | **Current Phase** | Phase 5: TUI Views |
-| **Current Task** | Task 5.5 complete. Next: `docs/tasks/023-watch-mode-tui.md` |
+| **Current Task** | Task 5.6 complete. Phase 5 done. Next: Phase 6 or `docs/tasks/029-rename-repo-gh-ghent.md` |
 | **Blocker** | None |
-| **Last Action** | Task 5.5 complete. Summary dashboard with KPI cards. |
+| **Last Action** | Task 5.6 complete. Watch mode TUI with live CI testing. |
 | **Last Updated** | 2026-02-23 |
 
 ## How to Resume
@@ -61,7 +61,9 @@
 - [x] Task 5.3: Checks view + log viewer → `docs/tasks/020-checks-view.md`
 - [x] Task 5.4: Resolve view — multi-select → `docs/tasks/021-resolve-view.md`
 - [x] Task 5.5: Summary dashboard → `docs/tasks/022-summary-dashboard.md`
-- [ ] Task 5.6: Watch mode TUI → `docs/tasks/023-watch-mode-tui.md`
+- [x] Task 5.6: Watch mode TUI → `docs/tasks/023-watch-mode-tui.md`
+
+> **Milestone: TUI Views complete** — all interactive views implemented, verified with live CI
 
 ### Phase 6: Agent Optimization (Future)
 - [ ] Task 6.1: --since flag → `docs/tasks/024-since-filter.md`
@@ -74,6 +76,16 @@
 (None currently)
 
 ## Session Log
+
+### 2026-02-23 (Task 5.6 — TUI Views: Watch Mode)
+- **Task 5.6 (Watch mode TUI):** Created `internal/tui/watcher.go` — `watcherModel` with `bubbles/spinner` (dot animation), `tea.Tick` polling (10s interval), three states (polling/done/failed). Check list with `checkStatusIcon()` reuse, color-coded status. Event log with timestamps, auto-scroll, dedup via `seen` map. `formatDuration()` helper for elapsed/check times.
+- Wired to `app.go`: `watcher` sub-model, `ViewWatch` rendering, WindowSizeMsg propagation, `SetWatchFetch()` method, `Init()` returns watcher commands for ViewWatch start.
+- Updated `cli/checks.go`: `--watch` + TTY routes to watch TUI via `launchTUI(ViewWatch, withWatchFetch(...))`. Non-TTY still uses pipe-mode `WatchChecks`.
+- 14 unit tests in watcher_test.go (empty view, initial, poll result, all pass, fail-fast, poll error, seen dedup, tick ignored when done, nil fetchFn, event log scroll, formatDuration, makeEvent, app integration, status bar).
+- **Bug found via live CI testing**: Duplicate `running...  running...` on in-progress check lines. Both `dur` and `status` were set to "running..." for in_progress state. Fixed by only setting `status`, leaving `dur` empty.
+- L4: 10/10 PASS (test_ghent_watch.py) + live CI test against indrasvat/gh-ghent PR #1 with in-progress checks.
+- Verification: 419 tests pass, lint clean, vet clean (`make ci` ✓)
+- **Phase 5 complete** — all TUI views implemented and verified.
 
 ### 2026-02-23 (Task 5.5 — TUI Views: Summary Dashboard)
 - **Task 5.5 (Summary dashboard):** Created `internal/tui/summary.go` — `summaryModel` with KPI cards row (4 cards: Unresolved, Passed, Failed, Approvals using `lipgloss.JoinHorizontal` and rounded borders), three section previews (Review Threads with top-3 truncation, CI Checks with failed check annotations and pass count, Approvals with reviewer icons and states), merge readiness badge (READY/NOT READY in status bar). Color-coded dots per section (green=clear, red=issues, yellow=pending). Reuses package-scoped helpers: `padWithRight`, `formatTimeAgo`, `checkIsFailed`, `dimStyle`/`greenStyle`/`redStyle`.

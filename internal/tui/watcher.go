@@ -312,8 +312,6 @@ func (m watcherModel) renderCheckList() string {
 		dur := ""
 		if ch.Status == "completed" && !ch.CompletedAt.IsZero() && !ch.StartedAt.IsZero() {
 			dur = dimStyle.Render(formatDuration(ch.CompletedAt.Sub(ch.StartedAt)))
-		} else if ch.Status == "in_progress" {
-			dur = lipgloss.NewStyle().Foreground(lipgloss.Color(string(styles.Blue))).Render("running...")
 		}
 
 		left := "  " + icon + " " + nameStyle.Render(name)

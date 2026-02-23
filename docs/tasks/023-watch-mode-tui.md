@@ -1,6 +1,6 @@
 # Task 5.6: Watch Mode TUI
 
-## Status: IN PROGRESS
+## Status: DONE
 
 ## Depends On
 - Task 5.3: Checks view (needs check display as base)
@@ -115,22 +115,32 @@ feat(tui): add watch mode with spinner, progress, and fail-fast
 
 ## Visual Test Results
 
-L4 iterm2-driver: **9/9 PASS** (`test_ghent_watch.py`)
+L4 iterm2-driver: **10/10 PASS** (`test_ghent_watch.py`)
 
 ### Screenshots Reviewed
 
-1. **ghent_watch_pass.png** (indrasvat/doot PR #1 — all checks passed) — Status bar shows `ghent indrasvat/doot PR #1`. Status line: green `✓ all checks passed 1/1 elapsed: 12s poll: 10s`. Check list: `✓ make ci (python 3.14)` with `36s passed` in green. Event Log header with `last updated 11s ago`, timestamped entries: `12:51:15 ✓ make ci (python 3.14) 36s`, `12:51:15 ✓ All checks passed`. Help bar: `j/k navigate enter view logs ctrl+c stop watching q quit`.
+1. **ghent_watch_initial.png** (indrasvat/doot PR #1 — all checks passed) — Status bar shows `ghent indrasvat/doot PR #1`. Status line: green `✓ all checks passed 1/1 elapsed: 12s poll: 10s`. Check list: `✓ make ci (python 3.14)` with `36s passed` in green. Event Log header with `last updated 11s ago`, timestamped entries: `✓ make ci (python 3.14) 36s`, `✓ All checks passed`. Help bar: `j/k navigate enter view logs ctrl+c stop watching q quit`.
 
-2. **ghent_watch_fail.png** (indrasvat/peek-it PR #2 — failure detected) — Status bar shows `ghent indrasvat/peek-it PR #2`. Status line: red `✗ failure detected 2/2 elapsed: 12s poll: 10s`. Check list: `✗ build-test (1.23.x)` with `2m 11s completed`, `✗ build-test (1.22.x)` with `2m 7s failure` in red. Event Log: timestamped entries for both failed checks, final entry `✗ Check failure detected fail-fast triggered`. Help bar same as pass state.
+2. **ghent_watch_refreshed.png** (indrasvat/peek-it PR #2 — failure detected) — Status line: red `✗ failure detected 2/2 elapsed: 12s poll: 10s`. Check list: `✗ build-test (1.23.x)` with `2m 11s completed`, `✗ build-test (1.22.x)` with `2m 7s failure` in red. Event Log: timestamped entries for both failed checks, final entry `✗ Check failure detected fail-fast triggered`.
+
+3. **ghent_watch_exit.png** — After pressing `q`, TUI exits cleanly to shell prompt. Alt screen cleared, no residual TUI content.
+
+### Live CI Test (indrasvat/gh-ghent PR #1)
+
+Triggered a real CI run by pushing to the branch and watched it live with iterm2-driver:
+- **Polling state**: Spinner cycling (`⢿`, `⡿`, `⣟`), yellow "watching" label, `0/1` progress, `◌ ci` with `running...` on right.
+- **Bug found and fixed**: `running...` was appearing twice (`dur` and `status` both set for in-progress). Fixed by only setting `status`, not `dur`.
+- **Multi-poll**: Watched 3 consecutive poll cycles (11s, 24s, 36s elapsed). "last updated Xs ago" updates correctly.
+- **Event Log**: Shows "Waiting for events..." until a check completes, then timestamped entries appear.
 
 ### Findings
 
 - Both terminal states (pass/fail) render correctly on first poll since checks are already complete.
 - Fail-fast triggers immediately when `OverallStatus == StatusFail`, adding event log entry with "fail-fast triggered" detail.
-- Elapsed timer updates correctly (12s = time waiting for API response + render).
+- Elapsed timer ticks correctly across poll cycles.
 - `checkStatusIcon()` from checks.go is reused for check list rendering, ensuring icon consistency.
 - Event dedup via `seen` map prevents duplicate entries on subsequent polls.
-- Help bar correctly shows watch-specific bindings including `ctrl+c stop watching`.
+- **Critical lesson**: Unit tests (419 passing) did NOT catch the duplicate `running...` bug — only live CI testing with iterm2-driver screenshots revealed it.
 
 ## Session Protocol
 
