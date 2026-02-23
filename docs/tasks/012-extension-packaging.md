@@ -1,6 +1,6 @@
 # Task 3.3: Extension Packaging
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 3.1: Watch mode pipe
@@ -100,6 +100,28 @@ chore(release): finalize extension packaging and install flow
 - Added install-local Makefile target
 - Cross-platform build verification
 ```
+
+## Visual Test Results
+
+L4 tests ran via `uv run .claude/automations/test_ghent_install.py` on 2026-02-23.
+
+| Test | Status |
+|------|--------|
+| make install | PASS |
+| gh ghent --version | PASS |
+| gh extension list shows ghent | PASS |
+| gh ghent --help | PASS |
+| Cross-build linux/amd64 | PASS |
+| Cross-build darwin/arm64 | PASS |
+| Cross-build windows/amd64 | PASS |
+
+**7/7 PASS, 0 FAIL**
+
+Screenshots reviewed:
+- `ghent_install.png` — iTerm2 showing make install output with "Installed: gh ghent"
+- `ghent_list.png` — iTerm2 showing gh extension list with gh-ghent visible
+
+Findings: All tests pass. Extension installs via symlink, version/help/list all work correctly. Cross-platform builds produce correct binaries (ELF, Mach-O, PE32+).
 
 ## Session Protocol
 
