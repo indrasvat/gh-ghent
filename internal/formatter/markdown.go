@@ -46,14 +46,16 @@ func (f *MarkdownFormatter) FormatChecks(w io.Writer, result *domain.ChecksResul
 		fmt.Fprintf(w, "| %s | %s | %s |\n", ch.Name, ch.Status, conclusion)
 	}
 
-	// Annotations for failed checks
+	// Annotations and log excerpts for failed checks
 	for _, ch := range result.Checks {
-		if len(ch.Annotations) == 0 {
-			continue
+		if len(ch.Annotations) > 0 {
+			fmt.Fprintf(w, "\n### %s — Annotations\n\n", ch.Name)
+			for _, a := range ch.Annotations {
+				fmt.Fprintf(w, "- **%s** `%s:%d` — %s\n", a.AnnotationLevel, a.Path, a.StartLine, a.Message)
+			}
 		}
-		fmt.Fprintf(w, "\n### %s — Annotations\n\n", ch.Name)
-		for _, a := range ch.Annotations {
-			fmt.Fprintf(w, "- **%s** `%s:%d` — %s\n", a.AnnotationLevel, a.Path, a.StartLine, a.Message)
+		if ch.LogExcerpt != "" {
+			fmt.Fprintf(w, "\n### %s — Log Excerpt\n\n```\n%s\n```\n", ch.Name, ch.LogExcerpt)
 		}
 	}
 	return nil
@@ -89,11 +91,33 @@ func (f *MarkdownFormatter) FormatResolveResults(w io.Writer, result *domain.Res
 }
 
 func (f *MarkdownFormatter) FormatSummary(w io.Writer, result *domain.SummaryResult) error {
-	fmt.Fprintf(w, "# PR #%d — Summary\n\n", result.PRNumber)
-	fmt.Fprintf(w, "**Merge Ready:** %v\n\n", result.IsMergeReady)
-	fmt.Fprintf(w, "## Comments\n\n")
-	fmt.Fprintf(w, "Unresolved: %d | Resolved: %d\n\n", result.Comments.UnresolvedCount, result.Comments.ResolvedCount)
-	fmt.Fprintf(w, "## Checks\n\n")
-	fmt.Fprintf(w, "Status: %s | Pass: %d | Fail: %d\n", result.Checks.OverallStatus, result.Checks.PassCount, result.Checks.FailCount)
+	mergeStatus := "NOT READY"
+	if result.IsMergeReady {
+		mergeStatus = "READY"
+	}
+	fmt.Fprintf(w, "# PR #%d — Summary [%s]\n\n", result.PRNumber, mergeStatus)
+
+	// Comments section.
+	fmt.Fprintf(w, "## Review Comments\n\n")
+	fmt.Fprintf(w, "**Unresolved:** %d | **Resolved:** %d | **Total:** %d\n\n",
+		result.Comments.UnresolvedCount, result.Comments.ResolvedCount, result.Comments.TotalCount)
+
+	// Checks section.
+	fmt.Fprintf(w, "## CI Checks\n\n")
+	fmt.Fprintf(w, "**Status:** %s | **Pass:** %d | **Fail:** %d | **Pending:** %d\n\n",
+		result.Checks.OverallStatus, result.Checks.PassCount, result.Checks.FailCount, result.Checks.PendingCount)
+
+	// Reviews/Approvals section.
+	fmt.Fprintf(w, "## Approvals\n\n")
+	if len(result.Reviews) == 0 {
+		fmt.Fprintf(w, "No reviews yet.\n")
+	} else {
+		fmt.Fprintf(w, "| Reviewer | State |\n")
+		fmt.Fprintf(w, "|----------|-------|\n")
+		for _, r := range result.Reviews {
+			fmt.Fprintf(w, "| @%s | %s |\n", r.Author, r.State)
+		}
+	}
+
 	return nil
 }

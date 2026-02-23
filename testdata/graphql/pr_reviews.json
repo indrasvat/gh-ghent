@@ -1,0 +1,40 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviews": {
+          "nodes": [
+            {
+              "id": "PRR_review1",
+              "author": { "login": "reviewer1" },
+              "state": "APPROVED",
+              "body": "Looks good!",
+              "submittedAt": "2026-02-20T12:00:00Z"
+            },
+            {
+              "id": "PRR_review2",
+              "author": { "login": "reviewer2" },
+              "state": "CHANGES_REQUESTED",
+              "body": "Please fix the error handling",
+              "submittedAt": "2026-02-20T13:00:00Z"
+            },
+            {
+              "id": "PRR_review3",
+              "author": { "login": "reviewer1" },
+              "state": "COMMENTED",
+              "body": "Minor nit",
+              "submittedAt": "2026-02-20T14:00:00Z"
+            },
+            {
+              "id": "PRR_review4",
+              "author": { "login": "reviewer3" },
+              "state": "DISMISSED",
+              "body": "",
+              "submittedAt": "2026-02-20T15:00:00Z"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

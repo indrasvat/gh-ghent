@@ -66,6 +66,7 @@ func (f *XMLFormatter) FormatChecks(w io.Writer, result *domain.ChecksResult) er
 			Status:     ch.Status,
 			Conclusion: ch.Conclusion,
 			HTMLURL:    ch.HTMLURL,
+			LogExcerpt: ch.LogExcerpt,
 		}
 		for _, a := range ch.Annotations {
 			xc.Annotations = append(xc.Annotations, xmlAnnotation{
@@ -133,12 +134,40 @@ func (f *XMLFormatter) FormatResolveResults(w io.Writer, result *domain.ResolveR
 }
 
 func (f *XMLFormatter) FormatSummary(w io.Writer, result *domain.SummaryResult) error {
+	out := xmlSummary{
+		PRNumber:     result.PRNumber,
+		IsMergeReady: result.IsMergeReady,
+		Comments: xmlSummaryComments{
+			TotalCount:      result.Comments.TotalCount,
+			ResolvedCount:   result.Comments.ResolvedCount,
+			UnresolvedCount: result.Comments.UnresolvedCount,
+		},
+		Checks: xmlSummaryChecks{
+			OverallStatus: string(result.Checks.OverallStatus),
+			PassCount:     result.Checks.PassCount,
+			FailCount:     result.Checks.FailCount,
+			PendingCount:  result.Checks.PendingCount,
+		},
+	}
+	for _, r := range result.Reviews {
+		out.Reviews = append(out.Reviews, xmlReview{
+			ID:          r.ID,
+			Author:      r.Author,
+			State:       string(r.State),
+			Body:        r.Body,
+			SubmittedAt: r.SubmittedAt.Format(time.RFC3339),
+		})
+	}
 	if _, err := io.WriteString(w, xml.Header); err != nil {
 		return err
 	}
 	enc := xml.NewEncoder(w)
 	enc.Indent("", "  ")
-	return enc.Encode(result)
+	if err := enc.Encode(out); err != nil {
+		return err
+	}
+	_, err := io.WriteString(w, "\n")
+	return err
 }
 
 type xmlComments struct {
@@ -186,6 +215,7 @@ type xmlCheckRun struct {
 	Conclusion  string          `xml:"conclusion,attr"`
 	HTMLURL     string          `xml:"html_url,attr"`
 	Annotations []xmlAnnotation `xml:"annotation,omitempty"`
+	LogExcerpt  string          `xml:"log_excerpt,omitempty"`
 }
 
 type xmlAnnotation struct {
@@ -216,4 +246,34 @@ type xmlResolveResult struct {
 type xmlResolveError struct {
 	ThreadID string `xml:"thread_id,attr"`
 	Message  string `xml:",chardata"`
+}
+
+type xmlSummary struct {
+	XMLName      xml.Name           `xml:"summary"`
+	PRNumber     int                `xml:"pr_number,attr"`
+	IsMergeReady bool               `xml:"is_merge_ready,attr"`
+	Comments     xmlSummaryComments `xml:"comments"`
+	Checks       xmlSummaryChecks   `xml:"checks"`
+	Reviews      []xmlReview        `xml:"review,omitempty"`
+}
+
+type xmlSummaryComments struct {
+	TotalCount      int `xml:"total_count,attr"`
+	ResolvedCount   int `xml:"resolved_count,attr"`
+	UnresolvedCount int `xml:"unresolved_count,attr"`
+}
+
+type xmlSummaryChecks struct {
+	OverallStatus string `xml:"overall_status,attr"`
+	PassCount     int    `xml:"pass_count,attr"`
+	FailCount     int    `xml:"fail_count,attr"`
+	PendingCount  int    `xml:"pending_count,attr"`
+}
+
+type xmlReview struct {
+	ID          string `xml:"id,attr"`
+	Author      string `xml:"author,attr"`
+	State       string `xml:"state,attr"`
+	SubmittedAt string `xml:"submitted_at,attr"`
+	Body        string `xml:"body,omitempty"`
 }

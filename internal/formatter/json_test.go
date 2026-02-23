@@ -179,3 +179,124 @@ func TestJSONFormatterNoANSI(t *testing.T) {
 		t.Error("JSON output contains ANSI escape sequences")
 	}
 }
+
+func sampleSummaryResult() *domain.SummaryResult {
+	return &domain.SummaryResult{
+		PRNumber: 42,
+		Comments: domain.CommentsResult{
+			PRNumber:        42,
+			TotalCount:      3,
+			ResolvedCount:   1,
+			UnresolvedCount: 2,
+		},
+		Checks: domain.ChecksResult{
+			PRNumber:      42,
+			HeadSHA:       "abc123",
+			OverallStatus: domain.StatusPass,
+			PassCount:     3,
+			FailCount:     0,
+			PendingCount:  0,
+		},
+		Reviews: []domain.Review{
+			{
+				ID:          "PRR_1",
+				Author:      "alice",
+				State:       domain.ReviewApproved,
+				Body:        "LGTM",
+				SubmittedAt: time.Date(2026, 2, 20, 12, 0, 0, 0, time.UTC),
+			},
+			{
+				ID:          "PRR_2",
+				Author:      "bob",
+				State:       domain.ReviewCommented,
+				Body:        "Minor nit",
+				SubmittedAt: time.Date(2026, 2, 20, 13, 0, 0, 0, time.UTC),
+			},
+		},
+		IsMergeReady: false,
+	}
+}
+
+func TestJSONSummaryValid(t *testing.T) {
+	var buf bytes.Buffer
+	f := &JSONFormatter{}
+
+	if err := f.FormatSummary(&buf, sampleSummaryResult()); err != nil {
+		t.Fatalf("FormatSummary: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput:\n%s", err, buf.String())
+	}
+}
+
+func TestJSONSummaryFields(t *testing.T) {
+	var buf bytes.Buffer
+	f := &JSONFormatter{}
+
+	if err := f.FormatSummary(&buf, sampleSummaryResult()); err != nil {
+		t.Fatalf("FormatSummary: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	if v, ok := parsed["pr_number"].(float64); !ok || int(v) != 42 {
+		t.Errorf("pr_number = %v, want 42", parsed["pr_number"])
+	}
+	if v, ok := parsed["is_merge_ready"].(bool); !ok || v != false {
+		t.Errorf("is_merge_ready = %v, want false", parsed["is_merge_ready"])
+	}
+
+	comments, ok := parsed["comments"].(map[string]any)
+	if !ok {
+		t.Fatal("missing comments section")
+	}
+	if v, ok := comments["unresolved_count"].(float64); !ok || int(v) != 2 {
+		t.Errorf("comments.unresolved_count = %v, want 2", comments["unresolved_count"])
+	}
+
+	checks, ok := parsed["checks"].(map[string]any)
+	if !ok {
+		t.Fatal("missing checks section")
+	}
+	if checks["overall_status"] != "pass" {
+		t.Errorf("checks.overall_status = %v, want pass", checks["overall_status"])
+	}
+
+	reviews, ok := parsed["reviews"].([]any)
+	if !ok || len(reviews) != 2 {
+		t.Fatalf("reviews count = %v, want 2", len(reviews))
+	}
+	first := reviews[0].(map[string]any)
+	if first["author"] != "alice" {
+		t.Errorf("reviews[0].author = %v, want alice", first["author"])
+	}
+	if first["state"] != "APPROVED" {
+		t.Errorf("reviews[0].state = %v, want APPROVED", first["state"])
+	}
+}
+
+func TestJSONSummaryMergeReady(t *testing.T) {
+	var buf bytes.Buffer
+	f := &JSONFormatter{}
+
+	result := sampleSummaryResult()
+	result.IsMergeReady = true
+
+	if err := f.FormatSummary(&buf, result); err != nil {
+		t.Fatalf("FormatSummary: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	if v, ok := parsed["is_merge_ready"].(bool); !ok || !v {
+		t.Errorf("is_merge_ready = %v, want true", parsed["is_merge_ready"])
+	}
+}

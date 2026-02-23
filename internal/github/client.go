@@ -2,7 +2,6 @@
 package github
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -70,6 +69,4 @@ var (
 
 // ReplyToThread is implemented in reply.go.
 
-func (c *Client) FetchReviews(ctx context.Context, owner, repo string, pr int) ([]domain.Review, error) {
-	return nil, fmt.Errorf("FetchReviews: not implemented")
-}
+// FetchReviews is implemented in reviews.go.
