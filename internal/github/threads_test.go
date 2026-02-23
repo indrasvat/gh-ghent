@@ -124,10 +124,11 @@ func TestPaginationMerge(t *testing.T) {
 	page2 := loadFixture(t, "../../testdata/graphql/review_threads_page2.json")
 
 	// Merge nodes from both pages
-	allNodes := append(
-		page1.Repository.PullRequest.ReviewThreads.Nodes,
-		page2.Repository.PullRequest.ReviewThreads.Nodes...,
-	)
+	allNodes := make([]threadNode, 0,
+		len(page1.Repository.PullRequest.ReviewThreads.Nodes)+
+			len(page2.Repository.PullRequest.ReviewThreads.Nodes))
+	allNodes = append(allNodes, page1.Repository.PullRequest.ReviewThreads.Nodes...)
+	allNodes = append(allNodes, page2.Repository.PullRequest.ReviewThreads.Nodes...)
 
 	result, err := mapThreadsToResult(42, 4, allNodes)
 	if err != nil {
