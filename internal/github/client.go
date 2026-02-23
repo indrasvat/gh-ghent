@@ -7,7 +7,7 @@ import (
 
 	"github.com/cli/go-gh/v2/pkg/api"
 
-	"github.com/indrasvat/ghent/internal/domain"
+	"github.com/indrasvat/gh-ghent/internal/domain"
 )
 
 // Client wraps go-gh GraphQL and REST clients to implement domain port interfaces.

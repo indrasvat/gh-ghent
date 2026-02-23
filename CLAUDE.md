@@ -199,7 +199,7 @@ These bugs were discovered in yukti/vivecaka. Apply preventively:
 > **STRICT RULE:** Update this section at the end of every coding session.
 > Format: `- **YYYY-MM-DD (task NNN):** [concrete, actionable insight]`
 
-- **2026-02-22 (task 000):** goimports requires blank line between external (`github.com/spf13/cobra`) and internal (`github.com/indrasvat/ghent/...`) imports — golangci-lint v2 enforces this via the `local-prefixes` setting
+- **2026-02-22 (task 000):** goimports requires blank line between external (`github.com/spf13/cobra`) and internal (`github.com/indrasvat/gh-ghent/...`) imports — golangci-lint v2 enforces this via the `local-prefixes` setting
 - **2026-02-22 (task 000):** go-gh v2.13.0 pins lipgloss to a pre-release commit (`v1.1.1-0.20250319...`), not `@latest` — always let go-gh's version win for lipgloss
 - **2026-02-22 (tasks 005/007/008):** `make install` symlinks bin/gh-ghent into gh extensions dir — always use `gh ghent` (not `./bin/gh-ghent`) for L3 testing to match real user experience
 - **2026-02-22 (task 007):** `FetchThreads` only returns unresolved threads — any feature needing resolved threads must use `FetchResolvedThreads` (e.g., `--all --unresolve`)

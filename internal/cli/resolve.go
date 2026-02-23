@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/indrasvat/ghent/internal/domain"
-	"github.com/indrasvat/ghent/internal/formatter"
-	"github.com/indrasvat/ghent/internal/github"
+	"github.com/indrasvat/gh-ghent/internal/domain"
+	"github.com/indrasvat/gh-ghent/internal/formatter"
+	"github.com/indrasvat/gh-ghent/internal/github"
 )
 
 func newResolveCmd() *cobra.Command {

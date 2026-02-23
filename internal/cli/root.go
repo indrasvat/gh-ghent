@@ -7,8 +7,8 @@ import (
 	"github.com/cli/go-gh/v2/pkg/term"
 	"github.com/spf13/cobra"
 
-	"github.com/indrasvat/ghent/internal/github"
-	"github.com/indrasvat/ghent/internal/version"
+	"github.com/indrasvat/gh-ghent/internal/github"
+	"github.com/indrasvat/gh-ghent/internal/version"
 )
 
 // Flags holds the resolved global flags for the current invocation.

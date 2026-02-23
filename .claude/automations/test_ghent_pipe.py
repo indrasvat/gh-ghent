@@ -129,7 +129,7 @@ async def run_test(connection):
     # Test 1: JSON output
     print("\n--- Test 1: JSON Output ---")
     await session.async_send_text(
-        f"{BINARY} comments -R indrasvat/ghent --pr 1 --format json > /tmp/ghent_pipe_json.txt 2>&1; "
+        f"{BINARY} comments -R indrasvat/gh-ghent --pr 1 --format json > /tmp/ghent_pipe_json.txt 2>&1; "
         "echo JSON_EXIT=$?\n"
     )
     await asyncio.sleep(5.0)
@@ -170,7 +170,7 @@ async def run_test(connection):
     # Test 2: Markdown output
     print("\n--- Test 2: Markdown Output ---")
     await session.async_send_text(
-        f"{BINARY} comments -R indrasvat/ghent --pr 1 --format md > /tmp/ghent_pipe_md.txt 2>&1; "
+        f"{BINARY} comments -R indrasvat/gh-ghent --pr 1 --format md > /tmp/ghent_pipe_md.txt 2>&1; "
         "echo MD_EXIT=$?\n"
     )
     await asyncio.sleep(5.0)
@@ -189,7 +189,7 @@ async def run_test(connection):
     # Test 3: XML output
     print("\n--- Test 3: XML Output ---")
     await session.async_send_text(
-        f"{BINARY} comments -R indrasvat/ghent --pr 1 --format xml > /tmp/ghent_pipe_xml.txt 2>&1; "
+        f"{BINARY} comments -R indrasvat/gh-ghent --pr 1 --format xml > /tmp/ghent_pipe_xml.txt 2>&1; "
         "echo XML_EXIT=$?\n"
     )
     await asyncio.sleep(5.0)

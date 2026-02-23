@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/indrasvat/ghent/internal/domain"
+	"github.com/indrasvat/gh-ghent/internal/domain"
 )
 
 // replyResponse represents the REST API response for a review comment reply.

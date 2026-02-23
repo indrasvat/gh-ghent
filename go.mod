@@ -1,4 +1,4 @@
-module github.com/indrasvat/ghent
+module github.com/indrasvat/gh-ghent
 
 go 1.26.0
 

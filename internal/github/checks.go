@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/indrasvat/ghent/internal/domain"
+	"github.com/indrasvat/gh-ghent/internal/domain"
 )
 
 // checkRunsResponse represents the REST API response for listing check runs.

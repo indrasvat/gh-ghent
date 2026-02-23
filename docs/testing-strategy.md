@@ -260,7 +260,7 @@ Create a shell script that exercises all commands:
 # scripts/test-binary.sh - Run binary execution tests
 set -euo pipefail
 
-REPO="indrasvat/ghent"  # or a test repo with known PRs
+REPO="indrasvat/gh-ghent"  # or a test repo with known PRs
 PR_NUM="${1:-}"          # optional: specific PR number
 
 echo "=== ghent Binary Execution Tests ==="
@@ -608,7 +608,7 @@ Verify ghent works as expected when called by AI coding agents (Claude Code, Cod
 # scripts/test-agent-workflow.sh
 set -euo pipefail
 
-REPO="indrasvat/ghent"
+REPO="indrasvat/gh-ghent"
 PR="${1:-1}"
 
 echo "=== Agent Workflow Tests ==="

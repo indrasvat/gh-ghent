@@ -118,7 +118,7 @@
 - Verification: `make ci-fast` ✓ (51 tests, lint clean, vet clean)
 
 ### 2026-02-22 (Task 1.1: Repository scaffold)
-- Initialized Go module (github.com/indrasvat/ghent, Go 1.26)
+- Initialized Go module (github.com/indrasvat/gh-ghent, Go 1.26)
 - Created minimal main.go → cli.Execute() → Cobra root command
 - Created internal/version package with ldflags injection
 - Created Makefile with full target set (build, test, lint, ci, ci-fast, etc.)

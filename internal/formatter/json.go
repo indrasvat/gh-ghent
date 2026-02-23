@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/indrasvat/ghent/internal/domain"
+	"github.com/indrasvat/gh-ghent/internal/domain"
 )
 
 // JSONFormatter outputs results as indented JSON.

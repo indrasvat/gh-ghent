@@ -11,7 +11,7 @@
 
 ## Problem
 
-ghent needs to be installable as a `gh` extension via `gh extension install indrasvat/ghent`. The release workflow (gh-extension-precompile), binary naming convention, and install-test flow must all work end-to-end.
+ghent needs to be installable as a `gh` extension via `gh extension install indrasvat/gh-ghent`. The release workflow (gh-extension-precompile), binary naming convention, and install-test flow must all work end-to-end.
 
 ## PRD Reference
 

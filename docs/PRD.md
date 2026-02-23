@@ -114,10 +114,9 @@ Current workflow requires agents to scrape `gh pr view` output or make raw API c
 
 ## 4. Technology Stack
 
-> **Naming convention:** The GitHub repository is `indrasvat/ghent` (not `gh-ghent`). The compiled
-> binary is named `gh-ghent` to satisfy the `gh` extension naming requirement. The `gh-extension-precompile`
-> action handles the binary naming convention (`gh-ghent-<os>-<arch>`) automatically. Users install via
-> `gh extension install indrasvat/ghent` and invoke via `gh ghent <subcommand>`.
+> **Naming convention:** The GitHub repository is `indrasvat/gh-ghent`, following the `gh-` prefix
+> convention required for `gh` extensions. The compiled binary is `gh-ghent`. Users install via
+> `gh extension install indrasvat/gh-ghent` and invoke via `gh ghent <subcommand>`.
 
 | Component | Choice | Version | Rationale |
 |-----------|--------|---------|-----------|

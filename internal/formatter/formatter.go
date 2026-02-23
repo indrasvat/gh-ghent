@@ -4,7 +4,7 @@ package formatter
 import (
 	"fmt"
 
-	"github.com/indrasvat/ghent/internal/domain"
+	"github.com/indrasvat/gh-ghent/internal/domain"
 )
 
 // New creates a formatter for the given format string.

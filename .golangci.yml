@@ -10,7 +10,7 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/indrasvat/ghent
+        - github.com/indrasvat/gh-ghent
 
 linters:
   enable:

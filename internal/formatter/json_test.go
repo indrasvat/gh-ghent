@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/indrasvat/ghent/internal/domain"
+	"github.com/indrasvat/gh-ghent/internal/domain"
 )
 
 func sampleCommentsResult() *domain.CommentsResult {

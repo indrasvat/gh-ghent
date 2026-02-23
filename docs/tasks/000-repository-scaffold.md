@@ -28,7 +28,7 @@ ghent needs a Go project skeleton with build tooling, linting, git hooks, and re
 
 ## Files to Create
 
-- `go.mod` — Module `github.com/indrasvat/ghent`, Go 1.26
+- `go.mod` — Module `github.com/indrasvat/gh-ghent`, Go 1.26
 - `cmd/ghent/main.go` — Minimal entry point (calls `cli.Execute()`)
 - `internal/cli/root.go` — Placeholder root command
 - `Makefile` — Full target set per CLAUDE.md
@@ -52,7 +52,7 @@ Note: Use `gh-extension-precompile` (not GoReleaser) for release binaries. It au
 3. Read `docs/go-project-patterns-research.md` §5 (Makefile patterns)
 
 ### Step 2: Initialize Go module
-- `go mod init github.com/indrasvat/ghent`
+- `go mod init github.com/indrasvat/gh-ghent`
 - Add all deps: go-gh v2.13.0, Cobra, Bubble Tea, Lipgloss, Bubbles
 - `go mod tidy`
 

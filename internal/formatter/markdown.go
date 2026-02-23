@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/indrasvat/ghent/internal/domain"
+	"github.com/indrasvat/gh-ghent/internal/domain"
 )
 
 // MarkdownFormatter outputs results as readable Markdown.

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/indrasvat/ghent/internal/cli"
+	"github.com/indrasvat/gh-ghent/internal/cli"
 )
 
 func main() {

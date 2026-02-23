@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/indrasvat/ghent/internal/domain"
+	"github.com/indrasvat/gh-ghent/internal/domain"
 )
 
 const resolveThreadMutation = `

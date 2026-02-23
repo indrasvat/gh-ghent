@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/indrasvat/ghent/internal/formatter"
+	"github.com/indrasvat/gh-ghent/internal/formatter"
 )
 
 func newCommentsCmd() *cobra.Command {

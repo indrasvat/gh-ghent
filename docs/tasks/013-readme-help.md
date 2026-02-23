@@ -46,7 +46,7 @@ ghent needs a user-facing README with installation instructions, usage examples 
 - Consistent flag descriptions across all commands
 
 ### Step 2: Write README
-- Installation: `gh extension install indrasvat/ghent`
+- Installation: `gh extension install indrasvat/gh-ghent`
 - Quick start: 3 most useful commands
 - Full command reference (all 5 commands with flags)
 - Agent integration section (JSON output, exit codes, piping)

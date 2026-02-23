@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/indrasvat/ghent/internal/domain"
+	"github.com/indrasvat/gh-ghent/internal/domain"
 )
 
 // XMLFormatter outputs results as XML.

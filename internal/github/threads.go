@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/indrasvat/ghent/internal/domain"
+	"github.com/indrasvat/gh-ghent/internal/domain"
 )
 
 // reviewThreadsQuery is the GraphQL query for fetching PR review threads.
