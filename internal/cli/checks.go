@@ -61,6 +61,17 @@ Exit codes: 0 = all pass, 1 = failure, 3 = pending.`,
 			// Watch mode: poll until terminal status.
 			watch, _ := cmd.Flags().GetBool("watch")
 			if watch {
+				// TTY → launch watch TUI; non-TTY → pipe mode watch.
+				if Flags.IsTTY {
+					repoStr := owner + "/" + repo
+					fetchFn := func() (*domain.ChecksResult, error) {
+						return client.FetchChecks(ctx, owner, repo, Flags.PR)
+					}
+					return launchTUI(tui.ViewWatch,
+						withRepo(repoStr), withPR(Flags.PR),
+						withWatchFetch(fetchFn, ghub.DefaultPollInterval),
+					)
+				}
 				finalStatus, watchErr := client.WatchChecks(
 					ctx, os.Stdout, f,
 					owner, repo, Flags.PR,

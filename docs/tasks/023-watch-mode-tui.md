@@ -1,6 +1,6 @@
 # Task 5.6: Watch Mode TUI
 
-## Status: TODO
+## Status: IN PROGRESS
 
 ## Depends On
 - Task 5.3: Checks view (needs check display as base)
@@ -88,6 +88,7 @@ Visual assertions (per testing-strategy.md §5 `test_watch_mode` example):
 - Verify: after poll interval (wait 11s), screen content updates
 - Verify: q exits cleanly (alt screen cleared)
 - Screenshots: `ghent_watch_initial.png`, `ghent_watch_refreshed.png`, `ghent_watch_exit.png`
+- Also useful: trigger a real CI run (e.g., push to gh-ghent) and watch with in-progress checks
 
 ## Completion Criteria
 
@@ -111,6 +112,25 @@ feat(tui): add watch mode with spinner, progress, and fail-fast
 - Event log with timestamped status updates
 - Fail-fast: failure immediately shows error details
 ```
+
+## Visual Test Results
+
+L4 iterm2-driver: **9/9 PASS** (`test_ghent_watch.py`)
+
+### Screenshots Reviewed
+
+1. **ghent_watch_pass.png** (indrasvat/doot PR #1 — all checks passed) — Status bar shows `ghent indrasvat/doot PR #1`. Status line: green `✓ all checks passed 1/1 elapsed: 12s poll: 10s`. Check list: `✓ make ci (python 3.14)` with `36s passed` in green. Event Log header with `last updated 11s ago`, timestamped entries: `12:51:15 ✓ make ci (python 3.14) 36s`, `12:51:15 ✓ All checks passed`. Help bar: `j/k navigate enter view logs ctrl+c stop watching q quit`.
+
+2. **ghent_watch_fail.png** (indrasvat/peek-it PR #2 — failure detected) — Status bar shows `ghent indrasvat/peek-it PR #2`. Status line: red `✗ failure detected 2/2 elapsed: 12s poll: 10s`. Check list: `✗ build-test (1.23.x)` with `2m 11s completed`, `✗ build-test (1.22.x)` with `2m 7s failure` in red. Event Log: timestamped entries for both failed checks, final entry `✗ Check failure detected fail-fast triggered`. Help bar same as pass state.
+
+### Findings
+
+- Both terminal states (pass/fail) render correctly on first poll since checks are already complete.
+- Fail-fast triggers immediately when `OverallStatus == StatusFail`, adding event log entry with "fail-fast triggered" detail.
+- Elapsed timer updates correctly (12s = time waiting for API response + render).
+- `checkStatusIcon()` from checks.go is reused for check list rendering, ensuring icon consistency.
+- Event dedup via `seen` map prevents duplicate entries on subsequent polls.
+- Help bar correctly shows watch-specific bindings including `ctrl+c stop watching`.
 
 ## Session Protocol
 

@@ -8,6 +8,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -100,6 +101,7 @@ type App struct {
 	checksLog        checksLogModel
 	resolve          resolveModel
 	summary          summaryModel
+	watcher          watcherModel
 }
 
 // NewApp creates a new App model with the given repo, PR, and initial view.
@@ -114,6 +116,9 @@ func NewApp(repo string, pr int, initialView View) App {
 
 // Init implements tea.Model.
 func (a App) Init() tea.Cmd {
+	if a.activeView == ViewWatch {
+		return a.watcher.Init()
+	}
 	return nil
 }
 
@@ -135,6 +140,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.checksLog.setSize(a.width, contentHeight)
 		a.resolve.setSize(a.width, contentHeight)
 		a.summary.setSize(a.width, contentHeight)
+		a.watcher.setSize(a.width, contentHeight)
 		return a, nil
 
 	case tea.KeyMsg:
@@ -250,6 +256,8 @@ func (a App) forwardToActiveView(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.checksLog, cmd = a.checksLog.Update(msg)
 	case ViewResolve:
 		a.resolve, cmd = a.resolve.Update(msg)
+	case ViewWatch:
+		a.watcher, cmd = a.watcher.Update(msg)
 	}
 	return a, cmd
 }
@@ -411,16 +419,12 @@ func (a App) renderActiveView(contentHeight int) string {
 		return a.resolve.View()
 	case ViewSummary:
 		return a.summary.View()
+	case ViewWatch:
+		return a.watcher.View()
 	}
 
 	// Placeholder text for views not yet wired.
-	var placeholder string
-	switch a.activeView {
-	case ViewWatch:
-		placeholder = "  [Watch Mode — pending task 5.6]"
-	default:
-		placeholder = "  [Unknown View]"
-	}
+	placeholder := "  [Unknown View]"
 
 	content := styles.StatusBarDim.Render(placeholder)
 
@@ -453,6 +457,12 @@ func (a *App) SetChecks(c *domain.ChecksResult) {
 // SetResolver sets the callback function for resolving threads.
 func (a *App) SetResolver(fn func(threadID string) error) {
 	a.resolveFunc = fn
+}
+
+// SetWatchFetch configures the watcher model with a fetch function and interval.
+func (a *App) SetWatchFetch(fn watchFetchFunc, interval time.Duration) {
+	a.watcher = newWatcherModel(interval)
+	a.watcher.fetchFn = fn
 }
 
 // SetReviews updates the shared reviews data.

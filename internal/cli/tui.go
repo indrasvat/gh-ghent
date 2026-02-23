@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -31,6 +32,9 @@ func launchTUI(startView tui.View, opts ...tuiOption) error {
 	if cfg.resolveFunc != nil {
 		app.SetResolver(cfg.resolveFunc)
 	}
+	if cfg.watchFetchFn != nil {
+		app.SetWatchFetch(cfg.watchFetchFn, cfg.watchInterval)
+	}
 
 	// CRITICAL: Set terminal background BEFORE Bubble Tea starts (pitfall 7.1).
 	output := styles.SetAppBackground()
@@ -51,12 +55,14 @@ func launchTUI(startView tui.View, opts ...tuiOption) error {
 }
 
 type tuiConfig struct {
-	repo        string
-	pr          int
-	comments    *domain.CommentsResult
-	checks      *domain.ChecksResult
-	reviews     []domain.Review
-	resolveFunc func(threadID string) error
+	repo          string
+	pr            int
+	comments      *domain.CommentsResult
+	checks        *domain.ChecksResult
+	reviews       []domain.Review
+	resolveFunc   func(threadID string) error
+	watchFetchFn  func() (*domain.ChecksResult, error)
+	watchInterval time.Duration
 }
 
 type tuiOption func(*tuiConfig)
@@ -83,4 +89,11 @@ func withReviews(r []domain.Review) tuiOption {
 
 func withResolver(fn func(threadID string) error) tuiOption {
 	return func(c *tuiConfig) { c.resolveFunc = fn }
+}
+
+func withWatchFetch(fn func() (*domain.ChecksResult, error), interval time.Duration) tuiOption {
+	return func(c *tuiConfig) {
+		c.watchFetchFn = fn
+		c.watchInterval = interval
+	}
 }
