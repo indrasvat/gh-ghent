@@ -22,6 +22,7 @@ golangci-lint v2.9.0 | lefthook 2.1.1 | gh-extension-precompile v2
 
 ```bash
 make build              # Build binary
+make install            # Build + register as gh extension (symlink)
 make test               # Unit tests
 make test-race          # Race detector
 make lint               # golangci-lint v2
@@ -36,6 +37,9 @@ make test-binary        # L3: Run actual binary
 make test-visual        # L4: iterm2-driver visual tests
 make test-all           # All levels
 ```
+
+**Local dev:** `make install` symlinks `bin/gh-ghent` into `~/.local/share/gh/extensions/gh-ghent/`,
+so `gh ghent` works immediately. The symlink means every `make build` updates what `gh ghent` runs — no reinstall needed.
 
 ## Architecture
 
@@ -135,9 +139,29 @@ Repo-level memory lives in `.cass/` (playbook is committed, diary is gitignored)
 
 - L1: `make test` (unit)
 - L2: `make test` with `-tags=integration` (HTTP mocking)
-- L3: `make test-binary` (run actual binary)
+- L3: `make build` then run `gh ghent` against real repos (see test matrix below)
 - L4: `uv run .claude/automations/test_ghent_*.py` (iterm2-driver visual)
 - L5: `scripts/test-agent-workflow.sh` (agent workflow)
+
+### L3 Real Repo Test Matrix
+
+Run `make install` first to register with gh, then test against these repos:
+
+| Repo | PR | Threads | Checks | Use For |
+|------|-----|---------|--------|---------|
+| `indrasvat/tbgs` | #1 | 2 unresolved (`PRRT_kwDOQQ76Ts5iIWqn`, `PRRT_kwDOQQ76Ts5iIWqx`) | pass (3) | comments, resolve, reply |
+| `indrasvat/peek-it` | #2 | 1 unresolved | failure (2) | checks with annotations |
+| `indrasvat/doot` | #1 | 1 resolved | pass (1) | checks pass, summary merge-ready |
+| `indrasvat/visarga` | #1 | 0 | failure (1 fail, 3 skip) | checks failure |
+| `indrasvat/querylastic` | #1 | 0 | failure (2) | checks with annotations |
+| `indrasvat/context-lens` | #1 | 0 | failure (2 fail, 4 pass) | checks mixed |
+
+```bash
+# Quick smoke test after any change:
+gh ghent comments -R indrasvat/tbgs --pr 1 --format json | jq '.unresolved_count'  # 2
+gh ghent checks -R indrasvat/doot --pr 1 --format json | jq '.overall_status'      # "pass"
+gh ghent checks -R indrasvat/peek-it --pr 2 --format json | jq '.overall_status'   # "failure"
+```
 
 ## TUI Pitfalls (MUST avoid)
 
@@ -177,3 +201,6 @@ These bugs were discovered in yukti/vivecaka. Apply preventively:
 
 - **2026-02-22 (task 000):** goimports requires blank line between external (`github.com/spf13/cobra`) and internal (`github.com/indrasvat/ghent/...`) imports — golangci-lint v2 enforces this via the `local-prefixes` setting
 - **2026-02-22 (task 000):** go-gh v2.13.0 pins lipgloss to a pre-release commit (`v1.1.1-0.20250319...`), not `@latest` — always let go-gh's version win for lipgloss
+- **2026-02-22 (tasks 005/007/008):** `make install` symlinks bin/gh-ghent into gh extensions dir — always use `gh ghent` (not `./bin/gh-ghent`) for L3 testing to match real user experience
+- **2026-02-22 (task 007):** `FetchThreads` only returns unresolved threads — any feature needing resolved threads must use `FetchResolvedThreads` (e.g., `--all --unresolve`)
+- **2026-02-22 (tasks 005/007/008):** When running parallel agents in worktrees that modify shared files (client.go, formatter.go), agents may step on each other's changes — verify the integrated result builds and passes lint after merging
