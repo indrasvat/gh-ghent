@@ -1,6 +1,6 @@
 # Task 1.2: Cobra CLI Skeleton
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 1.1: Repository scaffold (needs go.mod, Makefile, main.go)
