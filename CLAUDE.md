@@ -208,3 +208,6 @@ These bugs were discovered in yukti/vivecaka. Apply preventively:
 - **2026-02-23 (task 006):** Not all check run IDs map to GitHub Actions job IDs — external CI checks (e.g., third-party integrations) return 404 on the logs endpoint. Graceful degradation (skip failed log fetch) is essential.
 - **2026-02-23 (task 009):** `gh` extension wrapper may duplicate output to stderr on non-zero exit codes — this is a gh CLI artifact, not a binary bug. Always test with `./bin/gh-ghent` directly to verify
 - **2026-02-23 (task 009):** Test repos without real PR approvals will have `is_merge_ready=false` even with clean threads and passing checks — the IsMergeReady logic correctly requires at least 1 APPROVED review
+- **2026-02-22 (task 014):** `go get github.com/charmbracelet/bubbletea@latest` can downgrade go-gh from v2.13.0 to v2.11.2 — always re-pin go-gh after adding charmbracelet dependencies: `go get github.com/cli/go-gh/v2@v2.13.0`
+- **2026-02-22 (task 016):** golangci-lint `unused` linter catches methods on unexported types — remove unused methods (like `isTopLevel`) rather than keeping them "for later"; re-add when actually needed
+- **2026-02-22 (task 017):** L4 iterm2-driver tests may fail to find JSON markers if output is very long and scrolls off screen — check for multiple possible markers including end-of-output fields
