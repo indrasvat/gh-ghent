@@ -1,6 +1,6 @@
 # Task 3.4: README + Help Text
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Phase 2 complete (needs all commands finalized for accurate docs)
@@ -97,6 +97,43 @@ docs: add README and polish --help text for all commands
 - Cobra Example field on all 5 subcommands
 - Consistent flag descriptions
 ```
+
+## Visual Test Results
+
+**L4 test: `test_ghent_help.py` — 8/8 PASS (2026-02-23)**
+
+| Test | Status | Detail |
+|------|--------|--------|
+| make install | PASS | |
+| Root help lists subcommands | PASS | 5/5 found |
+| Comments help | PASS | Flags and examples present |
+| checks help | PASS | Contains --watch |
+| resolve help | PASS | Contains --thread |
+| reply help | PASS | Contains --body |
+| summary help | PASS | Contains --format |
+| gh ghent --version | PASS | |
+
+**L4 test: `test_ghent_agent.py` — 8/8 PASS (2026-02-23)**
+
+| Test | Status | Detail |
+|------|--------|--------|
+| Build binary | PASS | |
+| Comments JSON valid | PASS | |
+| JSON has unresolved_count | PASS | |
+| Comments exit code | PASS | exit 1 (has unresolved) |
+| Comments no ANSI | PASS | |
+| Checks JSON valid | PASS | |
+| Summary JSON valid | PASS | |
+| Error is actionable | PASS | Mentions --pr flag |
+
+Screenshots reviewed:
+- `ghent_help_root.png` — All 5 subcommands visible, well-formatted help text
+- `ghent_help_comments.png` — Flags and examples section present
+- `ghent_help_version.png` — Version string renders correctly
+- `ghent_agent_json.png` — Valid JSON output with unresolved_count field
+- `ghent_agent_checks.png` — Valid JSON checks output
+
+Findings: All --help texts are self-sufficient with flags, examples, and exit codes documented. Agent workflow produces clean JSON with no ANSI, meaningful exit codes, and actionable error messages.
 
 ## Session Protocol
 

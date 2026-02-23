@@ -1,6 +1,6 @@
 # Task 3.2: Error Handling Hardening
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Phase 2 complete (needs all commands working to add error handling)
@@ -142,6 +142,25 @@ feat(errors): add error handling with rate limits, retries, and graceful degrada
 - 30s timeout, 1 retry on 5xx with 1s backoff
 - Graceful degradation on partial API failures
 ```
+
+## Visual Test Results
+
+**L4 test: `test_ghent_errors.py` — 6/6 PASS (2026-02-23)**
+
+| Test | Status | Detail |
+|------|--------|--------|
+| Build binary | PASS | |
+| Nonexistent repo error message | PASS | User-friendly error, no stack trace |
+| Nonexistent repo exit code | PASS | exit 2 |
+| Invalid PR error message | PASS | User-friendly error |
+| Missing --pr error | PASS | --pr flag is required |
+| Valid request after hardening | PASS | JSON output valid |
+
+Screenshots reviewed:
+- `ghent_error_notfound.png` — Shows clean "not found" error, no Go stack trace, exit code 2
+- `ghent_error_auth.png` — Shows invalid PR error, user-friendly message
+
+Findings: Error messages are human-readable, exit codes are correct (2 for errors), no stack traces leak to users, valid requests still work after hardening.
 
 ## Session Protocol
 
