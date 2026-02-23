@@ -8,6 +8,7 @@ import (
 
 	"github.com/indrasvat/gh-ghent/internal/domain"
 	"github.com/indrasvat/gh-ghent/internal/formatter"
+	ghub "github.com/indrasvat/gh-ghent/internal/github"
 )
 
 func newChecksCmd() *cobra.Command {
@@ -30,6 +31,22 @@ func newChecksCmd() *cobra.Command {
 			result, err := client.FetchChecks(ctx, owner, repo, Flags.PR)
 			if err != nil {
 				return fmt.Errorf("fetch checks: %w", err)
+			}
+
+			// Fetch logs for failed checks when --logs is set
+			withLogs, _ := cmd.Flags().GetBool("logs")
+			if withLogs {
+				for i := range result.Checks {
+					ch := &result.Checks[i]
+					if ch.Conclusion != "failure" {
+						continue
+					}
+					logText, logErr := client.FetchJobLog(ctx, owner, repo, ch.ID)
+					if logErr != nil {
+						continue // graceful degradation
+					}
+					ch.LogExcerpt = ghub.ExtractErrorLines(logText)
+				}
 			}
 
 			f, err := formatter.New(Flags.Format)

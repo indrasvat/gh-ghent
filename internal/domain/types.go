@@ -71,6 +71,7 @@ type CheckRun struct {
 	CompletedAt time.Time    `json:"completed_at,omitzero"`
 	HTMLURL     string       `json:"html_url"`
 	Annotations []Annotation `json:"annotations,omitempty"`
+	LogExcerpt  string       `json:"log_excerpt,omitempty"`
 }
 
 // Annotation represents a check run annotation (lint error, test failure, etc.).
