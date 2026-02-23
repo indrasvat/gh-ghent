@@ -43,15 +43,25 @@ var fileLineRegexp = regexp.MustCompile(`\S+\.\w+:\d+`)
 // automatically. We use RequestWithContext to get the raw response since the
 // endpoint returns plain text, not JSON.
 func (c *Client) FetchJobLog(ctx context.Context, owner, repo string, jobID int64) (string, error) {
+	ctx, cancel := withTimeout(ctx)
+	defer cancel()
+
 	start := time.Now()
 	slog.Debug("fetching job log", "owner", owner, "repo", repo, "jobID", jobID)
 
 	path := fmt.Sprintf("repos/%s/%s/actions/jobs/%d/logs", owner, repo, jobID)
 	resp, err := c.rest.RequestWithContext(ctx, "GET", path, nil)
 	if err != nil {
-		return "", fmt.Errorf("fetch job log for %d: %w", jobID, err)
+		return "", classifyError(err)
 	}
 	defer resp.Body.Close()
+
+	// Check rate limit from response headers.
+	if rlInfo := parseRateLimitHeaders(resp.Header); rlInfo != nil {
+		if rlErr := checkRateLimit(rlInfo); rlErr != nil {
+			return "", rlErr
+		}
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

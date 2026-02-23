@@ -10,7 +10,8 @@ import (
 
 func main() {
 	if err := cli.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		msg, exitCode := cli.FormatError(err)
+		fmt.Fprintf(os.Stderr, "Error: %s\n", msg)
+		os.Exit(exitCode)
 	}
 }

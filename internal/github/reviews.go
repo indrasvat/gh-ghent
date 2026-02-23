@@ -30,7 +30,7 @@ query($owner: String!, $repo: String!, $pr: Int!) {
 
 type reviewsResponse struct {
 	Repository struct {
-		PullRequest struct {
+		PullRequest *struct {
 			Reviews struct {
 				Nodes []reviewNode `json:"nodes"`
 			} `json:"reviews"`
@@ -50,6 +50,9 @@ type reviewNode struct {
 
 // FetchReviews retrieves all reviews for a PR via GraphQL.
 func (c *Client) FetchReviews(ctx context.Context, owner, repo string, pr int) ([]domain.Review, error) {
+	ctx, cancel := withTimeout(ctx)
+	defer cancel()
+
 	start := time.Now()
 	slog.Debug("fetching reviews", "owner", owner, "repo", repo, "pr", pr)
 
@@ -60,8 +63,17 @@ func (c *Client) FetchReviews(ctx context.Context, owner, repo string, pr int) (
 	}
 
 	var resp reviewsResponse
-	if err := c.gql.DoWithContext(ctx, reviewsQuery, vars, &resp); err != nil {
-		return nil, fmt.Errorf("graphql reviews: %w", err)
+	if err := doWithRetry(func() error {
+		return c.gql.DoWithContext(ctx, reviewsQuery, vars, &resp)
+	}); err != nil {
+		return nil, classifyWithContext(err, "pull request", fmt.Sprintf("PR #%d in %s/%s", pr, owner, repo))
+	}
+
+	if resp.Repository.PullRequest == nil {
+		return nil, &NotFoundError{
+			Resource: "pull request",
+			Detail:   fmt.Sprintf("PR #%d in %s/%s", pr, owner, repo),
+		}
 	}
 
 	reviews := resp.Repository.PullRequest.Reviews.Nodes

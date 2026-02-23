@@ -2,7 +2,6 @@ package github
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -56,6 +55,9 @@ type resolvedThreadNode struct {
 
 // ResolveThread marks a review thread as resolved via GraphQL mutation.
 func (c *Client) ResolveThread(ctx context.Context, threadID string) (*domain.ResolveResult, error) {
+	ctx, cancel := withTimeout(ctx)
+	defer cancel()
+
 	start := time.Now()
 	slog.Debug("resolving thread", "threadID", threadID)
 
@@ -64,8 +66,10 @@ func (c *Client) ResolveThread(ctx context.Context, threadID string) (*domain.Re
 	}
 
 	var resp resolveResponse
-	if err := c.gql.DoWithContext(ctx, resolveThreadMutation, vars, &resp); err != nil {
-		return nil, fmt.Errorf("resolve thread %s: %w", threadID, err)
+	if err := doWithRetry(func() error {
+		return c.gql.DoWithContext(ctx, resolveThreadMutation, vars, &resp)
+	}); err != nil {
+		return nil, classifyWithContext(err, "thread", threadID)
 	}
 
 	t := resp.ResolveReviewThread.Thread
@@ -82,6 +86,9 @@ func (c *Client) ResolveThread(ctx context.Context, threadID string) (*domain.Re
 
 // UnresolveThread marks a review thread as unresolved via GraphQL mutation.
 func (c *Client) UnresolveThread(ctx context.Context, threadID string) (*domain.ResolveResult, error) {
+	ctx, cancel := withTimeout(ctx)
+	defer cancel()
+
 	start := time.Now()
 	slog.Debug("unresolving thread", "threadID", threadID)
 
@@ -90,8 +97,10 @@ func (c *Client) UnresolveThread(ctx context.Context, threadID string) (*domain.
 	}
 
 	var resp unresolveResponse
-	if err := c.gql.DoWithContext(ctx, unresolveThreadMutation, vars, &resp); err != nil {
-		return nil, fmt.Errorf("unresolve thread %s: %w", threadID, err)
+	if err := doWithRetry(func() error {
+		return c.gql.DoWithContext(ctx, unresolveThreadMutation, vars, &resp)
+	}); err != nil {
+		return nil, classifyWithContext(err, "thread", threadID)
 	}
 
 	t := resp.UnresolveReviewThread.Thread

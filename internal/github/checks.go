@@ -45,8 +45,10 @@ func (c *Client) fetchHeadSHA(ctx context.Context, owner, repo string, pr int) (
 			SHA string `json:"sha"`
 		} `json:"head"`
 	}
-	if err := c.rest.DoWithContext(ctx, "GET", path, nil, &resp); err != nil {
-		return "", fmt.Errorf("get PR head SHA: %w", err)
+	if err := doWithRetry(func() error {
+		return c.rest.DoWithContext(ctx, "GET", path, nil, &resp)
+	}); err != nil {
+		return "", classifyWithContext(err, "pull request", fmt.Sprintf("PR #%d in %s/%s", pr, owner, repo))
 	}
 	return resp.Head.SHA, nil
 }
@@ -58,8 +60,10 @@ func (c *Client) fetchCheckRuns(ctx context.Context, owner, repo, ref string) ([
 	for {
 		path := fmt.Sprintf("repos/%s/%s/commits/%s/check-runs?per_page=100&page=%d", owner, repo, ref, page)
 		var resp checkRunsResponse
-		if err := c.rest.DoWithContext(ctx, "GET", path, nil, &resp); err != nil {
-			return nil, fmt.Errorf("list check runs: %w", err)
+		if err := doWithRetry(func() error {
+			return c.rest.DoWithContext(ctx, "GET", path, nil, &resp)
+		}); err != nil {
+			return nil, classifyError(err)
 		}
 		allRuns = append(allRuns, resp.CheckRuns...)
 		if len(allRuns) >= resp.TotalCount {
@@ -83,6 +87,9 @@ func (c *Client) fetchAnnotations(ctx context.Context, owner, repo string, check
 // FetchChecks retrieves all check runs for a PR, fetches annotations for
 // failed checks, and aggregates the overall status.
 func (c *Client) FetchChecks(ctx context.Context, owner, repo string, pr int) (*domain.ChecksResult, error) {
+	ctx, cancel := withTimeout(ctx)
+	defer cancel()
+
 	start := time.Now()
 	slog.Debug("fetching checks", "owner", owner, "repo", repo, "pr", pr)
 
@@ -146,21 +153,23 @@ func mapChecksToDomain(ctx context.Context, c *Client, owner, repo string, pr in
 			pendingCount++
 		}
 
-		// Fetch annotations for failed checks that have annotations
+		// Fetch annotations for failed checks that have annotations.
+		// Graceful degradation: if annotation fetch fails, continue without them.
 		if status == domain.StatusFail && run.Output.AnnotationsCount > 0 {
-			annots, err := c.fetchAnnotations(ctx, owner, repo, run.ID)
-			if err != nil {
-				return nil, err
-			}
-			for _, a := range annots {
-				check.Annotations = append(check.Annotations, domain.Annotation{
-					Path:            a.Path,
-					StartLine:       a.StartLine,
-					EndLine:         a.EndLine,
-					AnnotationLevel: a.AnnotationLevel,
-					Title:           a.Title,
-					Message:         a.Message,
-				})
+			annots, annotErr := c.fetchAnnotations(ctx, owner, repo, run.ID)
+			if annotErr != nil {
+				slog.Debug("annotation fetch failed, continuing", "checkID", run.ID, "error", annotErr)
+			} else {
+				for _, a := range annots {
+					check.Annotations = append(check.Annotations, domain.Annotation{
+						Path:            a.Path,
+						StartLine:       a.StartLine,
+						EndLine:         a.EndLine,
+						AnnotationLevel: a.AnnotationLevel,
+						Title:           a.Title,
+						Message:         a.Message,
+					})
+				}
 			}
 		}
 

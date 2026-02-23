@@ -2,14 +2,40 @@
 package github
 
 import (
-	"fmt"
+	"context"
+	"log/slog"
 	"os"
+	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 
 	"github.com/indrasvat/gh-ghent/internal/debug"
 	"github.com/indrasvat/gh-ghent/internal/domain"
 )
+
+const defaultTimeout = 30 * time.Second
+
+// retryBackoff is the delay between retry attempts. Package-level for testing.
+var retryBackoff = 1 * time.Second
+
+// doWithRetry executes fn, retrying once with backoff on server errors (5xx).
+func doWithRetry(fn func() error) error {
+	err := fn()
+	if err == nil {
+		return nil
+	}
+	if !isRetryable(err) {
+		return err
+	}
+	slog.Debug("retrying after server error", "error", err)
+	time.Sleep(retryBackoff)
+	return fn()
+}
+
+// withTimeout returns a context with the default API timeout applied.
+func withTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, defaultTimeout)
+}
 
 // Client wraps go-gh GraphQL and REST clients to implement domain port interfaces.
 type Client struct {
@@ -50,7 +76,7 @@ func New(opts ...Option) (*Client, error) {
 		}
 		gql, err := api.NewGraphQLClient(clientOpts)
 		if err != nil {
-			return nil, fmt.Errorf("graphql client: %w", err)
+			return nil, classifyError(err)
 		}
 		c.gql = gql
 	}
@@ -63,7 +89,7 @@ func New(opts ...Option) (*Client, error) {
 		}
 		rest, err := api.NewRESTClient(clientOpts)
 		if err != nil {
-			return nil, fmt.Errorf("rest client: %w", err)
+			return nil, classifyError(err)
 		}
 		c.rest = rest
 	}

@@ -51,7 +51,7 @@ query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
 
 type threadsResponse struct {
 	Repository struct {
-		PullRequest struct {
+		PullRequest *struct {
 			ReviewThreads struct {
 				TotalCount int          `json:"totalCount"`
 				Nodes      []threadNode `json:"nodes"`
@@ -95,6 +95,9 @@ type commentNode struct {
 // FetchThreads retrieves all review threads for a PR via GraphQL,
 // paginating through results and filtering to unresolved threads only.
 func (c *Client) FetchThreads(ctx context.Context, owner, repo string, pr int) (*domain.CommentsResult, error) {
+	ctx, cancel := withTimeout(ctx)
+	defer cancel()
+
 	start := time.Now()
 	slog.Debug("fetching review threads", "owner", owner, "repo", repo, "pr", pr)
 
@@ -116,8 +119,17 @@ func (c *Client) FetchThreads(ctx context.Context, owner, repo string, pr int) (
 		slog.Debug("fetching threads page", "page", page)
 
 		var resp threadsResponse
-		if err := c.gql.DoWithContext(ctx, reviewThreadsQuery, vars, &resp); err != nil {
-			return nil, fmt.Errorf("graphql review threads: %w", err)
+		if err := doWithRetry(func() error {
+			return c.gql.DoWithContext(ctx, reviewThreadsQuery, vars, &resp)
+		}); err != nil {
+			return nil, classifyWithContext(err, "pull request", fmt.Sprintf("PR #%d in %s/%s", pr, owner, repo))
+		}
+
+		if resp.Repository.PullRequest == nil {
+			return nil, &NotFoundError{
+				Resource: "pull request",
+				Detail:   fmt.Sprintf("PR #%d in %s/%s", pr, owner, repo),
+			}
 		}
 
 		rt := resp.Repository.PullRequest.ReviewThreads
@@ -140,6 +152,9 @@ func (c *Client) FetchThreads(ctx context.Context, owner, repo string, pr int) (
 // FetchResolvedThreads retrieves all resolved review threads for a PR.
 // Used by --all --unresolve to find threads that can be unresolved.
 func (c *Client) FetchResolvedThreads(ctx context.Context, owner, repo string, pr int) (*domain.CommentsResult, error) {
+	ctx, cancel := withTimeout(ctx)
+	defer cancel()
+
 	start := time.Now()
 	slog.Debug("fetching resolved threads", "owner", owner, "repo", repo, "pr", pr)
 
@@ -158,8 +173,17 @@ func (c *Client) FetchResolvedThreads(ctx context.Context, owner, repo string, p
 		}
 
 		var resp threadsResponse
-		if err := c.gql.DoWithContext(ctx, reviewThreadsQuery, vars, &resp); err != nil {
-			return nil, fmt.Errorf("graphql review threads: %w", err)
+		if err := doWithRetry(func() error {
+			return c.gql.DoWithContext(ctx, reviewThreadsQuery, vars, &resp)
+		}); err != nil {
+			return nil, classifyWithContext(err, "pull request", fmt.Sprintf("PR #%d in %s/%s", pr, owner, repo))
+		}
+
+		if resp.Repository.PullRequest == nil {
+			return nil, &NotFoundError{
+				Resource: "pull request",
+				Detail:   fmt.Sprintf("PR #%d in %s/%s", pr, owner, repo),
+			}
 		}
 
 		rt := resp.Repository.PullRequest.ReviewThreads

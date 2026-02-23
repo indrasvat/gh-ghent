@@ -23,6 +23,9 @@ type replyResponse struct {
 
 // ReplyToThread validates a thread exists via GraphQL, then posts a reply via REST.
 func (c *Client) ReplyToThread(ctx context.Context, owner, repo string, pr int, threadID, body string) (*domain.ReplyResult, error) {
+	ctx, cancel := withTimeout(ctx)
+	defer cancel()
+
 	start := time.Now()
 	slog.Debug("posting reply", "owner", owner, "repo", repo, "pr", pr, "threadID", threadID, "bodyLen", len(body))
 
@@ -55,8 +58,10 @@ func (c *Client) ReplyToThread(ctx context.Context, owner, repo string, pr int, 
 	endpoint := fmt.Sprintf("repos/%s/%s/pulls/%d/comments/%d/replies", owner, repo, pr, commentID)
 
 	var resp replyResponse
-	if err := c.rest.DoWithContext(ctx, http.MethodPost, endpoint, &buf, &resp); err != nil {
-		return nil, fmt.Errorf("reply: REST post: %w", err)
+	if err := doWithRetry(func() error {
+		return c.rest.DoWithContext(ctx, http.MethodPost, endpoint, &buf, &resp)
+	}); err != nil {
+		return nil, classifyError(err)
 	}
 
 	createdAt, err := time.Parse(time.RFC3339, resp.CreatedAt)
@@ -91,8 +96,17 @@ func (c *Client) findThreadByID(ctx context.Context, owner, repo string, pr int,
 		}
 
 		var resp threadsResponse
-		if err := c.gql.DoWithContext(ctx, reviewThreadsQuery, vars, &resp); err != nil {
-			return nil, fmt.Errorf("reply: graphql thread lookup: %w", err)
+		if err := doWithRetry(func() error {
+			return c.gql.DoWithContext(ctx, reviewThreadsQuery, vars, &resp)
+		}); err != nil {
+			return nil, classifyWithContext(err, "pull request", fmt.Sprintf("PR #%d in %s/%s", pr, owner, repo))
+		}
+
+		if resp.Repository.PullRequest == nil {
+			return nil, &NotFoundError{
+				Resource: "pull request",
+				Detail:   fmt.Sprintf("PR #%d in %s/%s", pr, owner, repo),
+			}
 		}
 
 		rt := resp.Repository.PullRequest.ReviewThreads
