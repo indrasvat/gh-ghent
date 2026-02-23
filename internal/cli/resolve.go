@@ -86,6 +86,25 @@ func runResolve(cmd *cobra.Command, _ []string) error {
 }
 
 func resolveSingle(ctx context.Context, client *github.Client, threadID string, unresolve bool) (*domain.ResolveResults, error) {
+	result, msg := doResolve(ctx, client, threadID, unresolve)
+	if msg != "" {
+		return &domain.ResolveResults{
+			FailureCount: 1,
+			Errors: []domain.ResolveError{
+				{ThreadID: threadID, Message: msg},
+			},
+		}, nil
+	}
+
+	return &domain.ResolveResults{
+		Results:      []domain.ResolveResult{*result},
+		SuccessCount: 1,
+	}, nil
+}
+
+// doResolve executes a single resolve/unresolve mutation, returning the result
+// or an error message string.
+func doResolve(ctx context.Context, client *github.Client, threadID string, unresolve bool) (*domain.ResolveResult, string) {
 	var result *domain.ResolveResult
 	var err error
 
@@ -95,18 +114,9 @@ func resolveSingle(ctx context.Context, client *github.Client, threadID string, 
 		result, err = client.ResolveThread(ctx, threadID)
 	}
 	if err != nil {
-		return &domain.ResolveResults{
-			FailureCount: 1,
-			Errors: []domain.ResolveError{
-				{ThreadID: threadID, Message: err.Error()},
-			},
-		}, nil
+		return nil, err.Error()
 	}
-
-	return &domain.ResolveResults{
-		Results:      []domain.ResolveResult{*result},
-		SuccessCount: 1,
-	}, nil
+	return result, ""
 }
 
 func resolveAll(ctx context.Context, client *github.Client, unresolve bool) (*domain.ResolveResults, error) {
@@ -141,17 +151,12 @@ func resolveAll(ctx context.Context, client *github.Client, unresolve bool) (*do
 			continue
 		}
 
-		var result *domain.ResolveResult
-		if unresolve {
-			result, err = client.UnresolveThread(ctx, t.ID)
-		} else {
-			result, err = client.ResolveThread(ctx, t.ID)
-		}
-		if err != nil {
+		result, msg := doResolve(ctx, client, t.ID, unresolve)
+		if msg != "" {
 			results.FailureCount++
 			results.Errors = append(results.Errors, domain.ResolveError{
 				ThreadID: t.ID,
-				Message:  err.Error(),
+				Message:  msg,
 			})
 			continue
 		}

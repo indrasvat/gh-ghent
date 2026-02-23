@@ -1,0 +1,12 @@
+{
+  "data": {
+    "unresolveReviewThread": {
+      "thread": {
+        "id": "PRRT_thread1",
+        "isResolved": false,
+        "path": "internal/api/graphql.go",
+        "line": 47
+      }
+    }
+  }
+}

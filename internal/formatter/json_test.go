@@ -88,6 +88,85 @@ func TestJSONFormatterFields(t *testing.T) {
 	}
 }
 
+func sampleResolveResults() *domain.ResolveResults {
+	return &domain.ResolveResults{
+		Results: []domain.ResolveResult{
+			{
+				ThreadID:   "PRRT_1",
+				Path:       "main.go",
+				Line:       10,
+				IsResolved: true,
+				Action:     "resolved",
+			},
+			{
+				ThreadID:   "PRRT_2",
+				Path:       "config.go",
+				Line:       25,
+				IsResolved: true,
+				Action:     "resolved",
+			},
+		},
+		SuccessCount: 2,
+		FailureCount: 1,
+		Errors: []domain.ResolveError{
+			{ThreadID: "PRRT_3", Message: "permission denied"},
+		},
+	}
+}
+
+func TestJSONResolveResultsValid(t *testing.T) {
+	var buf bytes.Buffer
+	f := &JSONFormatter{}
+
+	if err := f.FormatResolveResults(&buf, sampleResolveResults()); err != nil {
+		t.Fatalf("FormatResolveResults: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput:\n%s", err, buf.String())
+	}
+}
+
+func TestJSONResolveResultsFields(t *testing.T) {
+	var buf bytes.Buffer
+	f := &JSONFormatter{}
+
+	if err := f.FormatResolveResults(&buf, sampleResolveResults()); err != nil {
+		t.Fatalf("FormatResolveResults: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	if v, ok := parsed["success_count"].(float64); !ok || int(v) != 2 {
+		t.Errorf("success_count = %v, want 2", parsed["success_count"])
+	}
+	if v, ok := parsed["failure_count"].(float64); !ok || int(v) != 1 {
+		t.Errorf("failure_count = %v, want 1", parsed["failure_count"])
+	}
+
+	results, ok := parsed["results"].([]any)
+	if !ok || len(results) != 2 {
+		t.Fatalf("results count = %d, want 2", len(results))
+	}
+
+	first := results[0].(map[string]any)
+	if first["thread_id"] != "PRRT_1" {
+		t.Errorf("result[0].thread_id = %v, want PRRT_1", first["thread_id"])
+	}
+	if first["action"] != "resolved" {
+		t.Errorf("result[0].action = %v, want resolved", first["action"])
+	}
+
+	errors, ok := parsed["errors"].([]any)
+	if !ok || len(errors) != 1 {
+		t.Fatalf("errors count = %d, want 1", len(errors))
+	}
+}
+
 func TestJSONFormatterNoANSI(t *testing.T) {
 	var buf bytes.Buffer
 	f := &JSONFormatter{}

@@ -1,6 +1,6 @@
 # Task 2.4: Resolve Command (`gh ghent resolve`)
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 2.1: Comments command (needs GraphQL thread fetch + thread IDs)

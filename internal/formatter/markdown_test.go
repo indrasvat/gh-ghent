@@ -50,6 +50,52 @@ func TestMarkdownFormatterNoANSI(t *testing.T) {
 	}
 }
 
+func TestMarkdownResolveResultsStructure(t *testing.T) {
+	var buf bytes.Buffer
+	f := &MarkdownFormatter{}
+
+	if err := f.FormatResolveResults(&buf, sampleResolveResults()); err != nil {
+		t.Fatalf("FormatResolveResults: %v", err)
+	}
+
+	out := buf.String()
+
+	checks := []struct {
+		name string
+		want string
+	}{
+		{"header", "# Resolve Results"},
+		{"success count", "**Success:** 2"},
+		{"failed count", "**Failed:** 1"},
+		{"table header", "| Thread | File | Line | Action |"},
+		{"thread ID", "PRRT_1"},
+		{"file path", "main.go"},
+		{"action", "resolved"},
+		{"error section", "## Errors"},
+		{"error thread", "PRRT_3"},
+		{"error message", "permission denied"},
+	}
+
+	for _, tc := range checks {
+		if !strings.Contains(out, tc.want) {
+			t.Errorf("%s: output missing %q\noutput:\n%s", tc.name, tc.want, out)
+		}
+	}
+}
+
+func TestMarkdownResolveResultsNoANSI(t *testing.T) {
+	var buf bytes.Buffer
+	f := &MarkdownFormatter{}
+
+	if err := f.FormatResolveResults(&buf, sampleResolveResults()); err != nil {
+		t.Fatalf("FormatResolveResults: %v", err)
+	}
+
+	if strings.Contains(buf.String(), "\033") {
+		t.Error("Markdown resolve output contains ANSI escape sequences")
+	}
+}
+
 func TestMarkdownFormatterEmpty(t *testing.T) {
 	var buf bytes.Buffer
 	f := &MarkdownFormatter{}
