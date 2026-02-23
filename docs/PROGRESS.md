@@ -8,9 +8,9 @@
 | Field | Value |
 |-------|-------|
 | **Current Phase** | Phase 5: TUI Views |
-| **Current Task** | Task 5.4 complete. Next: `docs/tasks/022-summary-dashboard.md` |
+| **Current Task** | Task 5.5 complete. Next: `docs/tasks/023-watch-mode-tui.md` |
 | **Blocker** | None |
-| **Last Action** | Task 5.4 complete. Resolve view with multi-select. |
+| **Last Action** | Task 5.5 complete. Summary dashboard with KPI cards. |
 | **Last Updated** | 2026-02-23 |
 
 ## How to Resume
@@ -60,7 +60,7 @@
 - [x] Task 5.2: Comments expanded view → `docs/tasks/019-comments-expanded-view.md`
 - [x] Task 5.3: Checks view + log viewer → `docs/tasks/020-checks-view.md`
 - [x] Task 5.4: Resolve view — multi-select → `docs/tasks/021-resolve-view.md`
-- [ ] Task 5.5: Summary dashboard → `docs/tasks/022-summary-dashboard.md`
+- [x] Task 5.5: Summary dashboard → `docs/tasks/022-summary-dashboard.md`
 - [ ] Task 5.6: Watch mode TUI → `docs/tasks/023-watch-mode-tui.md`
 
 ### Phase 6: Agent Optimization (Future)
@@ -74,6 +74,14 @@
 (None currently)
 
 ## Session Log
+
+### 2026-02-23 (Task 5.5 — TUI Views: Summary Dashboard)
+- **Task 5.5 (Summary dashboard):** Created `internal/tui/summary.go` — `summaryModel` with KPI cards row (4 cards: Unresolved, Passed, Failed, Approvals using `lipgloss.JoinHorizontal` and rounded borders), three section previews (Review Threads with top-3 truncation, CI Checks with failed check annotations and pass count, Approvals with reviewer icons and states), merge readiness badge (READY/NOT READY in status bar). Color-coded dots per section (green=clear, red=issues, yellow=pending). Reuses package-scoped helpers: `padWithRight`, `formatTimeAgo`, `checkIsFailed`, `dimStyle`/`greenStyle`/`redStyle`.
+- Wired to `app.go`: summary sub-model, WindowSizeMsg propagation, `SetComments`/`SetChecks`/`SetReviews` set data, status bar shows merge readiness badge, `ViewSummary` renders summary view. Quick-nav c/k/r already handled in app.go.
+- 16 unit tests in summary_test.go (empty view, KPI cards, merge readiness 6 cases, badge, threads section, truncation, checks section, approvals section, review icons, card colors, check names, app integration, ready integration, quick-nav, zero width).
+- L4: 9/9 PASS (test_ghent_summary.py against tbgs NOT READY, doot READY-ish, peek-it NOT READY)
+- Verification: 405 tests pass, lint clean, vet clean (`make ci-fast` ✓)
+- Next: Task 5.6 Watch Mode TUI
 
 ### 2026-02-23 (Task 5.4 — TUI Views: Resolve)
 - **Task 5.4 (Resolve view — multi-select):** Created `internal/tui/resolve.go` — `resolveModel` with four states (browsing, confirming, resolving, done). Multi-select checkboxes: `[ ]` unselected, `[✓]` selected, `[-]` no permission, `[✗]` failed. Key bindings: j/k navigate, Space toggle, a select all/deselect, Enter confirm, Esc cancel, y/n confirm shortcuts, o open in browser. Confirmation bar: "Resolve N threads?" with enter/esc hints. Resolving status: "⟳ Resolving... N/M". Done status: "✓ N resolved" / "✗ N failed". `resolveRequestMsg` emitted to App for API calls via `resolveFunc` callback. `resolveThreadMsg` per-thread results, `resolveAllDoneMsg` when complete. Permission filtering: threads without `viewerCanResolve` get `[-]` and "(no permission)" label. Thread rendering: cursor highlight, file:line, author, body preview, truncated thread ID right-aligned.

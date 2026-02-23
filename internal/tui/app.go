@@ -99,6 +99,7 @@ type App struct {
 	checksList       checksListModel
 	checksLog        checksLogModel
 	resolve          resolveModel
+	summary          summaryModel
 }
 
 // NewApp creates a new App model with the given repo, PR, and initial view.
@@ -133,6 +134,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.checksList.setSize(a.width, contentHeight)
 		a.checksLog.setSize(a.width, contentHeight)
 		a.resolve.setSize(a.width, contentHeight)
+		a.summary.setSize(a.width, contentHeight)
 		return a, nil
 
 	case tea.KeyMsg:
@@ -344,8 +346,9 @@ func (a App) renderStatusBar() string {
 		}
 
 	case ViewSummary:
-		data.RightBadge = "SUMMARY"
-		data.BadgeColor = lipgloss.Color(string(styles.Blue))
+		badge, badgeColor := a.summary.mergeReadyBadge()
+		data.RightBadge = badge
+		data.BadgeColor = badgeColor
 
 	case ViewResolve:
 		if a.comments != nil {
@@ -406,13 +409,13 @@ func (a App) renderActiveView(contentHeight int) string {
 		return a.checksLog.View()
 	case ViewResolve:
 		return a.resolve.View()
+	case ViewSummary:
+		return a.summary.View()
 	}
 
 	// Placeholder text for views not yet wired.
 	var placeholder string
 	switch a.activeView {
-	case ViewSummary:
-		placeholder = "  [Summary Dashboard — pending task 5.5]"
 	case ViewWatch:
 		placeholder = "  [Watch Mode — pending task 5.6]"
 	default:
@@ -435,6 +438,7 @@ func (a *App) SetComments(c *domain.CommentsResult) {
 		a.commentsList = newCommentsListModel(c.Threads)
 		a.resolve = newResolveModel(c.Threads)
 	}
+	a.summary.comments = c
 }
 
 // SetChecks updates the shared checks data and rebuilds the checks list.
@@ -443,6 +447,7 @@ func (a *App) SetChecks(c *domain.ChecksResult) {
 	if c != nil {
 		a.checksList = newChecksListModel(c.Checks)
 	}
+	a.summary.checks = c
 }
 
 // SetResolver sets the callback function for resolving threads.
@@ -453,6 +458,7 @@ func (a *App) SetResolver(fn func(threadID string) error) {
 // SetReviews updates the shared reviews data.
 func (a *App) SetReviews(r []domain.Review) {
 	a.reviews = r
+	a.summary.reviews = r
 }
 
 // ActiveView returns the current active view.

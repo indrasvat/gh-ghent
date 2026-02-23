@@ -1,6 +1,6 @@
 # Task 5.5: Summary Dashboard
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 5.1: Comments list view (needs comment data + view)
@@ -109,6 +109,25 @@ feat(tui): add summary dashboard with KPI cards and merge readiness
 - Section previews with truncation
 - Quick-nav: c (comments), k (checks), r (resolve), o (browser)
 ```
+
+## Visual Test Results
+
+L4 iterm2-driver: **9/9 PASS** (`test_ghent_summary.py`)
+
+### Screenshots Reviewed
+
+1. **ghent_summary_launch.png** (indrasvat/tbgs PR #1 — NOT READY) — KPI cards row renders correctly with 4 cards: "2 UNRESOLVED" (red), "3 PASSED" (green), "0 FAILED" (green), "0 APPROVALS" (yellow). Cards use rounded borders with proper center alignment. "NOT READY" badge in status bar (red, bold). Three sections render: Review Threads (red dot, 2 unresolved + 0 resolved, file paths with line numbers and @authors), CI Checks (green dot, 3 checks passed with names), Approvals (yellow dot, 5 reviews with comment states and time-ago). Help bar shows summary-specific bindings: "c comments k checks r resolve o open PR R re-run failed q quit".
+
+2. **ghent_summary_ready.png** (indrasvat/doot PR #1 — NOT READY) — KPI cards: "0 UNRESOLVED" (green), "1 PASSED" (green), "0 FAILED" (green), "0 APPROVALS" (yellow). Shows "NOT READY" because doot has no approvals (only a commented review). Green dots on threads/checks sections. "No review threads" placeholder renders correctly. 1 check passed (make ci). 1 review (@chatgpt-codex-connector commented).
+
+3. **ghent_summary_not_ready.png** (indrasvat/peek-it PR #2 — NOT READY) — KPI cards: "1 UNRESOLVED" (red), "0 PASSED" (green), "2 FAILED" (red), "0 APPROVALS" (yellow). Red dot on CI Checks. Failed checks display with ✗ icons and annotation counts ("3 errors", "2 errors"). Annotation details show file:line patterns (.github:1, .github:203, .github:7). Thread preview shows file path. Confirms the dashboard correctly surfaces failure details.
+
+### Findings
+
+- KPI cards adapt to terminal width via `lipgloss.JoinHorizontal` with `max()` for minimum card width.
+- Section dots color-code correctly: green for all-clear, red for issues, yellow for pending/partial.
+- The `isMergeReady()` logic mirrors the CLI's `IsMergeReady()` — requires approvals to show "READY".
+- `formatTimeAgo()` (from comments.go) and `checkIsFailed()` (from checks.go) are reused as package-scoped helpers.
 
 ## Session Protocol
 
