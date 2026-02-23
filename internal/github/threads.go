@@ -126,18 +126,64 @@ func (c *Client) FetchThreads(ctx context.Context, owner, repo string, pr int) (
 	return mapThreadsToResult(pr, totalCount, allNodes)
 }
 
+// FetchResolvedThreads retrieves all resolved review threads for a PR.
+// Used by --all --unresolve to find threads that can be unresolved.
+func (c *Client) FetchResolvedThreads(ctx context.Context, owner, repo string, pr int) (*domain.CommentsResult, error) {
+	var allNodes []threadNode
+	var totalCount int
+	var cursor *string
+
+	for {
+		vars := map[string]interface{}{
+			"owner": owner,
+			"repo":  repo,
+			"pr":    pr,
+		}
+		if cursor != nil {
+			vars["cursor"] = *cursor
+		}
+
+		var resp threadsResponse
+		if err := c.gql.DoWithContext(ctx, reviewThreadsQuery, vars, &resp); err != nil {
+			return nil, fmt.Errorf("graphql review threads: %w", err)
+		}
+
+		rt := resp.Repository.PullRequest.ReviewThreads
+		totalCount = rt.TotalCount
+		allNodes = append(allNodes, rt.Nodes...)
+
+		if !rt.PageInfo.HasNextPage {
+			break
+		}
+		cursor = &rt.PageInfo.EndCursor
+	}
+
+	return mapThreadsWithFilter(pr, totalCount, allNodes, true)
+}
+
 // mapThreadsToResult converts GraphQL thread nodes to a domain CommentsResult,
 // filtering to unresolved threads only.
 func mapThreadsToResult(pr, totalCount int, nodes []threadNode) (*domain.CommentsResult, error) {
+	return mapThreadsWithFilter(pr, totalCount, nodes, false)
+}
+
+// mapThreadsWithFilter converts GraphQL thread nodes to a domain CommentsResult.
+// When keepResolved is false, only unresolved threads are included (default for comments).
+// When keepResolved is true, only resolved threads are included (for --all --unresolve).
+func mapThreadsWithFilter(pr, totalCount int, nodes []threadNode, keepResolved bool) (*domain.CommentsResult, error) {
 	var resolved, unresolved int
 	var threads []domain.ReviewThread
 
 	for _, n := range nodes {
 		if n.IsResolved {
 			resolved++
+		} else {
+			unresolved++
+		}
+
+		if n.IsResolved != keepResolved {
 			continue
 		}
-		unresolved++
 
 		comments, err := mapComments(n.Comments.Nodes)
 		if err != nil {

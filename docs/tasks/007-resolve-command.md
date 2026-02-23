@@ -117,14 +117,15 @@ make build
 
 ## Completion Criteria
 
-1. Resolve mutation works for single thread
-2. `--all` resolves all unresolved threads
-3. `--unresolve` uses unresolve mutation
-4. Permission check before mutation
-5. Clear error for missing permissions
-6. Exit codes: 0/1/2 per PRD
-7. `make ci` passes
-8. PROGRESS.md updated
+1. Resolve mutation works for single thread ✅
+2. `--all` resolves all unresolved threads ✅
+3. `--unresolve` uses unresolve mutation ✅
+4. `--all --unresolve` fetches resolved threads and unresolves them ✅ (fixed: was incorrectly fetching unresolved threads)
+5. Permission check before mutation ✅
+6. Clear error for missing permissions ✅
+7. Exit codes: 0/1/2 per PRD ✅
+8. `make ci` passes ✅
+9. PROGRESS.md updated ✅
 
 ## Commit
 

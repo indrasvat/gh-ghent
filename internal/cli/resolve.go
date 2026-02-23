@@ -125,7 +125,12 @@ func resolveAll(ctx context.Context, client *github.Client, unresolve bool) (*do
 		return nil, err
 	}
 
-	threads, err := client.FetchThreads(ctx, owner, repo, Flags.PR)
+	var threads *domain.CommentsResult
+	if unresolve {
+		threads, err = client.FetchResolvedThreads(ctx, owner, repo, Flags.PR)
+	} else {
+		threads, err = client.FetchThreads(ctx, owner, repo, Flags.PR)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("fetch threads: %w", err)
 	}
