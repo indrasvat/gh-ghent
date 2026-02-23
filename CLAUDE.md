@@ -204,3 +204,7 @@ These bugs were discovered in yukti/vivecaka. Apply preventively:
 - **2026-02-22 (tasks 005/007/008):** `make install` symlinks bin/gh-ghent into gh extensions dir — always use `gh ghent` (not `./bin/gh-ghent`) for L3 testing to match real user experience
 - **2026-02-22 (task 007):** `FetchThreads` only returns unresolved threads — any feature needing resolved threads must use `FetchResolvedThreads` (e.g., `--all --unresolve`)
 - **2026-02-22 (tasks 005/007/008):** When running parallel agents in worktrees that modify shared files (client.go, formatter.go), agents may step on each other's changes — verify the integrated result builds and passes lint after merging
+- **2026-02-23 (task 006):** go-gh REST `DoWithContext` expects JSON responses — use `RequestWithContext` for plain-text endpoints like job logs (`/actions/jobs/{id}/logs`)
+- **2026-02-23 (task 006):** Not all check run IDs map to GitHub Actions job IDs — external CI checks (e.g., third-party integrations) return 404 on the logs endpoint. Graceful degradation (skip failed log fetch) is essential.
+- **2026-02-23 (task 009):** `gh` extension wrapper may duplicate output to stderr on non-zero exit codes — this is a gh CLI artifact, not a binary bug. Always test with `./bin/gh-ghent` directly to verify
+- **2026-02-23 (task 009):** Test repos without real PR approvals will have `is_merge_ready=false` even with clean threads and passing checks — the IsMergeReady logic correctly requires at least 1 APPROVED review

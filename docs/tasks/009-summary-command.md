@@ -1,6 +1,6 @@
 # Task 2.6: Summary Command (`gh ghent summary`)
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 2.1: Comments command (needs ThreadFetcher)

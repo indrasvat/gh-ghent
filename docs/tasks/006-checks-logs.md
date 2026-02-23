@@ -1,6 +1,6 @@
 # Task 2.3: Checks Logs (`gh ghent checks --logs`)
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Task 2.2: Checks command (needs check runs fetch + formatter integration)

@@ -53,6 +53,7 @@ Thumbs.db
 .local/
 .codemap/
 .claude/screenshots/
+.claude/worktrees/
 .agent/
 
 .DS_Store

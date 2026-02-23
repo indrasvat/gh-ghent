@@ -7,11 +7,11 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 2: CLI Commands |
-| **Current Task** | `docs/tasks/006-checks-logs.md` |
+| **Current Phase** | Phase 3: CLI Polish |
+| **Current Task** | `docs/tasks/010-watch-mode-pipe.md` |
 | **Blocker** | None |
-| **Last Action** | Tasks 2.2, 2.4, 2.5 — DONE (parallel) |
-| **Last Updated** | 2026-02-22 |
+| **Last Action** | Tasks 2.3, 2.6 — DONE (parallel). Phase 2 complete. |
+| **Last Updated** | 2026-02-23 |
 
 ## How to Resume
 
@@ -33,10 +33,10 @@
 ### Phase 2: CLI Commands (pipe mode, end-to-end)
 - [x] Task 2.1: `gh ghent comments` → `docs/tasks/004-comments-command.md`
 - [x] Task 2.2: `gh ghent checks` → `docs/tasks/005-checks-command.md`
-- [ ] Task 2.3: `gh ghent checks --logs` → `docs/tasks/006-checks-logs.md`
+- [x] Task 2.3: `gh ghent checks --logs` → `docs/tasks/006-checks-logs.md`
 - [x] Task 2.4: `gh ghent resolve` → `docs/tasks/007-resolve-command.md`
 - [x] Task 2.5: `gh ghent reply` → `docs/tasks/008-reply-command.md`
-- [ ] Task 2.6: `gh ghent summary` → `docs/tasks/009-summary-command.md`
+- [x] Task 2.6: `gh ghent summary` → `docs/tasks/009-summary-command.md`
 
 ### Phase 3: CLI Polish
 - [ ] Task 3.1: Watch mode (pipe) → `docs/tasks/010-watch-mode-pipe.md`
@@ -72,6 +72,15 @@
 (None currently)
 
 ## Session Log
+
+### 2026-02-23 (Tasks 2.3, 2.6 — parallel execution)
+- Ran two agents in parallel via worktree isolation
+- **Task 2.3 (checks --logs):** `internal/github/logs.go` — REST job log fetcher via `RequestWithContext` (raw text, not JSON). `ExtractErrorLines` with ANSI stripping, timestamp removal, error keyword/prefix matching, file:line pattern detection, context lines, gap markers, 50-line truncation. Wired `--logs` flag in cli/checks.go with graceful degradation. LogExcerpt field added to domain.CheckRun, XML/MD formatters updated.
+- **Task 2.6 (summary):** `internal/github/reviews.go` — GraphQL PR reviews query. `internal/cli/summary.go` — errgroup parallel fetch (threads + checks + reviews), graceful degradation (reviews optional). `IsMergeReady` logic: no unresolved threads AND checks pass AND at least 1 approval with no CHANGES_REQUESTED. Exit code 0=ready, 1=not ready. XML proper types (xmlSummary, xmlSummaryComments, xmlSummaryChecks, xmlReview). Enhanced markdown FormatSummary with [READY]/[NOT READY] badge and reviewer table.
+- Merged both worktrees: resolved formatter overlaps (LogExcerpt in checks + summary XML types), removed FetchReviews stub from client.go, added golang.org/x/sync dependency
+- Added `.claude/worktrees/` to .gitignore
+- **Phase 2 complete** — all 6 CLI commands working in pipe mode
+- Verification: 171 tests pass, 0 lint issues, L3 smoke tests pass
 
 ### 2026-02-22 (Tasks 2.2, 2.4, 2.5 — parallel execution)
 - Ran three agents in parallel via worktree isolation
