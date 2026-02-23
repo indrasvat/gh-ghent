@@ -1,6 +1,6 @@
 # Task 4.1: Tokyo Night Theme + Lipgloss Styles
 
-## Status: TODO
+## Status: DONE
 
 ## Depends On
 - Phase 3 complete (CLI milestone — all pipe mode working)
@@ -100,6 +100,36 @@ feat(tui): add Tokyo Night theme and Lipgloss style definitions
 - termenv.SetBackgroundColor() for app background (no lipgloss.Background())
 - ANSI reset helpers between styled elements
 ```
+
+## Visual Test Results
+
+### L4: iterm2-driver (`test_ghent_theme.py`) — 8/8 PASS
+
+| Test | Status | Details |
+|------|--------|---------|
+| Build Theme Demo | PASS | `go build ./cmd/theme-demo/` succeeds |
+| Theme Demo Render | PASS | Tokyo Night header + all sections visible |
+| Badges | PASS | PR #42, passed, failed, pending all render |
+| Diff Hunk | PASS | @@ header, +/- lines with green/red coloring |
+| Box Borders | PASS | Rounded corners ╭─╮ ... ╰─╯ properly connected |
+| Help Bar | PASS | j/k navigate, enter expand, q quit visible |
+| File Paths & Authors | PASS | cyan file paths, orange authors, yellow line numbers |
+| No lipgloss.Background() | PASS | Zero matches in internal/ Go source |
+
+### Screenshots Reviewed
+
+- `ghent_theme_demo_20260222_232826.png` — Full theme demo output. All Tokyo Night colors render correctly on dark #1a1b26 background. No background color bleed in empty cells. Badges, diff hunks, borders, help bar all visually match mockup color palette.
+- `ghent_theme_badges_20260222_232826.png` — Badge section: blue PR, green pass, red fail, yellow pending, purple thread ID.
+- `ghent_theme_diffhunk_20260222_232826.png` — Diff hunk: green additions, red deletions, purple @@ header, dim context lines.
+- `ghent_theme_borders_20260222_232826.png` — Bordered box with rounded corners connected. Focus box identical shape.
+
+### Findings
+
+- All 17 Tokyo Night palette colors render as expected
+- termenv.SetBackgroundColor() properly sets dark background (no bleed in empty cells)
+- ANSI reset (`\033[0m`) visible at end of output — confirms proper cleanup
+- Box-drawing characters properly connected (no orphaned corners)
+- No lipgloss.Background() calls in production Go source
 
 ## Session Protocol
 
