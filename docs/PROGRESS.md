@@ -7,10 +7,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 9: Bug Fixes |
-| **Current Task** | Task 033 DONE. Fix 10 dead TUI keybindings. |
+| **Current Phase** | Phase 10: Summary Enhancement |
+| **Current Task** | Task 034 DONE. Summary --logs, --watch, --quiet. |
 | **Blocker** | None |
-| **Last Action** | All 10 keybindings implemented, 60 new tests, L4 11/11 PASS. |
+| **Last Action** | 3 new flags, enriched all formatters, 11 new tests (549→560), all docs updated. |
 | **Last Updated** | 2026-02-24 |
 
 ## How to Resume
@@ -85,11 +85,30 @@
 - [x] Task 9.1: Summary overflow, async startup, Esc navigation → `docs/tasks/032-summary-overflow-esc-nav.md`
 - [x] Task 9.2: Dead keybindings → `docs/tasks/033-dead-keybindings.md`
 
+### Phase 10: Summary Enhancement
+- [x] Task 10.1: Summary --logs, --watch, --quiet + formatter enrichment → `docs/tasks/034-summary-enhancement.md`
+
+> **Milestone: Summary Enhancement complete** — summary is now a complete single-command entry point for PR monitoring
+
 ## Blockers
 
 (None currently)
 
 ## Session Log
+
+### 2026-02-24 (Phase 10: Summary Enhancement — Task 034)
+- **Task 034 (Summary --logs, --watch, --quiet):** Enhanced `gh ghent summary` to be a complete single-command entry point for PR monitoring.
+  - **--logs:** Fetches failing job log excerpts via FetchJobLog + ExtractErrorLines (reuses checks.go pattern). Populates CheckRun.LogExcerpt for failing checks.
+  - **--watch:** TTY launches ViewWatch TUI. Non-TTY: WatchChecks streams to stderr, then falls through to full summary fetch to stdout. `--watch` implies `--logs`.
+  - **--quiet:** Silent exit 0 on merge-ready (no output), full output + exit 1 on not-ready.
+  - **Markdown FormatSummary:** Added unresolved thread details (path:line @author preview) and failed check sections (### FAIL: name, annotations, log excerpt in fenced block).
+  - **Markdown FormatCompactSummary:** Added failed check digest after thread table.
+  - **JSON FormatCompactSummary:** Added `failed_checks` array with name, annotations, log_excerpt.
+  - **XML FormatSummary:** Added Threads to xmlSummaryComments, FailedChecks to xmlSummaryChecks.
+  - **XML FormatCompactSummary:** Added FailedChecks to xmlCompactSummary struct.
+- **Documentation:** README (flags table + agent workflow), SKILL.md (restructured summary-first with trigger phrases), command-reference.md (new flags + schemas), agent-workflows.md (CI monitor → summary --watch --logs), ci-monitor.md (updated walkthrough), feature-showcase-hero.html (3 new summary rows replacing checks --verbose).
+- **Test count:** 549 → 560 (11 new tests). `make ci-fast` clean with race detector. `make lint` 0 issues.
+- **Files modified:** summary.go, markdown.go, json.go, xml.go, markdown_test.go, json_test.go, xml_test.go, README.md, SKILL.md, command-reference.md, agent-workflows.md, ci-monitor.md, feature-showcase-hero.html, PROGRESS.md + new task file 034.
 
 ### 2026-02-24 (Phase 9: Bug Fixes — Task 033 Dead Keybindings)
 - **Task 033 (Dead keybindings):** Fixed all 10 advertised-but-unimplemented TUI keybindings across 4 views.

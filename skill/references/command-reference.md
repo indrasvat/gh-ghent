@@ -274,6 +274,9 @@ Combined PR status dashboard with merge-readiness assessment.
 | Flag | Type | Description |
 |------|------|-------------|
 | `--compact` | bool | One-line-per-thread compact digest (optimized for agents) |
+| `--logs` | bool | Include failing job log excerpts and annotations in output |
+| `--watch` | bool | Poll until all checks complete, then output full summary |
+| `--quiet` | bool | Silent on merge-ready (exit 0), full output on not-ready (exit 1) |
 
 ### Exit Codes
 
@@ -287,7 +290,23 @@ Combined PR status dashboard with merge-readiness assessment.
 2. All checks pass (`overall_status == "pass"`)
 3. At least one APPROVED review with no CHANGES_REQUESTED
 
+### Watch Mode (--watch)
+
+In non-TTY mode, watch status streams to **stderr** and the final summary to **stdout**.
+This lets you pipe the summary directly: `gh ghent summary --pr 42 --watch --format json 2>/dev/null | jq`
+
+In TTY mode, launches the interactive watch TUI.
+
+### Quiet Mode (--quiet)
+
+- Merge-ready: exit 0, no output (silence = success)
+- Not merge-ready: exit 1, full summary output
+
+Ideal for CI gates: `gh ghent summary --pr 42 --quiet || echo "Not ready"`
+
 ### Full JSON Output Schema
+
+With `--logs`, failing checks include `annotations` and `log_excerpt`:
 
 ```json
 {
@@ -302,10 +321,21 @@ Combined PR status dashboard with merge-readiness assessment.
   "checks": {
     "pr_number": 1,
     "head_sha": "abc123...",
-    "overall_status": "pass",
-    "checks": [...],
-    "pass_count": 3,
-    "fail_count": 0,
+    "overall_status": "failure",
+    "checks": [
+      {
+        "id": 12345,
+        "name": "build-test",
+        "status": "completed",
+        "conclusion": "failure",
+        "annotations": [
+          {"path": "src/main.go", "start_line": 42, "annotation_level": "failure", "message": "unused variable: x"}
+        ],
+        "log_excerpt": "Error: unused variable x\nsrc/main.go:42:5: x declared and not used"
+      }
+    ],
+    "pass_count": 2,
+    "fail_count": 1,
     "pending_count": 0
   },
   "reviews": [
@@ -326,20 +356,28 @@ Combined PR status dashboard with merge-readiness assessment.
 
 ### Compact JSON Output (with --compact)
 
+With `--logs`, includes `failed_checks` with annotations and log excerpts:
+
 ```json
 {
   "pr_number": 1,
   "unresolved": 2,
-  "check_status": "pass",
-  "pass_count": 3,
-  "fail_count": 0,
+  "check_status": "failure",
+  "pass_count": 2,
+  "fail_count": 1,
   "is_merge_ready": false,
   "pr_age": "14w",
   "last_update": "1d",
   "review_cycles": 3,
   "threads": [
-    "internal/tmux/client.go:230 (chatgpt-codex-connector)",
-    "internal/app/app.go:88 (chatgpt-codex-connector)"
+    {"file": "internal/tmux/client.go", "line": 230, "author": "reviewer", "body_preview": "..."}
+  ],
+  "failed_checks": [
+    {
+      "name": "build-test",
+      "annotations": [{"path": "src/main.go", "line": 42, "level": "failure", "message": "unused variable: x"}],
+      "log_excerpt": "Error: unused variable x..."
+    }
   ]
 }
 ```

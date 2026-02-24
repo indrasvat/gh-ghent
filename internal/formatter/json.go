@@ -41,17 +41,29 @@ func (f *JSONFormatter) FormatCompactSummary(w io.Writer, result *domain.Summary
 		Author      string `json:"author"`
 		BodyPreview string `json:"body_preview"`
 	}
+	type compactAnnotation struct {
+		Path    string `json:"path"`
+		Line    int    `json:"line"`
+		Level   string `json:"level"`
+		Message string `json:"message"`
+	}
+	type compactFailedCheck struct {
+		Name        string              `json:"name"`
+		Annotations []compactAnnotation `json:"annotations,omitempty"`
+		LogExcerpt  string              `json:"log_excerpt,omitempty"`
+	}
 	type compactSummary struct {
-		PRNumber     int             `json:"pr_number"`
-		IsMergeReady bool            `json:"is_merge_ready"`
-		PRAge        string          `json:"pr_age,omitempty"`
-		LastUpdate   string          `json:"last_update,omitempty"`
-		ReviewCycles int             `json:"review_cycles,omitempty"`
-		Unresolved   int             `json:"unresolved"`
-		CheckStatus  string          `json:"check_status"`
-		PassCount    int             `json:"pass_count"`
-		FailCount    int             `json:"fail_count"`
-		Threads      []compactThread `json:"threads,omitempty"`
+		PRNumber     int                  `json:"pr_number"`
+		IsMergeReady bool                 `json:"is_merge_ready"`
+		PRAge        string               `json:"pr_age,omitempty"`
+		LastUpdate   string               `json:"last_update,omitempty"`
+		ReviewCycles int                  `json:"review_cycles,omitempty"`
+		Unresolved   int                  `json:"unresolved"`
+		CheckStatus  string               `json:"check_status"`
+		PassCount    int                  `json:"pass_count"`
+		FailCount    int                  `json:"fail_count"`
+		Threads      []compactThread      `json:"threads,omitempty"`
+		FailedChecks []compactFailedCheck `json:"failed_checks,omitempty"`
 	}
 
 	compact := compactSummary{
@@ -81,6 +93,25 @@ func (f *JSONFormatter) FormatCompactSummary(w io.Writer, result *domain.Summary
 			Author:      first.Author,
 			BodyPreview: preview,
 		})
+	}
+
+	for _, ch := range result.Checks.Checks {
+		if ch.Conclusion != "failure" {
+			continue
+		}
+		fc := compactFailedCheck{
+			Name:       ch.Name,
+			LogExcerpt: ch.LogExcerpt,
+		}
+		for _, a := range ch.Annotations {
+			fc.Annotations = append(fc.Annotations, compactAnnotation{
+				Path:    a.Path,
+				Line:    a.StartLine,
+				Level:   a.AnnotationLevel,
+				Message: a.Message,
+			})
+		}
+		compact.FailedChecks = append(compact.FailedChecks, fc)
 	}
 
 	return encodeJSON(w, compact)

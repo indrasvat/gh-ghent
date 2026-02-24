@@ -10,11 +10,17 @@ import (
 
 	"github.com/indrasvat/gh-ghent/internal/domain"
 	"github.com/indrasvat/gh-ghent/internal/formatter"
+	ghub "github.com/indrasvat/gh-ghent/internal/github"
 	"github.com/indrasvat/gh-ghent/internal/tui"
 )
 
 func newSummaryCmd() *cobra.Command {
-	var compact bool
+	var (
+		compact  bool
+		withLogs bool
+		quiet    bool
+		watch    bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "summary",
@@ -26,6 +32,10 @@ displays a unified view with merge-readiness assessment. In TTY mode,
 shows KPI cards and section summaries. In pipe mode, outputs all
 sections in a single structured response.
 
+Use --logs to include failing job log excerpts in output.
+Use --watch to poll until all checks complete, then output full summary.
+Use --quiet for silent exit on merge-ready (exit 0), full output on not-ready (exit 1).
+
 Merge-ready when: no unresolved threads + all checks pass + approved.
 
 Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
@@ -35,11 +45,17 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
   # Agent: check merge readiness
   gh ghent summary --pr 42 --format json | jq '.is_merge_ready'
 
-  # Compact one-line-per-thread digest
-  gh ghent summary --pr 42 --compact --format json
+  # Full status with failure diagnostics
+  gh ghent summary --pr 42 --logs --format json
 
-  # Full status as markdown
-  gh ghent summary -R owner/repo --pr 42 --format md`,
+  # Wait for CI, get full report
+  gh ghent summary --pr 42 --watch --format json
+
+  # Silent merge-readiness gate
+  gh ghent summary --pr 42 --quiet
+
+  # Compact one-line-per-thread digest
+  gh ghent summary --pr 42 --compact --format json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if Flags.PR == 0 {
 				return fmt.Errorf("--pr flag is required")
@@ -53,8 +69,39 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			ctx := cmd.Context()
 			client := GitHubClient()
 
-			// TTY → launch TUI immediately with async fetch (P2: instant startup).
-			if Flags.IsTTY {
+			// Watch mode: poll until CI terminal status, then output full summary.
+			if watch {
+				// TTY → launch watch TUI (same as checks --watch).
+				if Flags.IsTTY {
+					repoStr := owner + "/" + repo
+					fetchFn := func() (*domain.ChecksResult, error) {
+						return client.FetchChecks(ctx, owner, repo, Flags.PR)
+					}
+					return launchTUI(tui.ViewWatch,
+						withRepo(repoStr), withPR(Flags.PR),
+						withWatchFetch(fetchFn, ghub.DefaultPollInterval),
+					)
+				}
+
+				// Non-TTY: watch status → stderr, final summary → stdout.
+				f, fErr := formatter.New(Flags.Format)
+				if fErr != nil {
+					return fErr
+				}
+
+				_, watchErr := client.WatchChecks(
+					ctx, os.Stderr, f,
+					owner, repo, Flags.PR,
+					ghub.DefaultPollInterval, nil,
+				)
+				if watchErr != nil {
+					return fmt.Errorf("watch checks: %w", watchErr)
+				}
+				// Fall through to fetch full summary data below.
+			}
+
+			// TTY (non-watch) → launch TUI immediately with async fetch.
+			if !watch && Flags.IsTTY {
 				repoStr := owner + "/" + repo
 				sinceFilter := Flags.Since // capture for closures
 				return launchTUI(tui.ViewSummary,
@@ -82,6 +129,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			}
 
 			// Non-TTY / pipe mode: block until all data is fetched.
+			cmdCtx := ctx // preserve for post-errgroup log fetching
 			g, ctx := errgroup.WithContext(ctx)
 
 			var threads *domain.CommentsResult
@@ -127,8 +175,30 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			FilterThreadsBySince(threads, Flags.Since)
 			FilterChecksBySince(checks, Flags.Since)
 
+			// Fetch logs for failing checks when --logs is set (or implied by --watch).
+			// Use cmdCtx (not ctx) because errgroup's derived context is cancelled
+			// after g.Wait() returns.
+			if withLogs || watch {
+				for i := range checks.Checks {
+					ch := &checks.Checks[i]
+					if ch.Conclusion != "failure" {
+						continue
+					}
+					logText, logErr := client.FetchJobLog(cmdCtx, owner, repo, ch.ID)
+					if logErr != nil {
+						continue // graceful degradation
+					}
+					ch.LogExcerpt = ghub.ExtractErrorLines(logText)
+				}
+			}
+
 			// Merge readiness logic. If review fetch failed, not merge-ready.
 			mergeReady := !reviewFetchFailed && IsMergeReady(threads, checks, reviews)
+
+			// --quiet: silent exit on merge-ready, full output on not-ready.
+			if quiet && mergeReady {
+				return nil // exit 0, no output
+			}
 
 			now := time.Now()
 
@@ -168,6 +238,9 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 	}
 
 	cmd.Flags().BoolVar(&compact, "compact", false, "one-line-per-thread compact digest (optimized for agents)")
+	cmd.Flags().BoolVar(&withLogs, "logs", false, "include failing job log excerpts in output")
+	cmd.Flags().BoolVar(&quiet, "quiet", false, "silent on merge-ready (exit 0), full output on not-ready (exit 1)")
+	cmd.Flags().BoolVar(&watch, "watch", false, "poll until all checks complete, then output full summary")
 
 	return cmd
 }

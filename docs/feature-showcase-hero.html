@@ -127,16 +127,16 @@
         <td class="cmd"><span class="c">gh ghent comments</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--no-tui</span> <span class="f">--format</span> <span class="v">md</span></td>
       </tr>
       <tr>
-        <td class="desc">Failing action logs, filtered to error</td>
-        <td class="cmd"><span class="c">gh ghent checks</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--no-tui</span> <span class="f">--verbose</span></td>
+        <td class="desc">Full status with failure diagnostics</td>
+        <td class="cmd"><span class="c">gh ghent summary</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--logs</span> <span class="f">--format</span> <span class="v">json</span></td>
       </tr>
       <tr>
-        <td class="desc">Lint errors and CI annotations</td>
-        <td class="cmd"><span class="c">gh ghent checks</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--format</span> <span class="v">json</span> <span class="p">|</span> <span class="j">jq</span> <span class="v">'.checks[]|select(.annotations)'</span></td>
+        <td class="desc">Wait for CI, get full report</td>
+        <td class="cmd"><span class="c">gh ghent summary</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--watch</span> <span class="f">--logs</span> <span class="f">--format</span> <span class="v">json</span></td>
       </tr>
       <tr>
-        <td class="desc">Watch CI, fail-fast on failure</td>
-        <td class="cmd"><span class="c">gh ghent checks</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--no-tui</span> <span class="f">--watch</span></td>
+        <td class="desc">Silent merge-readiness gate</td>
+        <td class="cmd"><span class="c">gh ghent summary</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--quiet</span></td>
       </tr>
       <tr>
         <td class="desc">Resolve review threads via GraphQL</td>

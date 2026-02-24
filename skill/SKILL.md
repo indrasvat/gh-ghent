@@ -1,10 +1,11 @@
 ---
 name: gh-ghent
 description: >
-  Monitor and act on GitHub PR reviews with gh-ghent. Use when working with
-  pull requests that have unresolved review comments, failing CI checks, or
-  need thread resolution and replies. Provides structured JSON/XML/Markdown
-  output optimized for AI coding agents.
+  Structured access to GitHub PR review state for AI coding agents. This skill
+  should be used when the user needs to check PR merge readiness, diagnose CI
+  failures, read unresolved review comments, resolve review threads, or monitor
+  CI status. Provides JSON/XML/Markdown output with file:line locations,
+  error log excerpts, and annotations from GitHub Actions.
 ---
 
 # gh-ghent — Agentic PR Monitoring
@@ -16,12 +17,11 @@ state: unresolved threads, CI check status, annotations, logs, and merge readine
 
 ## When to Use
 
-Use gh-ghent when you need to:
-- Read unresolved review comments on a PR and understand what reviewers want changed
-- Check CI status, read failing annotations, and extract error log excerpts
+- Check PR merge readiness in a single call
+- Diagnose CI failures with error log excerpts and annotations
+- Read unresolved review comments with file:line locations
 - Resolve review threads after fixing the requested changes
-- Reply to review threads to acknowledge feedback or ask clarifying questions
-- Assess whether a PR is ready to merge (threads + checks + approvals)
+- Reply to review threads to acknowledge feedback
 - Monitor CI in a polling loop until checks complete
 
 ## Agent Mode
@@ -37,34 +37,48 @@ gh ghent <command> --pr <N> --format json --no-tui
 - `--format xml` returns tagged XML with semantic attributes
 - `--format md` returns readable Markdown
 
+## Recommended: Start with Summary
+
+For most agent tasks, start with `gh ghent summary --pr N --logs --format json --no-tui`.
+This single call returns: unresolved threads with file:line, CI check status with annotations
+and error log excerpts, approval state, and merge readiness. Only use individual commands
+(`comments`, `checks`) when you need deeper detail or specific actions (`resolve`, `reply`).
+
 ## Quick Start
 
-### 1. Get full PR status in one call
+### 1. Get full PR status with failure diagnostics
 ```bash
-gh ghent summary --pr 42 --format json --no-tui
+gh ghent summary --pr 42 --logs --format json --no-tui
 ```
-Returns: unresolved thread count, CI check status, approval state, `is_merge_ready` boolean.
+Returns: unresolved threads, CI checks with annotations and log excerpts, approvals, `is_merge_ready`.
 Exit code 0 = merge-ready, 1 = not ready.
 
-### 2. Read unresolved review threads
+### 2. Wait for CI, then get full report
 ```bash
-gh ghent comments --pr 42 --format json --no-tui
+gh ghent summary --pr 42 --watch --format json --no-tui
 ```
-Returns: array of threads with `id`, `path`, `line`, `comments[].body`, `comments[].diff_hunk`.
-Exit code 0 = no unresolved threads, 1 = has unresolved threads.
+Polls CI until terminal status (stderr), then outputs full summary (stdout).
+Pipe-friendly: `gh ghent summary --pr 42 --watch --format json 2>/dev/null | jq`
 
-### 3. Check CI status with error details
+### 3. Quick merge-readiness gate
 ```bash
-gh ghent checks --pr 42 --format json --no-tui --logs
+gh ghent summary --pr 42 --quiet
 ```
-Returns: `overall_status` ("pass"/"failure"/"pending"), per-check annotations, log excerpts.
-Exit code 0 = all pass, 1 = failure, 3 = pending.
+Silent exit 0 if merge-ready, full output + exit 1 if not ready.
+
+### 4. Drill down when needed
+```bash
+gh ghent comments --pr 42 --format json --no-tui     # Detailed threads
+gh ghent checks --pr 42 --logs --format json --no-tui # Detailed check runs
+gh ghent resolve --pr 42 --all                         # Batch resolve
+gh ghent reply --pr 42 --thread PRRT_... --body "Fixed" # Reply to thread
+```
 
 ## Commands
 
 | Command | Purpose | Key Flags |
 |---------|---------|-----------|
-| `summary` | Full PR dashboard | `--compact` |
+| `summary` | Full PR status + failure diagnostics | `--logs`, `--watch`, `--quiet`, `--compact` |
 | `comments` | Unresolved review threads | `--group-by file\|author\|status` |
 | `checks` | CI status + annotations | `--logs`, `--watch` |
 | `resolve` | Resolve/unresolve threads | `--thread`, `--all`, `--file`, `--author`, `--dry-run`, `--unresolve` |
@@ -84,21 +98,22 @@ For complete flag reference, see [references/command-reference.md](references/co
 | `--verbose` | | `false` | Include additional context |
 | `--debug` | | `false` | Debug logging to stderr |
 
-## Core Workflow: Fix All Review Comments
+## Core Workflow
 
 ```bash
-# 1. Read what reviewers want changed
-THREADS=$(gh ghent comments --pr 42 --format json --no-tui)
+# 1. Get everything in one call
+SUMMARY=$(gh ghent summary --pr 42 --logs --format json --no-tui)
 
-# 2. For each thread: read file:line, understand the comment, fix the code
-echo "$THREADS" | jq -r '.threads[] | "\(.path):\(.line) — \(.comments[0].body)"'
+# 2. Check merge readiness
+echo "$SUMMARY" | jq '.is_merge_ready'
 
-# 3. After fixing, resolve each thread
-echo "$THREADS" | jq -r '.threads[].id' | while read id; do
-  gh ghent resolve --pr 42 --thread "$id"
-done
+# 3. If CI failing, read the log excerpts
+echo "$SUMMARY" | jq '.checks.checks[] | select(.conclusion=="failure") | {name, log_excerpt, annotations}'
 
-# 4. Or batch-resolve all at once
+# 4. If threads need fixing, read them
+echo "$SUMMARY" | jq '.comments.threads[] | {path, line, body: .comments[0].body}'
+
+# 5. Fix code, then resolve + reply
 gh ghent resolve --pr 42 --all
 ```
 
@@ -135,12 +150,12 @@ Supported formats: `1h`, `30m`, `2d`, `1w`, `24h`, or ISO 8601 (`2026-02-23T00:0
 ## Compact Summary for Minimal Context
 
 ```bash
-gh ghent summary --pr 42 --compact --format json --no-tui
+gh ghent summary --pr 42 --compact --logs --format json --no-tui
 ```
 
 Returns a flat object with `pr_age`, `last_update`, `review_cycles`, `is_merge_ready`,
-`unresolved` count, `pass_count`, `fail_count`, and a one-line `threads` digest.
-Uses minimal tokens — ideal for agent polling loops.
+`unresolved` count, `pass_count`, `fail_count`, a `threads` digest, and `failed_checks`
+with annotations and log excerpts. Uses minimal tokens — ideal for agent polling loops.
 
 ## Group Comments for Batch Fixing
 

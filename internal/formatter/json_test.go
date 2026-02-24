@@ -437,6 +437,180 @@ func TestJSONCompactSummaryNoThreads(t *testing.T) {
 	}
 }
 
+// sampleSummaryWithFailures returns a SummaryResult with a failed check
+// including annotations and log excerpt, for testing enriched output.
+func sampleSummaryWithFailures() *domain.SummaryResult {
+	return &domain.SummaryResult{
+		PRNumber: 42,
+		Comments: domain.CommentsResult{
+			PRNumber:        42,
+			TotalCount:      3,
+			ResolvedCount:   1,
+			UnresolvedCount: 2,
+			Threads: []domain.ReviewThread{
+				{
+					ID:   "PRRT_1",
+					Path: "main.go",
+					Line: 10,
+					Comments: []domain.Comment{
+						{
+							ID:        "PRRC_1",
+							Author:    "alice",
+							Body:      "Please fix this",
+							CreatedAt: time.Date(2026, 2, 20, 10, 0, 0, 0, time.UTC),
+						},
+					},
+				},
+			},
+		},
+		Checks: domain.ChecksResult{
+			PRNumber:      42,
+			HeadSHA:       "abc123",
+			OverallStatus: domain.StatusFail,
+			PassCount:     2,
+			FailCount:     1,
+			PendingCount:  0,
+			Checks: []domain.CheckRun{
+				{
+					ID:         1001,
+					Name:       "build-test",
+					Status:     "completed",
+					Conclusion: "success",
+				},
+				{
+					ID:         1002,
+					Name:       "lint-check",
+					Status:     "completed",
+					Conclusion: "failure",
+					Annotations: []domain.Annotation{
+						{
+							Path:            "src/main.go",
+							StartLine:       42,
+							EndLine:         42,
+							AnnotationLevel: "failure",
+							Title:           "Lint error",
+							Message:         "unused variable: x",
+						},
+					},
+					LogExcerpt: "Error: unused variable x\nsrc/main.go:42:5: x declared and not used",
+				},
+				{
+					ID:         1003,
+					Name:       "deploy",
+					Status:     "completed",
+					Conclusion: "success",
+				},
+			},
+		},
+		Reviews: []domain.Review{
+			{
+				ID:          "PRR_1",
+				Author:      "alice",
+				State:       domain.ReviewApproved,
+				SubmittedAt: time.Date(2026, 2, 20, 12, 0, 0, 0, time.UTC),
+			},
+		},
+		IsMergeReady: false,
+	}
+}
+
+func TestJSONSummaryWithFailedChecks(t *testing.T) {
+	var buf bytes.Buffer
+	f := &JSONFormatter{}
+
+	if err := f.FormatSummary(&buf, sampleSummaryWithFailures()); err != nil {
+		t.Fatalf("FormatSummary: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput:\n%s", err, buf.String())
+	}
+
+	checks := parsed["checks"].(map[string]any)
+	if checks["overall_status"] != "failure" {
+		t.Errorf("overall_status = %v, want failure", checks["overall_status"])
+	}
+
+	checksList := checks["checks"].([]any)
+	if len(checksList) != 3 {
+		t.Fatalf("checks count = %d, want 3", len(checksList))
+	}
+
+	// Find the failing check and verify it has annotations and log_excerpt.
+	failingCheck := checksList[1].(map[string]any)
+	if failingCheck["name"] != "lint-check" {
+		t.Errorf("checks[1].name = %v, want lint-check", failingCheck["name"])
+	}
+	if failingCheck["log_excerpt"] == nil || failingCheck["log_excerpt"] == "" {
+		t.Error("failing check should have non-empty log_excerpt")
+	}
+	annotations, ok := failingCheck["annotations"].([]any)
+	if !ok || len(annotations) != 1 {
+		t.Fatalf("annotations count = %v, want 1", len(annotations))
+	}
+	ann := annotations[0].(map[string]any)
+	if ann["message"] != "unused variable: x" {
+		t.Errorf("annotation.message = %v, want 'unused variable: x'", ann["message"])
+	}
+}
+
+func TestJSONCompactSummaryFailedChecks(t *testing.T) {
+	var buf bytes.Buffer
+	f := &JSONFormatter{}
+
+	if err := f.FormatCompactSummary(&buf, sampleSummaryWithFailures()); err != nil {
+		t.Fatalf("FormatCompactSummary: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput:\n%s", err, buf.String())
+	}
+
+	failedChecks, ok := parsed["failed_checks"].([]any)
+	if !ok || len(failedChecks) != 1 {
+		t.Fatalf("failed_checks count = %v, want 1", len(failedChecks))
+	}
+
+	fc := failedChecks[0].(map[string]any)
+	if fc["name"] != "lint-check" {
+		t.Errorf("failed_checks[0].name = %v, want lint-check", fc["name"])
+	}
+	if fc["log_excerpt"] == nil || fc["log_excerpt"] == "" {
+		t.Error("failed_checks[0] should have non-empty log_excerpt")
+	}
+
+	annotations, ok := fc["annotations"].([]any)
+	if !ok || len(annotations) != 1 {
+		t.Fatalf("failed_checks[0].annotations count = %v, want 1", len(annotations))
+	}
+	ann := annotations[0].(map[string]any)
+	if ann["message"] != "unused variable: x" {
+		t.Errorf("annotation.message = %v, want 'unused variable: x'", ann["message"])
+	}
+}
+
+func TestJSONCompactSummaryNoFailedChecksWhenAllPass(t *testing.T) {
+	var buf bytes.Buffer
+	f := &JSONFormatter{}
+
+	// Use the original sample which has all passing checks.
+	if err := f.FormatCompactSummary(&buf, sampleSummaryResult()); err != nil {
+		t.Fatalf("FormatCompactSummary: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	// failed_checks should be null/absent when there are no failures.
+	if fc, ok := parsed["failed_checks"]; ok && fc != nil {
+		t.Errorf("failed_checks should be null/absent for all-pass result, got %v", fc)
+	}
+}
+
 func TestJSONCompactSummaryBodyTruncation(t *testing.T) {
 	f := &JSONFormatter{}
 	longBody := strings.Repeat("x", 100)

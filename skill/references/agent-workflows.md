@@ -48,43 +48,33 @@ done
 
 ## 2. Monitor CI Until Green
 
-Poll CI checks until they complete, then extract any errors.
+Poll CI checks until they complete, then get full summary with failure diagnostics.
 
 ```bash
-# Option A: Use --watch (built-in polling, fail-fast)
+# Recommended: summary --watch gets everything after CI completes
+gh ghent summary --pr 42 --watch --logs --format json --no-tui 2>/dev/null | jq
+# Watch status → stderr, full summary with logs → stdout.
+# After CI completes, parse failures from the summary:
+# jq '.checks.checks[] | select(.conclusion=="failure") | {name, log_excerpt, annotations}'
+
+# Alternative: checks --watch for CI-only monitoring
 gh ghent checks --pr 42 --watch --format json --no-tui
-# Blocks until all checks complete or one fails.
 # Exit 0 = all pass, 1 = failure, 3 = still pending after timeout.
-
-# Option B: Manual polling loop
-while true; do
-  gh ghent checks --pr 42 --format json --no-tui > /tmp/checks.json 2>&1
-  STATUS=$?
-  case $STATUS in
-    0) echo "All checks pass!"; break ;;
-    1)
-      echo "Failure detected. Extracting errors..."
-      jq -r '.checks[] | select(.conclusion == "failure") | .name' /tmp/checks.json
-      break
-      ;;
-    3) echo "Still pending..."; sleep 30 ;;
-    2) echo "Error accessing checks"; break ;;
-  esac
-done
 ```
 
-### Extract failure annotations
+### Extract failure details from summary
 
 ```bash
-# Get failing check annotations
-gh ghent checks --pr 42 --format json --no-tui | \
-  jq -r '.checks[] | select(.conclusion == "failure") | .annotations[]? | "\(.path):\(.start_line) [\(.annotation_level)] \(.message)"'
+# Get annotations and log excerpts for failed checks
+SUMMARY=$(gh ghent summary --pr 42 --logs --format json --no-tui)
+echo "$SUMMARY" | jq -r '.checks.checks[] | select(.conclusion == "failure") | .annotations[]? | "\(.path):\(.start_line) [\(.annotation_level)] \(.message)"'
+echo "$SUMMARY" | jq -r '.checks.checks[] | select(.log_excerpt != null and .log_excerpt != "") | "--- \(.name) ---\n\(.log_excerpt)"'
 ```
 
-### Extract log error lines
+### Standalone checks with logs
 
 ```bash
-# Get log excerpts for failed checks
+# Get log excerpts for failed checks (checks command directly)
 gh ghent checks --pr 42 --format json --no-tui --logs | \
   jq -r '.checks[] | select(.log_excerpt != null and .log_excerpt != "") | "--- \(.name) ---\n\(.log_excerpt)"'
 ```
