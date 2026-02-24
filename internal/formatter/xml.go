@@ -195,6 +195,54 @@ func (f *XMLFormatter) FormatSummary(w io.Writer, result *domain.SummaryResult) 
 			PendingCount:  result.Checks.PendingCount,
 		},
 	}
+	// Add unresolved threads to comments section.
+	for _, t := range result.Comments.Threads {
+		if t.IsResolved {
+			continue
+		}
+		xt := xmlThread{
+			ID:         t.ID,
+			Path:       t.Path,
+			Line:       t.Line,
+			IsResolved: t.IsResolved,
+			IsOutdated: t.IsOutdated,
+		}
+		for _, c := range t.Comments {
+			xt.Comments = append(xt.Comments, xmlComment{
+				ID:        c.ID,
+				Author:    c.Author,
+				Body:      c.Body,
+				CreatedAt: c.CreatedAt.Format(time.RFC3339),
+				URL:       c.URL,
+			})
+		}
+		out.Comments.Threads = append(out.Comments.Threads, xt)
+	}
+	// Add failed checks with annotations and log excerpts.
+	for _, ch := range result.Checks.Checks {
+		if !domain.IsFailConclusion(ch.Conclusion) {
+			continue
+		}
+		xc := xmlCheckRun{
+			ID:         ch.ID,
+			Name:       ch.Name,
+			Status:     ch.Status,
+			Conclusion: ch.Conclusion,
+			HTMLURL:    ch.HTMLURL,
+			LogExcerpt: ch.LogExcerpt,
+		}
+		for _, a := range ch.Annotations {
+			xc.Annotations = append(xc.Annotations, xmlAnnotation{
+				Path:            a.Path,
+				StartLine:       a.StartLine,
+				EndLine:         a.EndLine,
+				AnnotationLevel: a.AnnotationLevel,
+				Title:           a.Title,
+				Message:         a.Message,
+			})
+		}
+		out.Checks.FailedChecks = append(out.Checks.FailedChecks, xc)
+	}
 	for _, r := range result.Reviews {
 		out.Reviews = append(out.Reviews, xmlReview{
 			ID:          r.ID,
@@ -244,6 +292,31 @@ func (f *XMLFormatter) FormatCompactSummary(w io.Writer, result *domain.SummaryR
 			Author:      first.Author,
 			BodyPreview: preview,
 		})
+	}
+
+	for _, ch := range result.Checks.Checks {
+		if !domain.IsFailConclusion(ch.Conclusion) {
+			continue
+		}
+		xc := xmlCheckRun{
+			ID:         ch.ID,
+			Name:       ch.Name,
+			Status:     ch.Status,
+			Conclusion: ch.Conclusion,
+			HTMLURL:    ch.HTMLURL,
+			LogExcerpt: ch.LogExcerpt,
+		}
+		for _, a := range ch.Annotations {
+			xc.Annotations = append(xc.Annotations, xmlAnnotation{
+				Path:            a.Path,
+				StartLine:       a.StartLine,
+				EndLine:         a.EndLine,
+				AnnotationLevel: a.AnnotationLevel,
+				Title:           a.Title,
+				Message:         a.Message,
+			})
+		}
+		out.FailedChecks = append(out.FailedChecks, xc)
 	}
 
 	if _, err := io.WriteString(w, xml.Header); err != nil {
@@ -414,16 +487,18 @@ type xmlSummary struct {
 }
 
 type xmlSummaryComments struct {
-	TotalCount      int `xml:"total_count,attr"`
-	ResolvedCount   int `xml:"resolved_count,attr"`
-	UnresolvedCount int `xml:"unresolved_count,attr"`
+	TotalCount      int         `xml:"total_count,attr"`
+	ResolvedCount   int         `xml:"resolved_count,attr"`
+	UnresolvedCount int         `xml:"unresolved_count,attr"`
+	Threads         []xmlThread `xml:"thread,omitempty"`
 }
 
 type xmlSummaryChecks struct {
-	OverallStatus string `xml:"overall_status,attr"`
-	PassCount     int    `xml:"pass_count,attr"`
-	FailCount     int    `xml:"fail_count,attr"`
-	PendingCount  int    `xml:"pending_count,attr"`
+	OverallStatus string        `xml:"overall_status,attr"`
+	PassCount     int           `xml:"pass_count,attr"`
+	FailCount     int           `xml:"fail_count,attr"`
+	PendingCount  int           `xml:"pending_count,attr"`
+	FailedChecks  []xmlCheckRun `xml:"failed_check,omitempty"`
 }
 
 type xmlReview struct {
@@ -446,6 +521,7 @@ type xmlCompactSummary struct {
 	PassCount    int                `xml:"pass_count,attr"`
 	FailCount    int                `xml:"fail_count,attr"`
 	Threads      []xmlCompactThread `xml:"thread,omitempty"`
+	FailedChecks []xmlCheckRun      `xml:"failed_check,omitempty"`
 }
 
 type xmlCompactThread struct {

@@ -119,12 +119,18 @@ Combined PR status dashboard with merge-readiness assessment.
 
 ```bash
 gh ghent summary --pr 42                     # Interactive dashboard
-gh ghent summary --pr 42 --format json | jq '.is_merge_ready'
+gh ghent summary --pr 42 --logs --format json  # Full status with failure diagnostics
+gh ghent summary --pr 42 --watch --format json # Wait for CI, then full report
+gh ghent summary --pr 42 --quiet               # Silent merge-readiness gate
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--pr` | Pull request number (required) |
+| `--logs` | Include failing job log excerpts and annotations |
+| `--watch` | Poll until CI completes, then output full summary |
+| `--quiet` | Silent on merge-ready (exit 0), full output on not-ready (exit 1) |
+| `--compact` | One-line-per-thread compact digest for agents |
 
 Merge-ready when: no unresolved threads + all checks pass + at least one approval.
 
@@ -174,23 +180,23 @@ All commands use meaningful exit codes for scripting:
 ### Agent Workflow Example
 
 ```bash
-# 1. Check if PR is ready
-if gh ghent summary --pr 42 --format json --no-tui | jq -e '.is_merge_ready'; then
-  echo "Ready to merge"
-  exit 0
-fi
+# 1. Get everything in one call with failure diagnostics
+SUMMARY=$(gh ghent summary --pr 42 --logs --format json --no-tui)
 
-# 2. Get unresolved threads and reply
-THREADS=$(gh ghent comments --pr 42 --format json --no-tui)
-for id in $(echo "$THREADS" | jq -r '.threads[].thread_id'); do
-  gh ghent reply --pr 42 --thread "$id" --body "Acknowledged, fixing now"
-done
+# 2. Check merge readiness
+echo "$SUMMARY" | jq -e '.is_merge_ready' && exit 0
 
-# 3. Wait for CI
-gh ghent checks --pr 42 --watch --format json --no-tui
+# 3. Read CI failures (annotations + log excerpts)
+echo "$SUMMARY" | jq '.checks.checks[] | select(.conclusion=="failure") | {name, log_excerpt, annotations}'
 
-# 4. Resolve threads after fixing
+# 4. Read unresolved review threads
+echo "$SUMMARY" | jq '.comments.threads[] | {path, line, body: .comments[0].body}'
+
+# 5. Fix code, then resolve + reply
 gh ghent resolve --pr 42 --all --format json
+
+# 6. Wait for CI, get fresh summary
+gh ghent summary --pr 42 --watch --logs --format json --no-tui
 ```
 
 ### Output Formats

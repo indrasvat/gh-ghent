@@ -162,6 +162,18 @@ func (f *MarkdownFormatter) FormatCompactSummary(w io.Writer, result *domain.Sum
 		}
 	}
 
+	// Failed checks digest.
+	for _, ch := range result.Checks.Checks {
+		if !domain.IsFailConclusion(ch.Conclusion) {
+			continue
+		}
+		fmt.Fprintf(w, "\nFAIL: %s", ch.Name)
+		for _, a := range ch.Annotations {
+			fmt.Fprintf(w, " | %s:%d %s", a.Path, a.StartLine, a.Message)
+		}
+		fmt.Fprintln(w)
+	}
+
 	return nil
 }
 
@@ -190,10 +202,41 @@ func (f *MarkdownFormatter) FormatSummary(w io.Writer, result *domain.SummaryRes
 	fmt.Fprintf(w, "**Unresolved:** %d | **Resolved:** %d | **Total:** %d\n\n",
 		result.Comments.UnresolvedCount, result.Comments.ResolvedCount, result.Comments.TotalCount)
 
+	// Unresolved thread details.
+	for _, t := range result.Comments.Threads {
+		if t.IsResolved || len(t.Comments) == 0 {
+			continue
+		}
+		first := t.Comments[0]
+		preview := first.Body
+		if len(preview) > 80 {
+			preview = preview[:80] + "..."
+		}
+		fmt.Fprintf(w, "- **%s:%d** @%s — %s\n", t.Path, t.Line, first.Author, preview)
+	}
+	if result.Comments.UnresolvedCount > 0 {
+		fmt.Fprintln(w)
+	}
+
 	// Checks section.
 	fmt.Fprintf(w, "## CI Checks\n\n")
 	fmt.Fprintf(w, "**Status:** %s | **Pass:** %d | **Fail:** %d | **Pending:** %d\n\n",
 		result.Checks.OverallStatus, result.Checks.PassCount, result.Checks.FailCount, result.Checks.PendingCount)
+
+	// Failed check details (annotations + log excerpts).
+	for _, ch := range result.Checks.Checks {
+		if !domain.IsFailConclusion(ch.Conclusion) {
+			continue
+		}
+		fmt.Fprintf(w, "### FAIL: %s\n\n", ch.Name)
+		for _, a := range ch.Annotations {
+			fmt.Fprintf(w, "- **%s** `%s:%d` — %s\n", a.AnnotationLevel, a.Path, a.StartLine, a.Message)
+		}
+		if ch.LogExcerpt != "" {
+			fmt.Fprintf(w, "\n```\n%s\n```\n", ch.LogExcerpt)
+		}
+		fmt.Fprintln(w)
+	}
 
 	// Reviews/Approvals section.
 	fmt.Fprintf(w, "## Approvals\n\n")

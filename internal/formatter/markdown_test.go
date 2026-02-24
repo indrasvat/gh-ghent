@@ -167,6 +167,79 @@ func TestMarkdownSummaryNoReviews(t *testing.T) {
 	}
 }
 
+func TestMarkdownSummaryWithFailedChecks(t *testing.T) {
+	var buf bytes.Buffer
+	f := &MarkdownFormatter{}
+
+	if err := f.FormatSummary(&buf, sampleSummaryWithFailures()); err != nil {
+		t.Fatalf("FormatSummary: %v", err)
+	}
+
+	out := buf.String()
+
+	checks := []struct {
+		name string
+		want string
+	}{
+		{"fail header", "### FAIL: lint-check"},
+		{"annotation level", "**failure**"},
+		{"annotation location", "`src/main.go:42`"},
+		{"annotation message", "unused variable: x"},
+		{"log excerpt fence", "```"},
+		{"log excerpt content", "src/main.go:42:5: x declared and not used"},
+		{"thread detail", "**main.go:10** @alice"},
+		{"timed_out fail header", "### FAIL: e2e-tests"},
+		{"timed_out log excerpt", "test timed out after 30m0s"},
+	}
+
+	for _, tc := range checks {
+		if !strings.Contains(out, tc.want) {
+			t.Errorf("%s: output missing %q\noutput:\n%s", tc.name, tc.want, out)
+		}
+	}
+}
+
+func TestMarkdownSummaryNoFailedChecksWhenAllPass(t *testing.T) {
+	var buf bytes.Buffer
+	f := &MarkdownFormatter{}
+
+	if err := f.FormatSummary(&buf, sampleSummaryResult()); err != nil {
+		t.Fatalf("FormatSummary: %v", err)
+	}
+
+	out := buf.String()
+	if strings.Contains(out, "### FAIL:") {
+		t.Errorf("all-pass summary should not contain FAIL sections\noutput:\n%s", out)
+	}
+}
+
+func TestMarkdownCompactSummaryWithFailedChecks(t *testing.T) {
+	var buf bytes.Buffer
+	f := &MarkdownFormatter{}
+
+	if err := f.FormatCompactSummary(&buf, sampleSummaryWithFailures()); err != nil {
+		t.Fatalf("FormatCompactSummary: %v", err)
+	}
+
+	out := buf.String()
+
+	checks := []struct {
+		name string
+		want string
+	}{
+		{"fail name", "FAIL: lint-check"},
+		{"annotation location", "src/main.go:42"},
+		{"annotation message", "unused variable: x"},
+		{"timed_out fail name", "FAIL: e2e-tests"},
+	}
+
+	for _, tc := range checks {
+		if !strings.Contains(out, tc.want) {
+			t.Errorf("%s: output missing %q\noutput:\n%s", tc.name, tc.want, out)
+		}
+	}
+}
+
 func TestMarkdownFormatterEmpty(t *testing.T) {
 	var buf bytes.Buffer
 	f := &MarkdownFormatter{}

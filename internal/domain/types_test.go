@@ -173,6 +173,36 @@ func TestComment_DatabaseID_JSONKey(t *testing.T) {
 	}
 }
 
+func TestIsFailConclusion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		conclusion string
+		want       bool
+	}{
+		{"failure", true},
+		{"timed_out", true},
+		{"action_required", true},
+		{"startup_failure", true},
+		{"stale", true},
+		{"cancelled", true},
+		{"success", false},
+		{"neutral", false},
+		{"skipped", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.conclusion, func(t *testing.T) {
+			t.Parallel()
+			got := IsFailConclusion(tt.conclusion)
+			if got != tt.want {
+				t.Errorf("IsFailConclusion(%q) = %v, want %v", tt.conclusion, got, tt.want)
+			}
+		})
+	}
+}
+
 func keys(m map[string]json.RawMessage) []string {
 	ks := make([]string, 0, len(m))
 	for k := range m {

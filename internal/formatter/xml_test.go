@@ -174,6 +174,95 @@ func TestXMLSummaryFields(t *testing.T) {
 	}
 }
 
+func TestXMLSummaryWithFailedChecks(t *testing.T) {
+	var buf bytes.Buffer
+	f := &XMLFormatter{}
+
+	if err := f.FormatSummary(&buf, sampleSummaryWithFailures()); err != nil {
+		t.Fatalf("FormatSummary: %v", err)
+	}
+
+	var v xmlSummary
+	if err := xml.Unmarshal(buf.Bytes(), &v); err != nil {
+		t.Fatalf("invalid XML: %v\noutput:\n%s", err, buf.String())
+	}
+
+	// Should have failed checks in the checks section (failure + timed_out).
+	if len(v.Checks.FailedChecks) != 2 {
+		t.Fatalf("len(FailedChecks) = %d, want 2", len(v.Checks.FailedChecks))
+	}
+	fc := v.Checks.FailedChecks[0]
+	if fc.Name != "lint-check" {
+		t.Errorf("FailedChecks[0].Name = %q, want %q", fc.Name, "lint-check")
+	}
+	if fc.LogExcerpt == "" {
+		t.Error("FailedChecks[0].LogExcerpt should be non-empty")
+	}
+	if len(fc.Annotations) != 1 {
+		t.Fatalf("len(Annotations) = %d, want 1", len(fc.Annotations))
+	}
+	if fc.Annotations[0].Message != "unused variable: x" {
+		t.Errorf("Annotation.Message = %q, want %q", fc.Annotations[0].Message, "unused variable: x")
+	}
+	fc2 := v.Checks.FailedChecks[1]
+	if fc2.Name != "e2e-tests" {
+		t.Errorf("FailedChecks[1].Name = %q, want %q", fc2.Name, "e2e-tests")
+	}
+	if fc2.Conclusion != "timed_out" {
+		t.Errorf("FailedChecks[1].Conclusion = %q, want %q", fc2.Conclusion, "timed_out")
+	}
+
+	// Should have unresolved threads in comments section.
+	if len(v.Comments.Threads) != 1 {
+		t.Fatalf("len(Comments.Threads) = %d, want 1", len(v.Comments.Threads))
+	}
+	if v.Comments.Threads[0].Path != "main.go" {
+		t.Errorf("Comments.Threads[0].Path = %q, want %q", v.Comments.Threads[0].Path, "main.go")
+	}
+}
+
+func TestXMLSummaryNoFailedChecksWhenAllPass(t *testing.T) {
+	var buf bytes.Buffer
+	f := &XMLFormatter{}
+
+	if err := f.FormatSummary(&buf, sampleSummaryResult()); err != nil {
+		t.Fatalf("FormatSummary: %v", err)
+	}
+
+	var v xmlSummary
+	if err := xml.Unmarshal(buf.Bytes(), &v); err != nil {
+		t.Fatalf("invalid XML: %v", err)
+	}
+
+	if len(v.Checks.FailedChecks) != 0 {
+		t.Errorf("all-pass summary should have 0 FailedChecks, got %d", len(v.Checks.FailedChecks))
+	}
+}
+
+func TestXMLCompactSummaryWithFailedChecks(t *testing.T) {
+	var buf bytes.Buffer
+	f := &XMLFormatter{}
+
+	if err := f.FormatCompactSummary(&buf, sampleSummaryWithFailures()); err != nil {
+		t.Fatalf("FormatCompactSummary: %v", err)
+	}
+
+	var v xmlCompactSummary
+	if err := xml.Unmarshal(buf.Bytes(), &v); err != nil {
+		t.Fatalf("invalid XML: %v\noutput:\n%s", err, buf.String())
+	}
+
+	if len(v.FailedChecks) != 2 {
+		t.Fatalf("len(FailedChecks) = %d, want 2", len(v.FailedChecks))
+	}
+	if v.FailedChecks[0].Name != "lint-check" {
+		t.Errorf("FailedChecks[0].Name = %q, want %q", v.FailedChecks[0].Name, "lint-check")
+	}
+	if v.FailedChecks[0].LogExcerpt == "" {
+		t.Error("FailedChecks[0].LogExcerpt should be non-empty")
+	}
+}
+
 func TestXMLSummaryHasHeader(t *testing.T) {
 	var buf bytes.Buffer
 	f := &XMLFormatter{}

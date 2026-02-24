@@ -85,9 +85,23 @@ Lint: skipped
 Format: failure
 ```
 
-## Step 6: Use --watch for Polling
+## Step 6: Use summary --watch for Full Report After CI
 
-When checks are still running, use `--watch` to poll until completion:
+Wait for CI to complete and get a full summary with failure diagnostics in one call:
+
+```bash
+# Watch status goes to stderr, final summary to stdout
+gh ghent summary -R owner/repo --pr 42 --watch --logs --format json --no-tui 2>/dev/null | jq
+```
+
+This is the recommended approach: it waits for CI, then fetches threads + reviews + checks
+with log excerpts in a single output. Parse failures:
+```bash
+gh ghent summary --pr 42 --watch --logs --format json --no-tui 2>/dev/null | \
+  jq '.checks.checks[] | select(.log_excerpt) | {name, conclusion, log_excerpt, annotations}'
+```
+
+### Alternative: checks --watch for CI-only monitoring
 
 ```bash
 # Blocks until all checks complete or a failure is detected
@@ -110,12 +124,9 @@ git add -A && git commit -m "fix: resolve CI failures" && git push
 # Wait a moment for CI to start
 sleep 10
 
-# Watch the new run
-gh ghent checks --pr 42 --watch --format json --no-tui
-
-# When done, check full summary
-gh ghent summary --pr 42 --compact --format json --no-tui | \
-  jq '{merge_ready: .is_merge_ready, checks: .check_status}'
+# Watch and get full report with failure diagnostics
+gh ghent summary --pr 42 --watch --logs --format json --no-tui 2>/dev/null | \
+  jq '{merge_ready: .is_merge_ready, checks: .check_status, failures: [.checks.checks[] | select(.log_excerpt) | .name]}'
 ```
 
 ## Step 8: Use --since for Only New Checks
