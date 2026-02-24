@@ -221,7 +221,7 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 
-	// Summary-specific shortcuts: c/k/r jump to views.
+	// Summary-specific shortcuts: c/k/r jump to views, j/↑/↓ scroll.
 	if a.activeView == ViewSummary {
 		switch {
 		case key.Matches(msg, a.keys.Comments):
@@ -235,6 +235,15 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, a.keys.Resolve):
 			a.prevView = ViewSummary
 			a.activeView = ViewResolve
+			return a, nil
+		}
+		// Scroll: j/↓ = down, ↑ = up (k is taken by checks shortcut).
+		switch msg.String() {
+		case "j", "down":
+			a.summary.scrollDown()
+			return a, nil
+		case "up":
+			a.summary.scrollUp()
 			return a, nil
 		}
 	}

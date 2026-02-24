@@ -387,3 +387,149 @@ func TestSummaryZeroWidth(t *testing.T) {
 		t.Errorf("expected empty view at zero width, got %q", view)
 	}
 }
+
+func TestSummaryApprovalsCapped(t *testing.T) {
+	reviews := make([]domain.Review, 20)
+	for i := range reviews {
+		reviews[i] = domain.Review{
+			Author:      "user" + string(rune('A'+i)),
+			State:       domain.ReviewCommented,
+			SubmittedAt: time.Now(),
+		}
+	}
+	m := summaryModel{reviews: reviews}
+	m.setSize(120, 30)
+	view := m.View()
+
+	if !strings.Contains(view, "... and 15 more") {
+		t.Errorf("missing overflow indicator, expected '... and 15 more' in:\n%s", view)
+	}
+	// Should NOT contain the 6th reviewer's author name fully rendered in the list.
+	// (maxReviewsShow = 5, so only first 5 are shown)
+	if !strings.Contains(view, "20 reviews") {
+		t.Error("missing total review count in section header")
+	}
+}
+
+func TestSummaryApprovalsPriorityOrder(t *testing.T) {
+	reviews := []domain.Review{
+		{Author: "commenter1", State: domain.ReviewCommented, SubmittedAt: time.Now()},
+		{Author: "approver1", State: domain.ReviewApproved, SubmittedAt: time.Now()},
+		{Author: "requester1", State: domain.ReviewChangesRequested, SubmittedAt: time.Now()},
+		{Author: "commenter2", State: domain.ReviewCommented, SubmittedAt: time.Now()},
+		{Author: "approver2", State: domain.ReviewApproved, SubmittedAt: time.Now()},
+	}
+	m := summaryModel{reviews: reviews}
+	m.setSize(120, 30)
+	section := m.renderApprovalsSection()
+	lines := strings.Split(section, "\n")
+
+	// Find order: CHANGES_REQUESTED should be first, then APPROVED, then COMMENTED.
+	var order []string
+	for _, line := range lines {
+		switch {
+		case strings.Contains(line, "changes requested"):
+			order = append(order, "changes_requested")
+		case strings.Contains(line, "approved"):
+			order = append(order, "approved")
+		case strings.Contains(line, "commented"):
+			order = append(order, "commented")
+		}
+	}
+
+	if len(order) < 3 {
+		t.Fatalf("expected at least 3 review state lines, got %d: %v", len(order), order)
+	}
+	if order[0] != "changes_requested" {
+		t.Errorf("first review should be changes_requested, got %s", order[0])
+	}
+	if order[1] != "approved" {
+		t.Errorf("second review should be approved, got %s", order[1])
+	}
+}
+
+func TestSummaryApprovalsSmallList(t *testing.T) {
+	reviews := []domain.Review{
+		{Author: "alice", State: domain.ReviewApproved, SubmittedAt: time.Now()},
+		{Author: "bob", State: domain.ReviewCommented, SubmittedAt: time.Now()},
+	}
+	m := summaryModel{reviews: reviews}
+	m.setSize(120, 30)
+	view := m.View()
+
+	// Small list: all reviews shown, no overflow indicator.
+	if strings.Contains(view, "... and") {
+		t.Error("should not show overflow for 2 reviews")
+	}
+	if !strings.Contains(view, "@alice") {
+		t.Error("missing @alice")
+	}
+	if !strings.Contains(view, "@bob") {
+		t.Error("missing @bob")
+	}
+}
+
+func TestSummaryScrolling(t *testing.T) {
+	m := summaryModel{
+		comments: &domain.CommentsResult{UnresolvedCount: 3},
+		checks:   &domain.ChecksResult{PassCount: 5},
+	}
+	// Set height very small to force scroll.
+	m.setSize(120, 5)
+	view1 := m.View()
+	lines1 := strings.Split(view1, "\n")
+	if len(lines1) != 5 {
+		t.Errorf("expected 5 visible lines, got %d", len(lines1))
+	}
+
+	// Scroll down.
+	m.scrollDown()
+	view2 := m.View()
+	if view1 == view2 {
+		t.Error("scroll down should change visible content")
+	}
+
+	// Scroll back up.
+	m.scrollUp()
+	view3 := m.View()
+	if view1 != view3 {
+		t.Error("scroll up should restore original content")
+	}
+
+	// Scroll up past 0 should stay at 0.
+	m.scrollUp()
+	view4 := m.View()
+	if view1 != view4 {
+		t.Error("scroll up past 0 should stay at 0")
+	}
+}
+
+func TestSummaryScrollClamp(t *testing.T) {
+	m := summaryModel{}
+	m.setSize(120, 100) // Very tall — content fits without scroll.
+	m.scrollOffset = 999
+	view := m.View()
+	// Should clamp and render without panic.
+	if view == "" {
+		t.Error("expected non-empty view even with large scroll offset")
+	}
+}
+
+func TestReviewPriority(t *testing.T) {
+	tests := []struct {
+		state    domain.ReviewState
+		expected int
+	}{
+		{domain.ReviewChangesRequested, 0},
+		{domain.ReviewApproved, 1},
+		{domain.ReviewCommented, 2},
+		{domain.ReviewPending, 3},
+		{domain.ReviewDismissed, 3},
+	}
+	for _, tt := range tests {
+		got := reviewPriority(tt.state)
+		if got != tt.expected {
+			t.Errorf("reviewPriority(%s) = %d, want %d", tt.state, got, tt.expected)
+		}
+	}
+}

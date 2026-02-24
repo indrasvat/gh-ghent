@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -13,16 +14,29 @@ import (
 // summaryModel renders the dashboard overview with KPI cards, section
 // previews, and merge readiness badge.
 type summaryModel struct {
-	comments *domain.CommentsResult
-	checks   *domain.ChecksResult
-	reviews  []domain.Review
-	width    int
-	height   int
+	comments     *domain.CommentsResult
+	checks       *domain.ChecksResult
+	reviews      []domain.Review
+	width        int
+	height       int
+	scrollOffset int
 }
 
 func (m *summaryModel) setSize(width, height int) {
 	m.width = width
 	m.height = height
+}
+
+// scrollDown moves the viewport down by one line.
+func (m *summaryModel) scrollDown() {
+	m.scrollOffset++
+}
+
+// scrollUp moves the viewport up by one line.
+func (m *summaryModel) scrollUp() {
+	if m.scrollOffset > 0 {
+		m.scrollOffset--
+	}
 }
 
 // isMergeReady mirrors the CLI's IsMergeReady logic.
@@ -74,14 +88,28 @@ func (m summaryModel) View() string {
 	sections = append(sections, m.renderApprovalsSection())
 
 	content := strings.Join(sections, "\n")
+	allLines := strings.Split(content, "\n")
+	totalLines := len(allLines)
 
-	// Pad to fill content height.
-	lineCount := strings.Count(content, "\n") + 1
-	if lineCount < m.height {
-		content += strings.Repeat("\n", m.height-lineCount)
+	// Clamp scroll offset to valid range.
+	maxScroll := max(totalLines-m.height, 0)
+	if m.scrollOffset > maxScroll {
+		m.scrollOffset = maxScroll
 	}
 
-	return content
+	// Apply scroll: slice to visible window.
+	startLine := m.scrollOffset
+	endLine := min(startLine+m.height, totalLines)
+	visibleLines := allLines[startLine:endLine]
+
+	// Pad to fill content height.
+	if len(visibleLines) < m.height {
+		for range m.height - len(visibleLines) {
+			visibleLines = append(visibleLines, "")
+		}
+	}
+
+	return strings.Join(visibleLines, "\n")
 }
 
 // ── KPI Cards ────────────────────────────────────────────────────
@@ -315,6 +343,9 @@ func checkNames(checks []domain.CheckRun, failed bool) string {
 
 // ── Section: Approvals ───────────────────────────────────────────
 
+// maxReviewsShow is the maximum number of reviews displayed in the summary.
+const maxReviewsShow = 5
+
 func (m summaryModel) renderApprovalsSection() string {
 	headerDot := lipgloss.NewStyle().
 		Foreground(lipgloss.Color(string(styles.Yellow))).Render("●")
@@ -341,10 +372,20 @@ func (m summaryModel) renderApprovalsSection() string {
 		return header + "\n" + dimStyle.Render("   No reviews yet")
 	}
 
+	// Sort by priority: CHANGES_REQUESTED > APPROVED > rest (most actionable first).
+	sorted := make([]domain.Review, len(m.reviews))
+	copy(sorted, m.reviews)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return reviewPriority(sorted[i].State) < reviewPriority(sorted[j].State)
+	})
+
 	var lines []string
 	lines = append(lines, header)
 
-	for _, r := range m.reviews {
+	for i, r := range sorted {
+		if i >= maxReviewsShow {
+			break
+		}
 		icon, stateText := reviewIcon(r.State)
 		author := styles.Author.Render("@" + r.Author)
 		timeAgo := dimStyle.Render(formatTimeAgo(r.SubmittedAt))
@@ -353,7 +394,26 @@ func (m summaryModel) renderApprovalsSection() string {
 		lines = append(lines, line)
 	}
 
+	if len(sorted) > maxReviewsShow {
+		more := fmt.Sprintf("   ... and %d more", len(sorted)-maxReviewsShow)
+		lines = append(lines, dimStyle.Render(more))
+	}
+
 	return strings.Join(lines, "\n")
+}
+
+// reviewPriority returns a sort key — lower values sort first.
+func reviewPriority(state domain.ReviewState) int {
+	switch state {
+	case domain.ReviewChangesRequested:
+		return 0
+	case domain.ReviewApproved:
+		return 1
+	case domain.ReviewCommented:
+		return 2
+	default:
+		return 3
+	}
 }
 
 // reviewIcon returns the icon and styled state text for a review.
