@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gh-ghent</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: auto; min-height: 0; }
+
+  body {
+    background: linear-gradient(135deg, #1a1040 0%, #0d2847 40%, #0a3a4a 70%, #162040 100%);
+    display: inline-flex;
+    padding: 24px;
+  }
+
+  .card {
+    background: #0e1019;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+  }
+
+  .chrome {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 11px 16px;
+    background: #13141e;
+    border-bottom: 1px solid #1a1b2e;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.r { background: #f7768e; }
+  .dot.y { background: #e0af68; }
+  .dot.g { background: #9ece6a; }
+  .chrome-title {
+    flex: 1;
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: #565f89;
+    margin-right: 39px;
+  }
+
+  .body { padding: 18px 24px 18px; }
+
+  .hdr {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .hdr-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: #7aa2f7;
+  }
+  .hdr-tag {
+    font-size: 9.5px;
+    color: #737aa2;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+  }
+
+  table { border-collapse: collapse; border-top: 1px solid #1a1b2e; }
+
+  td {
+    padding: 7px 0;
+    border-bottom: 1px solid #13141e;
+    vertical-align: middle;
+  }
+
+  td.desc {
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #a9b1d6;
+    line-height: 1.3;
+    padding-right: 20px;
+    white-space: nowrap;
+  }
+
+  td.cmd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: #9ece6a;
+    white-space: pre;
+  }
+
+  td.cmd .c  { color: #7dcfff; }
+  td.cmd .f  { color: #bb9af7; }
+  td.cmd .v  { color: #e0af68; }
+  td.cmd .p  { color: #3b4261; }
+  td.cmd .j  { color: #565f89; }
+
+  .foot {
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: #565f89;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .foot .k { color: #7aa2f7; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="chrome">
+    <span class="dot r"></span>
+    <span class="dot y"></span>
+    <span class="dot g"></span>
+    <span class="chrome-title">gh-ghent</span>
+  </div>
+  <div class="body">
+    <div class="hdr">
+      <span class="hdr-name">gh ghent</span>
+      <span class="hdr-tag">agentic pr monitoring</span>
+    </div>
+    <table>
+      <tr>
+        <td class="desc">Unresolved review comments with file:line</td>
+        <td class="cmd"><span class="c">gh ghent comments</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--no-tui</span> <span class="f">--format</span> <span class="v">md</span></td>
+      </tr>
+      <tr>
+        <td class="desc">Failing action logs, filtered to error</td>
+        <td class="cmd"><span class="c">gh ghent checks</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--no-tui</span> <span class="f">--verbose</span></td>
+      </tr>
+      <tr>
+        <td class="desc">Lint errors and CI annotations</td>
+        <td class="cmd"><span class="c">gh ghent checks</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--format</span> <span class="v">json</span> <span class="p">|</span> <span class="j">jq</span> <span class="v">'.checks[]|select(.annotations)'</span></td>
+      </tr>
+      <tr>
+        <td class="desc">Watch CI, fail-fast on failure</td>
+        <td class="cmd"><span class="c">gh ghent checks</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--no-tui</span> <span class="f">--watch</span></td>
+      </tr>
+      <tr>
+        <td class="desc">Resolve review threads via GraphQL</td>
+        <td class="cmd"><span class="c">gh ghent resolve</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--no-tui</span> <span class="f">--all</span></td>
+      </tr>
+      <tr>
+        <td class="desc">One-shot merge readiness</td>
+        <td class="cmd"><span class="c">gh ghent summary</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--format</span> <span class="v">json</span> <span class="p">|</span> <span class="j">jq</span> <span class="v">'.is_merge_ready'</span></td>
+      </tr>
+      <tr>
+        <td class="desc">Reply to threads from CLI/agents</td>
+        <td class="cmd"><span class="c">gh ghent reply</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--no-tui</span> <span class="f">--thread</span> <span class="v">PRRT_...</span> <span class="f">--body</span> <span class="v">"Fixed"</span></td>
+      </tr>
+      <tr>
+        <td class="desc">Works on any public repo</td>
+        <td class="cmd"><span class="c">gh ghent checks</span> <span class="f">-R</span> <span class="v">oven-sh/bun</span> <span class="f">--pr</span> <span class="v">27364</span> <span class="f">--no-tui</span></td>
+      </tr>
+      <tr>
+        <td class="desc">Interactive TUI in a terminal</td>
+        <td class="cmd"><span class="c">gh ghent comments</span> <span class="f">--pr</span> <span class="v">42</span>  <span class="j"># Bubble Tea</span></td>
+      </tr>
+    </table>
+    <div class="foot">
+      <span><span class="k">gh extension install</span> indrasvat/gh-ghent</span>
+      <span><span class="k">npx skills add</span> indrasvat/gh-ghent</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>
