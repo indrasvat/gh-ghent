@@ -1,12 +1,12 @@
-# ghent
-
-Agentic PR monitoring for GitHub. Interactive TUI for humans, structured output for AI agents.
-
-```
-gh ghent summary --pr 42
-```
-
-ghent gives you instant access to PR review threads, CI status, and merge readiness — through a [Bubble Tea](https://github.com/charmbracelet/bubbletea) TUI in your terminal or structured JSON/XML/Markdown for agent workflows.
+<p align="center">
+  <img src="docs/feature-showcase.png" alt="gh ghent feature overview" width="720">
+  <br><br>
+  <strong>Agentic PR monitoring for GitHub</strong>
+  <br>
+  <em>Interactive TUI for humans, structured output for AI agents</em>
+  <br><br>
+  <a href="#install">Install</a> · <a href="#quick-start">Quick Start</a> · <a href="#how-it-works">How It Works</a> · <a href="#commands">Commands</a> · <a href="#global-flags">Global Flags</a> · <a href="#agent-integration">Agent Integration</a> · <a href="#for-ai-agents-agent-skill">Agent Skill</a> · <a href="#development">Development</a>
+</p>
 
 ## Install
 
