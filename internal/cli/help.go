@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"strings"
 	"text/template"
 
 	"github.com/charmbracelet/lipgloss"
@@ -43,6 +44,47 @@ var (
 	helpSection = lipgloss.NewStyle().Foreground(lipgloss.Color(string(styles.Blue))).Bold(true)
 )
 
+// ── ASCII banner ────────────────────────────────────────────────
+
+// banner is the ghent ASCII logo, rendered with a Tokyo Night gradient.
+const banner = ` ██████╗ ██╗  ██╗███████╗███╗   ██╗████████╗
+██╔════╝ ██║  ██║██╔════╝████╗  ██║╚══██╔══╝
+██║  ███╗███████║█████╗  ██╔██╗ ██║   ██║
+██║   ██║██╔══██║██╔══╝  ██║╚██╗██║   ██║
+╚██████╔╝██║  ██║███████╗██║ ╚████║   ██║
+ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝`
+
+// Tokyo Night gradient: Blue → Purple → Cyan (top to bottom).
+var bannerGradient = []lipgloss.Color{
+	styles.Blue,   // #7aa2f7
+	styles.Blue,   // #7aa2f7
+	styles.Purple, // #bb9af7
+	styles.Purple, // #bb9af7
+	styles.Cyan,   // #7dcfff
+	styles.Cyan,   // #7dcfff
+}
+
+// renderBanner returns the gradient-colored ASCII banner for TTY output,
+// or an empty string for non-TTY.
+func renderBanner() string {
+	if !isTTYOutput() {
+		return ""
+	}
+	lines := strings.Split(banner, "\n")
+	var b strings.Builder
+	for i, line := range lines {
+		color := bannerGradient[0]
+		if i < len(bannerGradient) {
+			color = bannerGradient[i]
+		}
+		style := lipgloss.NewStyle().Foreground(color).Bold(true)
+		b.WriteString("  ")
+		b.WriteString(style.Render(line))
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
+
 // ── Template functions ──────────────────────────────────────────
 
 // helpTemplateFuncs returns functions available in help/version templates.
@@ -59,6 +101,7 @@ func helpTemplateFuncs() template.FuncMap {
 		"yellow":    func(s string) string { return styled(helpYellow, s) },
 		"title":     func(s string) string { return styled(helpTitle, s) },
 		"section":   func(s string) string { return styled(helpSection, s) },
+		"banner":    renderBanner,
 		"shortHash": version.ShortCommit,
 		"shortDate": version.ShortDate,
 	}
@@ -66,7 +109,8 @@ func helpTemplateFuncs() template.FuncMap {
 
 // ── Version template ────────────────────────────────────────────
 
-const versionTemplate = `{{if isTTY}}  {{title .Name}} {{green .Version}}  {{dim "·"}}  {{purple (printf "commit %s" shortHash)}}  {{dim "·"}}  {{dim (printf "built %s" shortDate)}}
+const versionTemplate = `{{if isTTY}}
+{{banner}}  {{green .Version}}  {{dim "·"}}  {{purple (printf "commit %s" shortHash)}}  {{dim "·"}}  {{dim (printf "built %s" shortDate)}}
   {{dim "Agentic PR monitoring for GitHub"}}
 {{else}}{{.Name}} {{.Version}} (commit: {{shortHash}}, built: {{shortDate}})
 {{end}}`
