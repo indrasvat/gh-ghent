@@ -38,6 +38,8 @@ func copyToClipboard(text string) tea.Cmd {
 			return clipboardCopyMsg{text: text, err: err}
 		}
 		if _, err := pipe.Write([]byte(text)); err != nil {
+			pipe.Close()
+			cmd.Wait() //nolint:errcheck // best-effort reap
 			return clipboardCopyMsg{text: text, err: err}
 		}
 		pipe.Close()

@@ -412,6 +412,16 @@ func TestExtractRunID(t *testing.T) {
 			"https://github.com/indrasvat/peek-it/actions/runs/13579246801/job/37890",
 			"13579246801",
 		},
+		{
+			"check run /runs/ format (REST API)",
+			"https://github.com/owner/repo/runs/100001",
+			"100001",
+		},
+		{
+			"check run /runs/ with query params",
+			"https://github.com/owner/repo/runs/100001?check_suite_focus=true",
+			"100001",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -474,19 +474,35 @@ func formatCheckDuration(ch domain.CheckRun) string {
 }
 
 // extractRunID parses a workflow run ID from a GitHub Actions HTML URL.
-// URL format: https://github.com/{owner}/{repo}/actions/runs/{runID}/job/{jobID}
+// Handles both formats:
+//   - /actions/runs/{runID}/job/{jobID}  (workflow run URLs)
+//   - /runs/{runID}                      (check run URLs)
 func extractRunID(htmlURL string) string {
-	const marker = "/actions/runs/"
-	idx := strings.Index(htmlURL, marker)
-	if idx < 0 {
-		return ""
+	// Try the full /actions/runs/ path first.
+	const actionsMarker = "/actions/runs/"
+	idx := strings.Index(htmlURL, actionsMarker)
+	if idx >= 0 {
+		rest := htmlURL[idx+len(actionsMarker):]
+		if slashIdx := strings.IndexByte(rest, '/'); slashIdx > 0 {
+			return rest[:slashIdx]
+		}
+		return rest
 	}
-	rest := htmlURL[idx+len(marker):]
-	// Run ID is everything until the next '/'.
-	if slashIdx := strings.IndexByte(rest, '/'); slashIdx > 0 {
-		return rest[:slashIdx]
+	// Fallback: /runs/{id} (check runs REST API format).
+	const runsMarker = "/runs/"
+	idx = strings.Index(htmlURL, runsMarker)
+	if idx >= 0 {
+		rest := htmlURL[idx+len(runsMarker):]
+		if slashIdx := strings.IndexByte(rest, '/'); slashIdx > 0 {
+			return rest[:slashIdx]
+		}
+		// Trim query params if present.
+		if qIdx := strings.IndexByte(rest, '?'); qIdx > 0 {
+			return rest[:qIdx]
+		}
+		return rest
 	}
-	return rest
+	return ""
 }
 
 // rerunFailedChecks returns a tea.Cmd that re-runs failed workflow runs via `gh run rerun`.
