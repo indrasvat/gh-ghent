@@ -29,15 +29,17 @@ fi
 # Check if the edit/write is setting status to DONE
 SETS_DONE=false
 if [[ "$TOOL_NAME" == "Edit" ]]; then
-    # For Edit: check new_string for "Status: DONE"
+    # For Edit: check new_string for the frontmatter status pattern "**Status:** DONE"
     NEW_STRING=$(echo "$INPUT" | grep -o '"new_string"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/"new_string"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//')
-    if echo "$NEW_STRING" | grep -qiE 'Status:.*DONE'; then
+    if echo "$NEW_STRING" | grep -qE '\*\*Status:\*\*.*DONE'; then
         SETS_DONE=true
     fi
 elif [[ "$TOOL_NAME" == "Write" ]]; then
-    # For Write: check content for "Status: DONE"
-    # Content can be very large; check if it contains the status change
-    if echo "$INPUT" | grep -qiE 'Status:.*DONE'; then
+    # For Write: check the content field for the frontmatter status line.
+    # Must match the actual task metadata pattern "**Status:** DONE" (with markdown bold),
+    # NOT random mentions of "done" in prose like "Mark this task as DONE" in session protocols.
+    # The -i flag is intentionally omitted — the frontmatter uses uppercase DONE.
+    if echo "$INPUT" | grep -qE '\*\*Status:\*\*[[:space:]]*DONE'; then
         SETS_DONE=true
     fi
 fi
