@@ -6,8 +6,6 @@ on:
 
 permissions:
   contents: write
-  id-token: write
-  attestations: write
 
 jobs:
   release:
@@ -19,4 +17,3 @@ jobs:
         with:
           go_version_file: go.mod
           build_script_override: scripts/build-release.sh
-          generate_attestations: true
