@@ -96,7 +96,7 @@ func (f *JSONFormatter) FormatCompactSummary(w io.Writer, result *domain.Summary
 	}
 
 	for _, ch := range result.Checks.Checks {
-		if ch.Conclusion != "failure" {
+		if !domain.IsFailConclusion(ch.Conclusion) {
 			continue
 		}
 		fc := compactFailedCheck{

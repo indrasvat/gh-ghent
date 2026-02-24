@@ -64,6 +64,18 @@ const (
 	StatusPending OverallStatus = "pending"
 )
 
+// IsFailConclusion returns true if a check run conclusion is classified as a failure.
+// This includes: failure, timed_out, action_required, startup_failure, stale, cancelled.
+// Matches the classification in github.classifyCheckStatus.
+func IsFailConclusion(conclusion string) bool {
+	switch conclusion {
+	case "failure", "timed_out", "action_required", "startup_failure", "stale", "cancelled":
+		return true
+	default:
+		return false
+	}
+}
+
 // AggregateStatus returns the highest-priority status: fail > pending > pass.
 func AggregateStatus(statuses []OverallStatus) OverallStatus {
 	result := StatusPass

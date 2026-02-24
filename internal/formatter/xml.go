@@ -220,7 +220,7 @@ func (f *XMLFormatter) FormatSummary(w io.Writer, result *domain.SummaryResult) 
 	}
 	// Add failed checks with annotations and log excerpts.
 	for _, ch := range result.Checks.Checks {
-		if ch.Conclusion != "failure" {
+		if !domain.IsFailConclusion(ch.Conclusion) {
 			continue
 		}
 		xc := xmlCheckRun{
@@ -295,7 +295,7 @@ func (f *XMLFormatter) FormatCompactSummary(w io.Writer, result *domain.SummaryR
 	}
 
 	for _, ch := range result.Checks.Checks {
-		if ch.Conclusion != "failure" {
+		if !domain.IsFailConclusion(ch.Conclusion) {
 			continue
 		}
 		xc := xmlCheckRun{

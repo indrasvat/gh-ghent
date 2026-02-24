@@ -187,9 +187,9 @@ func TestXMLSummaryWithFailedChecks(t *testing.T) {
 		t.Fatalf("invalid XML: %v\noutput:\n%s", err, buf.String())
 	}
 
-	// Should have failed checks in the checks section.
-	if len(v.Checks.FailedChecks) != 1 {
-		t.Fatalf("len(FailedChecks) = %d, want 1", len(v.Checks.FailedChecks))
+	// Should have failed checks in the checks section (failure + timed_out).
+	if len(v.Checks.FailedChecks) != 2 {
+		t.Fatalf("len(FailedChecks) = %d, want 2", len(v.Checks.FailedChecks))
 	}
 	fc := v.Checks.FailedChecks[0]
 	if fc.Name != "lint-check" {
@@ -203,6 +203,13 @@ func TestXMLSummaryWithFailedChecks(t *testing.T) {
 	}
 	if fc.Annotations[0].Message != "unused variable: x" {
 		t.Errorf("Annotation.Message = %q, want %q", fc.Annotations[0].Message, "unused variable: x")
+	}
+	fc2 := v.Checks.FailedChecks[1]
+	if fc2.Name != "e2e-tests" {
+		t.Errorf("FailedChecks[1].Name = %q, want %q", fc2.Name, "e2e-tests")
+	}
+	if fc2.Conclusion != "timed_out" {
+		t.Errorf("FailedChecks[1].Conclusion = %q, want %q", fc2.Conclusion, "timed_out")
 	}
 
 	// Should have unresolved threads in comments section.
@@ -245,8 +252,8 @@ func TestXMLCompactSummaryWithFailedChecks(t *testing.T) {
 		t.Fatalf("invalid XML: %v\noutput:\n%s", err, buf.String())
 	}
 
-	if len(v.FailedChecks) != 1 {
-		t.Fatalf("len(FailedChecks) = %d, want 1", len(v.FailedChecks))
+	if len(v.FailedChecks) != 2 {
+		t.Fatalf("len(FailedChecks) = %d, want 2", len(v.FailedChecks))
 	}
 	if v.FailedChecks[0].Name != "lint-check" {
 		t.Errorf("FailedChecks[0].Name = %q, want %q", v.FailedChecks[0].Name, "lint-check")

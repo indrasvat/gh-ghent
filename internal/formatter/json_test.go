@@ -468,7 +468,7 @@ func sampleSummaryWithFailures() *domain.SummaryResult {
 			HeadSHA:       "abc123",
 			OverallStatus: domain.StatusFail,
 			PassCount:     2,
-			FailCount:     1,
+			FailCount:     2,
 			PendingCount:  0,
 			Checks: []domain.CheckRun{
 				{
@@ -499,6 +499,13 @@ func sampleSummaryWithFailures() *domain.SummaryResult {
 					Name:       "deploy",
 					Status:     "completed",
 					Conclusion: "success",
+				},
+				{
+					ID:         1004,
+					Name:       "e2e-tests",
+					Status:     "completed",
+					Conclusion: "timed_out",
+					LogExcerpt: "Error: test timed out after 30m0s",
 				},
 			},
 		},
@@ -533,8 +540,8 @@ func TestJSONSummaryWithFailedChecks(t *testing.T) {
 	}
 
 	checksList := checks["checks"].([]any)
-	if len(checksList) != 3 {
-		t.Fatalf("checks count = %d, want 3", len(checksList))
+	if len(checksList) != 4 {
+		t.Fatalf("checks count = %d, want 4", len(checksList))
 	}
 
 	// Find the failing check and verify it has annotations and log_excerpt.
@@ -569,8 +576,8 @@ func TestJSONCompactSummaryFailedChecks(t *testing.T) {
 	}
 
 	failedChecks, ok := parsed["failed_checks"].([]any)
-	if !ok || len(failedChecks) != 1 {
-		t.Fatalf("failed_checks count = %v, want 1", len(failedChecks))
+	if !ok || len(failedChecks) != 2 {
+		t.Fatalf("failed_checks count = %v, want 2", len(failedChecks))
 	}
 
 	fc := failedChecks[0].(map[string]any)
@@ -588,6 +595,15 @@ func TestJSONCompactSummaryFailedChecks(t *testing.T) {
 	ann := annotations[0].(map[string]any)
 	if ann["message"] != "unused variable: x" {
 		t.Errorf("annotation.message = %v, want 'unused variable: x'", ann["message"])
+	}
+
+	// Second failed check: timed_out conclusion (non-"failure" but still fail-classified).
+	fc2 := failedChecks[1].(map[string]any)
+	if fc2["name"] != "e2e-tests" {
+		t.Errorf("failed_checks[1].name = %v, want e2e-tests", fc2["name"])
+	}
+	if fc2["log_excerpt"] == nil || fc2["log_excerpt"] == "" {
+		t.Error("failed_checks[1] (timed_out) should have non-empty log_excerpt")
 	}
 }
 

@@ -93,6 +93,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 					ctx, os.Stderr, f,
 					owner, repo, Flags.PR,
 					ghub.DefaultPollInterval, nil,
+					true, // waitAll: wait for every check to complete
 				)
 				if watchErr != nil {
 					return fmt.Errorf("watch checks: %w", watchErr)
@@ -177,11 +178,12 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 
 			// Fetch logs for failing checks when --logs is set (or implied by --watch).
 			// Use cmdCtx (not ctx) because errgroup's derived context is cancelled
-			// after g.Wait() returns.
+			// after g.Wait() returns. IsFailConclusion covers all failure-classified
+			// conclusions (failure, timed_out, cancelled, etc.), not just "failure".
 			if withLogs || watch {
 				for i := range checks.Checks {
 					ch := &checks.Checks[i]
-					if ch.Conclusion != "failure" {
+					if !domain.IsFailConclusion(ch.Conclusion) {
 						continue
 					}
 					logText, logErr := client.FetchJobLog(cmdCtx, owner, repo, ch.ID)

@@ -164,7 +164,7 @@ func (f *MarkdownFormatter) FormatCompactSummary(w io.Writer, result *domain.Sum
 
 	// Failed checks digest.
 	for _, ch := range result.Checks.Checks {
-		if ch.Conclusion != "failure" {
+		if !domain.IsFailConclusion(ch.Conclusion) {
 			continue
 		}
 		fmt.Fprintf(w, "\nFAIL: %s", ch.Name)
@@ -225,7 +225,7 @@ func (f *MarkdownFormatter) FormatSummary(w io.Writer, result *domain.SummaryRes
 
 	// Failed check details (annotations + log excerpts).
 	for _, ch := range result.Checks.Checks {
-		if ch.Conclusion != "failure" {
+		if !domain.IsFailConclusion(ch.Conclusion) {
 			continue
 		}
 		fmt.Fprintf(w, "### FAIL: %s\n\n", ch.Name)

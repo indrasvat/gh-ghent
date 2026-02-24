@@ -188,6 +188,8 @@ func TestMarkdownSummaryWithFailedChecks(t *testing.T) {
 		{"log excerpt fence", "```"},
 		{"log excerpt content", "src/main.go:42:5: x declared and not used"},
 		{"thread detail", "**main.go:10** @alice"},
+		{"timed_out fail header", "### FAIL: e2e-tests"},
+		{"timed_out log excerpt", "test timed out after 30m0s"},
 	}
 
 	for _, tc := range checks {
@@ -228,6 +230,7 @@ func TestMarkdownCompactSummaryWithFailedChecks(t *testing.T) {
 		{"fail name", "FAIL: lint-check"},
 		{"annotation location", "src/main.go:42"},
 		{"annotation message", "unused variable: x"},
+		{"timed_out fail name", "FAIL: e2e-tests"},
 	}
 
 	for _, tc := range checks {

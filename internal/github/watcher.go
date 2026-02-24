@@ -12,7 +12,11 @@ import (
 // DefaultPollInterval is the default time between check-status polls.
 const DefaultPollInterval = 10 * time.Second
 
-// WatchChecks polls CI check runs until all complete or a failure is detected.
+// WatchChecks polls CI check runs until a terminal condition is reached.
+// When waitAll is false (default for checks --watch), it exits as soon as
+// overall status is pass or fail (fail-fast). When waitAll is true (used by
+// summary --watch), it waits until every check has status "completed",
+// ensuring the final summary includes all check results and log excerpts.
 // On each poll cycle it emits a WatchStatus via the formatter.
 // Returns the final OverallStatus or an error.
 func (c *Client) WatchChecks(
@@ -23,6 +27,7 @@ func (c *Client) WatchChecks(
 	pr int,
 	interval time.Duration,
 	clock func() time.Time,
+	waitAll bool,
 ) (domain.OverallStatus, error) {
 	if clock == nil {
 		clock = time.Now
@@ -48,7 +53,14 @@ func (c *Client) WatchChecks(
 		}
 
 		// Determine if this is the final poll.
-		terminal := result.OverallStatus == domain.StatusPass || result.OverallStatus == domain.StatusFail
+		var terminal bool
+		if waitAll {
+			// Wait until every check has completed (no pending checks).
+			terminal = result.PendingCount == 0 && len(result.Checks) > 0
+		} else {
+			// Fail-fast: exit as soon as overall status is pass or fail.
+			terminal = result.OverallStatus == domain.StatusPass || result.OverallStatus == domain.StatusFail
+		}
 		status.Final = terminal
 
 		if err := f.FormatWatchStatus(w, status); err != nil {

@@ -76,6 +76,7 @@ Exit codes: 0 = all pass, 1 = failure, 3 = pending.`,
 					ctx, os.Stdout, f,
 					owner, repo, Flags.PR,
 					ghub.DefaultPollInterval, nil,
+					false, // fail-fast: exit on first failure
 				)
 				if watchErr != nil {
 					return fmt.Errorf("watch checks: %w", watchErr)
@@ -102,7 +103,7 @@ Exit codes: 0 = all pass, 1 = failure, 3 = pending.`,
 				// Pre-fetch logs for failed checks for the TUI log viewer.
 				for i := range result.Checks {
 					ch := &result.Checks[i]
-					if ch.Conclusion != "failure" {
+					if !domain.IsFailConclusion(ch.Conclusion) {
 						continue
 					}
 					logText, logErr := client.FetchJobLog(ctx, owner, repo, ch.ID)
@@ -119,14 +120,13 @@ Exit codes: 0 = all pass, 1 = failure, 3 = pending.`,
 			}
 
 			// Fetch logs for failed checks when --logs is set.
-			// Note: ch.ID is a check run ID, which equals the job ID for GitHub
-			// Actions but may differ for external CI providers. FetchJobLog returns
-			// 404 for non-Actions checks, so we skip gracefully on error.
+			// IsFailConclusion covers all failure-classified conclusions
+			// (failure, timed_out, cancelled, etc.), not just "failure".
 			withLogs, _ := cmd.Flags().GetBool("logs")
 			if withLogs {
 				for i := range result.Checks {
 					ch := &result.Checks[i]
-					if ch.Conclusion != "failure" {
+					if !domain.IsFailConclusion(ch.Conclusion) {
 						continue
 					}
 					logText, logErr := client.FetchJobLog(ctx, owner, repo, ch.ID)
