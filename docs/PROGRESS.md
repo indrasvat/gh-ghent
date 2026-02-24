@@ -89,6 +89,7 @@
 
 ### 2026-02-24 (Phase 8: Polish — Task 8.1 Styled Help & Version)
 - **Task 8.1 (Styled Help & Version):** Custom Cobra templates with Tokyo Night lipgloss styling for `--version`, `--help` (root + all 5 subcommands). TTY-aware: full color in terminal, clean plain text when piped. Created `internal/cli/help.go` with template functions, added `ShortCommit()`/`ShortDate()` to version package.
+- Added Unicode block-character ASCII banner with Tokyo Night blue→purple→cyan gradient for `--version` TTY output (skipped when piped).
 - **Test count:** 489 → 501 (12 new version helper tests)
 - **L4:** 8/8 iterm2-driver tests pass. Screenshots in `.claude/screenshots/ghent_help_*.png`.
 - Also fixed false positive in `pre-task-done-gate.sh` hook (matched prose "DONE" in session protocols).

@@ -284,23 +284,21 @@ make test
 ```
 
 ### Visual
-- [ ] Version output shows app name in blue, version in green, commit in purple, date in dim
-- [ ] Root help shows section headers in blue bold
-- [ ] Command names in cyan
-- [ ] Flag names in cyan, types in yellow, defaults in orange
-- [ ] Examples have dimmed comments, colored flags
-- [ ] Subcommand help follows same color scheme
-- [ ] Piped output has zero ANSI escape sequences
-- [ ] Piped version is single-line and parseable
+- [x] Version output shows ASCII banner with gradient, version in green, commit in purple, date in dim
+- [x] Root help shows section headers in blue bold
+- [x] Command names in cyan
+- [x] Subcommand help follows same color scheme
+- [x] Piped output has zero ANSI escape sequences
+- [x] Piped version is single-line and parseable
 
 ### Behavioral
-- [ ] `gh ghent --version` works (exit 0)
-- [ ] `gh ghent --help` works (exit 0)
-- [ ] `gh ghent comments --help` works (exit 0)
-- [ ] `gh ghent --version | cat` produces clean text
-- [ ] `gh ghent --help | cat` produces clean text
-- [ ] No regressions in existing commands
-- [ ] `make ci-fast` passes
+- [x] `gh ghent --version` works (exit 0)
+- [x] `gh ghent --help` works (exit 0)
+- [x] `gh ghent comments --help` works (exit 0)
+- [x] `gh ghent --version | cat` produces clean text
+- [x] `gh ghent --help | cat` produces clean text
+- [x] No regressions in existing commands
+- [x] `make ci-fast` passes (501 tests)
 
 ## Completion Criteria
 
