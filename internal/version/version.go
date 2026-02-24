@@ -11,6 +11,7 @@ var (
 )
 
 // String returns a formatted version string.
+// Cobra's default template prepends "{Name} version", so this excludes the command name.
 func String() string {
-	return fmt.Sprintf("ghent %s (commit: %s, built: %s)", Version, Commit, BuildDate)
+	return fmt.Sprintf("%s (commit: %s, built: %s)", Version, Commit, BuildDate)
 }
