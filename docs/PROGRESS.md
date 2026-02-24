@@ -7,10 +7,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 8: Polish & DX |
-| **Current Task** | Task 8.1 DONE. Styled help & version output. |
+| **Current Phase** | Phase 9: Bug Fixes |
+| **Current Task** | Task 032 DONE. Summary overflow, async startup, Esc navigation. |
 | **Blocker** | None |
-| **Last Action** | Custom Cobra templates with Tokyo Night styling, TTY-aware graceful degradation. |
+| **Last Action** | Fixed summary approvals overflow (cap 5 + priority sort), async TUI loading (instant startup), Esc navigation from sub-views. |
 | **Last Updated** | 2026-02-24 |
 
 ## How to Resume
@@ -81,13 +81,25 @@
 ### Phase 8: Polish & DX
 - [x] Task 8.1: Styled help & version output → `docs/tasks/031-styled-help-version.md`
 
+### Phase 9: Bug Fixes
+- [x] Task 9.1: Summary overflow, async startup, Esc navigation → `docs/tasks/032-summary-overflow-esc-nav.md`
+
 ## Blockers
 
 (None currently)
 
 ## Session Log
 
-### 2026-02-24 (Phase 8: Polish — Task 8.1 Styled Help & Version)
+### 2026-02-24 (Phase 9: Bug Fixes — Task 032 Summary Overflow, Async Startup, Esc Nav)
+- **P3 (Esc navigation):** Generalized Esc handler in `handleKey()` — returns to `prevView` from any list view, not just resolve/summary. Initialized `prevView = initialView` in `NewApp()`. 3 new tests.
+- **P1 (Summary overflow):** Capped approvals at `maxReviewsShow = 5` with priority sort (CHANGES_REQUESTED > APPROVED > COMMENTED) and "... and N more" overflow indicator. Added viewport scrolling with `scrollOffset` and j/↓/↑ keys. 7 new tests.
+- **P2 (Async loading):** Added `FetchCommentsFunc`/`FetchChecksFunc`/`FetchReviewsFunc` types, `commentsLoadedMsg`/`checksLoadedMsg`/`reviewsLoadedMsg` messages, `SetAsyncFetch()` method. `Init()` fires parallel `tea.Cmd`s, `Update()` handles progressive rendering. Loading view shows "Loading PR data..." until first data arrives. Modified `cli/summary.go` TTY path to launch TUI immediately with async fetch closures. Pipe mode retains blocking errgroup. 6 new tests.
+- **Stress-tested** against oven-sh/bun extreme PRs: #24063 (61 reviews, 101 threads), #27327 (68 threads, 25 reviews, 59 checks), #27338 (46 threads), #27264 (6/6 unresolved), #27056 (42 reviews). All render correctly with overflow indicators.
+- **Performance:** TUI first-frame dropped from 1.3–6.5s → <0.5s (instant). Pipe-mode latency unchanged (API-bound).
+- **L4:** 9/9 existing summary tests PASS + 5/5 task 032 stress tests (4 PASS, 1 UNVERIFIED).
+- **Test count:** 501 → 516 (15 new tests). `make lint` clean. `make test` all pass with race detector.
+
+
 - **Task 8.1 (Styled Help & Version):** Custom Cobra templates with Tokyo Night lipgloss styling for `--version`, `--help` (root + all 5 subcommands). TTY-aware: full color in terminal, clean plain text when piped. Created `internal/cli/help.go` with template functions, added `ShortCommit()`/`ShortDate()` to version package.
 - Added Unicode block-character ASCII banner with Tokyo Night blue→purple→cyan gradient for `--version` TTY output (skipped when piped).
 - **Test count:** 489 → 501 (12 new version helper tests)

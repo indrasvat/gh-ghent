@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -357,6 +358,51 @@ func TestEscFromTopLevelIsNoOp(t *testing.T) {
 	}
 }
 
+func TestEscFromCommentsListReturnsToPrevView(t *testing.T) {
+	// Simulate: summary → 'c' → comments list → Esc → back to summary.
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app = sendKey(app, "c")
+	if app.ActiveView() != ViewCommentsList {
+		t.Fatalf("expected ViewCommentsList after 'c', got %v", app.ActiveView())
+	}
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewSummary {
+		t.Errorf("Esc from comments list: expected ViewSummary, got %v", app.ActiveView())
+	}
+}
+
+func TestEscFromChecksListReturnsToPrevView(t *testing.T) {
+	// Simulate: summary → 'k' → checks list → Esc → back to summary.
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app = sendKey(app, "k")
+	if app.ActiveView() != ViewChecksList {
+		t.Fatalf("expected ViewChecksList after 'k', got %v", app.ActiveView())
+	}
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewSummary {
+		t.Errorf("Esc from checks list: expected ViewSummary, got %v", app.ActiveView())
+	}
+}
+
+func TestEscRoundTripFromSummary(t *testing.T) {
+	// Full round-trip: summary → c → esc → summary → k → esc → summary.
+	app := NewApp("owner/repo", 42, ViewSummary)
+
+	// summary → comments → back
+	app = sendKey(app, "c")
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewSummary {
+		t.Fatalf("first round-trip: expected ViewSummary, got %v", app.ActiveView())
+	}
+
+	// summary → checks → back
+	app = sendKey(app, "k")
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewSummary {
+		t.Errorf("second round-trip: expected ViewSummary, got %v", app.ActiveView())
+	}
+}
+
 func TestFormatCount(t *testing.T) {
 	tests := []struct {
 		n     int
@@ -475,7 +521,8 @@ func TestEscFromExpandedReturnsToList(t *testing.T) {
 }
 
 func TestEscFromResolveConfirmingCancelsNotSwitchesView(t *testing.T) {
-	app := NewApp("owner/repo", 42, ViewResolve)
+	// Enter resolve from summary (r key), so prevView = ViewSummary.
+	app := NewApp("owner/repo", 42, ViewSummary)
 	app.SetComments(&domain.CommentsResult{
 		Threads: []domain.ReviewThread{
 			makeThread("PRRT_aaa", "main.go", 10, true),
@@ -483,6 +530,12 @@ func TestEscFromResolveConfirmingCancelsNotSwitchesView(t *testing.T) {
 		UnresolvedCount: 1,
 	})
 	app = sendWindowSize(app, 100, 30)
+
+	// Navigate to resolve via 'r' from summary.
+	app = sendKey(app, "r")
+	if app.ActiveView() != ViewResolve {
+		t.Fatalf("expected ViewResolve after 'r', got %v", app.ActiveView())
+	}
 
 	// Space to select thread.
 	app = sendKey(app, " ")
@@ -501,10 +554,151 @@ func TestEscFromResolveConfirmingCancelsNotSwitchesView(t *testing.T) {
 		t.Errorf("Esc from confirming: expected browsing state, got %d", app.resolve.state)
 	}
 
-	// Esc again (from browsing) should switch back to prevView.
+	// Esc again (from browsing) should switch back to summary.
 	app = sendSpecialKey(app, tea.KeyEscape)
-	if app.ActiveView() == ViewResolve {
-		t.Error("Esc from browsing should switch away from resolve")
+	if app.ActiveView() != ViewSummary {
+		t.Errorf("Esc from browsing: expected ViewSummary, got %v", app.ActiveView())
+	}
+}
+
+func TestSetAsyncFetchMarksLoading(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app.SetAsyncFetch(
+		func() (*domain.CommentsResult, error) { return nil, nil },
+		func() (*domain.ChecksResult, error) { return nil, nil },
+		func() ([]domain.Review, error) { return nil, nil },
+	)
+	if !app.commentsLoading || !app.checksLoading || !app.reviewsLoading {
+		t.Error("expected all loading flags to be true after SetAsyncFetch")
+	}
+	if !app.isLoading() {
+		t.Error("expected isLoading() to be true")
+	}
+	if !app.summary.loading {
+		t.Error("expected summary.loading to be true")
+	}
+}
+
+func TestAsyncInitReturnsCommands(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app.SetAsyncFetch(
+		func() (*domain.CommentsResult, error) {
+			return &domain.CommentsResult{UnresolvedCount: 3}, nil
+		},
+		func() (*domain.ChecksResult, error) {
+			return &domain.ChecksResult{PassCount: 5}, nil
+		},
+		func() ([]domain.Review, error) {
+			return []domain.Review{{Author: "alice", State: domain.ReviewApproved}}, nil
+		},
+	)
+
+	cmd := app.Init()
+	if cmd == nil {
+		t.Fatal("expected Init() to return a command for async fetches")
+	}
+}
+
+func TestAsyncLoadedMsgUpdatesData(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app.commentsLoading = true
+	app.checksLoading = true
+	app.reviewsLoading = true
+	app.summary.loading = true
+	app = sendWindowSize(app, 80, 24)
+
+	// Simulate commentsLoadedMsg.
+	model, _ := app.Update(commentsLoadedMsg{
+		result: &domain.CommentsResult{UnresolvedCount: 2},
+	})
+	app = model.(App)
+	if app.commentsLoading {
+		t.Error("commentsLoading should be false after commentsLoadedMsg")
+	}
+	if app.comments == nil || app.comments.UnresolvedCount != 2 {
+		t.Error("comments data not set after commentsLoadedMsg")
+	}
+
+	// Simulate checksLoadedMsg.
+	model, _ = app.Update(checksLoadedMsg{
+		result: &domain.ChecksResult{PassCount: 4},
+	})
+	app = model.(App)
+	if app.checksLoading {
+		t.Error("checksLoading should be false after checksLoadedMsg")
+	}
+	if app.checks == nil || app.checks.PassCount != 4 {
+		t.Error("checks data not set after checksLoadedMsg")
+	}
+
+	// Simulate reviewsLoadedMsg.
+	model, _ = app.Update(reviewsLoadedMsg{
+		reviews: []domain.Review{{Author: "bob", State: domain.ReviewApproved}},
+	})
+	app = model.(App)
+	if app.reviewsLoading {
+		t.Error("reviewsLoading should be false after reviewsLoadedMsg")
+	}
+	if len(app.reviews) != 1 || app.reviews[0].Author != "bob" {
+		t.Error("reviews data not set after reviewsLoadedMsg")
+	}
+	if app.isLoading() {
+		t.Error("expected isLoading() to be false after all data loaded")
+	}
+	if app.summary.loading {
+		t.Error("expected summary.loading to be false after all data loaded")
+	}
+}
+
+func TestAsyncLoadErrorIsRecorded(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app.commentsLoading = true
+	app.summary.loading = true
+
+	model, _ := app.Update(commentsLoadedMsg{
+		err: fmt.Errorf("network error"),
+	})
+	app = model.(App)
+	if len(app.loadErrors) == 0 {
+		t.Fatal("expected load error to be recorded")
+	}
+	if !strings.Contains(app.loadErrors[0], "network error") {
+		t.Errorf("expected error message to contain 'network error', got %q", app.loadErrors[0])
+	}
+}
+
+func TestAsyncLoadErrorSetsHasErrors(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app.commentsLoading = true
+	app.checksLoading = true
+	app.reviewsLoading = true
+	app.summary.loading = true
+	app = sendWindowSize(app, 80, 24)
+
+	// Comments error → hasErrors.
+	model, _ := app.Update(commentsLoadedMsg{err: fmt.Errorf("fail")})
+	app = model.(App)
+	if !app.summary.hasErrors {
+		t.Error("summary.hasErrors should be true after comments load error")
+	}
+
+	// Checks error → hasErrors stays true.
+	model, _ = app.Update(checksLoadedMsg{err: fmt.Errorf("fail")})
+	app = model.(App)
+	if !app.summary.hasErrors {
+		t.Error("summary.hasErrors should remain true after checks load error")
+	}
+
+	// Reviews error → hasErrors stays true.
+	model, _ = app.Update(reviewsLoadedMsg{err: fmt.Errorf("fail")})
+	app = model.(App)
+	if !app.summary.hasErrors {
+		t.Error("summary.hasErrors should remain true after reviews load error")
+	}
+
+	// Merge readiness should be false despite no data blocking it otherwise.
+	if app.summary.isMergeReady() {
+		t.Error("isMergeReady() should return false when hasErrors is true")
 	}
 }
 

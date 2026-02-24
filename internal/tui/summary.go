@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -13,20 +14,75 @@ import (
 // summaryModel renders the dashboard overview with KPI cards, section
 // previews, and merge readiness badge.
 type summaryModel struct {
-	comments *domain.CommentsResult
-	checks   *domain.ChecksResult
-	reviews  []domain.Review
-	width    int
-	height   int
+	comments     *domain.CommentsResult
+	checks       *domain.ChecksResult
+	reviews      []domain.Review
+	width        int
+	height       int
+	scrollOffset int
+	maxScroll    int  // cached max scroll offset, updated on data/size change
+	loading      bool // true while async data is being fetched
+	hasErrors    bool // true if any core fetch failed — blocks merge readiness
 }
 
 func (m *summaryModel) setSize(width, height int) {
 	m.width = width
 	m.height = height
+	m.recomputeMaxScroll()
+}
+
+// scrollDown moves the viewport down by one line, clamped to maxScroll.
+func (m *summaryModel) scrollDown() {
+	if m.scrollOffset < m.maxScroll {
+		m.scrollOffset++
+	}
+}
+
+// scrollUp moves the viewport up by one line.
+func (m *summaryModel) scrollUp() {
+	if m.scrollOffset > 0 {
+		m.scrollOffset--
+	}
+}
+
+// recomputeMaxScroll recalculates the maximum scroll offset based on content
+// and viewport size. Called on data or size changes so scrollDown can clamp
+// on a pointer receiver (unlike View which uses a value receiver).
+func (m *summaryModel) recomputeMaxScroll() {
+	if m.width == 0 || m.height == 0 {
+		m.maxScroll = 0
+		return
+	}
+	content := m.renderContent()
+	totalLines := strings.Count(content, "\n") + 1
+	m.maxScroll = max(totalLines-m.height, 0)
+	if m.scrollOffset > m.maxScroll {
+		m.scrollOffset = m.maxScroll
+	}
+}
+
+// renderContent builds the full dashboard content string (used by both View and recomputeMaxScroll).
+func (m summaryModel) renderContent() string {
+	if m.loading && m.comments == nil && m.checks == nil && m.reviews == nil {
+		return ""
+	}
+
+	var sections []string
+	sections = append(sections, m.renderKPICards())
+	sections = append(sections, "")
+	sections = append(sections, m.renderThreadsSection())
+	sections = append(sections, "")
+	sections = append(sections, m.renderChecksSection())
+	sections = append(sections, "")
+	sections = append(sections, m.renderApprovalsSection())
+	return strings.Join(sections, "\n")
 }
 
 // isMergeReady mirrors the CLI's IsMergeReady logic.
 func (m summaryModel) isMergeReady() bool {
+	if m.hasErrors {
+		return false
+	}
 	if m.comments != nil && m.comments.UnresolvedCount > 0 {
 		return false
 	}
@@ -56,6 +112,11 @@ func (m summaryModel) View() string {
 		return ""
 	}
 
+	// Show loading state while data is being fetched.
+	if m.loading && m.comments == nil && m.checks == nil && m.reviews == nil {
+		return m.renderLoadingView()
+	}
+
 	var sections []string
 
 	// ── KPI cards row ────────────────────────────────────
@@ -74,13 +135,34 @@ func (m summaryModel) View() string {
 	sections = append(sections, m.renderApprovalsSection())
 
 	content := strings.Join(sections, "\n")
+	allLines := strings.Split(content, "\n")
+	totalLines := len(allLines)
+
+	// Apply scroll: slice to visible window (clamping is done in scrollDown/scrollUp).
+	startLine := min(m.scrollOffset, max(totalLines-1, 0))
+	endLine := min(startLine+m.height, totalLines)
+	visibleLines := allLines[startLine:endLine]
 
 	// Pad to fill content height.
+	if len(visibleLines) < m.height {
+		for range m.height - len(visibleLines) {
+			visibleLines = append(visibleLines, "")
+		}
+	}
+
+	return strings.Join(visibleLines, "\n")
+}
+
+// renderLoadingView shows a loading message while data is being fetched.
+func (m summaryModel) renderLoadingView() string {
+	loading := dimStyle.Render("  Loading PR data...")
+
+	// Pad to fill content area height.
+	content := loading
 	lineCount := strings.Count(content, "\n") + 1
 	if lineCount < m.height {
 		content += strings.Repeat("\n", m.height-lineCount)
 	}
-
 	return content
 }
 
@@ -315,6 +397,9 @@ func checkNames(checks []domain.CheckRun, failed bool) string {
 
 // ── Section: Approvals ───────────────────────────────────────────
 
+// maxReviewsShow is the maximum number of reviews displayed in the summary.
+const maxReviewsShow = 5
+
 func (m summaryModel) renderApprovalsSection() string {
 	headerDot := lipgloss.NewStyle().
 		Foreground(lipgloss.Color(string(styles.Yellow))).Render("●")
@@ -341,10 +426,20 @@ func (m summaryModel) renderApprovalsSection() string {
 		return header + "\n" + dimStyle.Render("   No reviews yet")
 	}
 
+	// Sort by priority: CHANGES_REQUESTED > APPROVED > rest (most actionable first).
+	sorted := make([]domain.Review, len(m.reviews))
+	copy(sorted, m.reviews)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return reviewPriority(sorted[i].State) < reviewPriority(sorted[j].State)
+	})
+
 	var lines []string
 	lines = append(lines, header)
 
-	for _, r := range m.reviews {
+	for i, r := range sorted {
+		if i >= maxReviewsShow {
+			break
+		}
 		icon, stateText := reviewIcon(r.State)
 		author := styles.Author.Render("@" + r.Author)
 		timeAgo := dimStyle.Render(formatTimeAgo(r.SubmittedAt))
@@ -353,7 +448,26 @@ func (m summaryModel) renderApprovalsSection() string {
 		lines = append(lines, line)
 	}
 
+	if len(sorted) > maxReviewsShow {
+		more := fmt.Sprintf("   ... and %d more", len(sorted)-maxReviewsShow)
+		lines = append(lines, dimStyle.Render(more))
+	}
+
 	return strings.Join(lines, "\n")
+}
+
+// reviewPriority returns a sort key — lower values sort first.
+func reviewPriority(state domain.ReviewState) int {
+	switch state {
+	case domain.ReviewChangesRequested:
+		return 0
+	case domain.ReviewApproved:
+		return 1
+	case domain.ReviewCommented:
+		return 2
+	default:
+		return 3
+	}
 }
 
 // reviewIcon returns the icon and styled state text for a review.

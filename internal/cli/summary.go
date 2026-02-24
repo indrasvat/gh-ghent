@@ -53,7 +53,35 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			ctx := cmd.Context()
 			client := GitHubClient()
 
-			// Parallel fetch using errgroup.
+			// TTY → launch TUI immediately with async fetch (P2: instant startup).
+			if Flags.IsTTY {
+				repoStr := owner + "/" + repo
+				sinceFilter := Flags.Since // capture for closures
+				return launchTUI(tui.ViewSummary,
+					withRepo(repoStr), withPR(Flags.PR),
+					withAsyncFetch(
+						func() (*domain.CommentsResult, error) {
+							result, err := client.FetchThreads(ctx, owner, repo, Flags.PR)
+							if err == nil {
+								FilterThreadsBySince(result, sinceFilter)
+							}
+							return result, err
+						},
+						func() (*domain.ChecksResult, error) {
+							result, err := client.FetchChecks(ctx, owner, repo, Flags.PR)
+							if err == nil {
+								FilterChecksBySince(result, sinceFilter)
+							}
+							return result, err
+						},
+						func() ([]domain.Review, error) {
+							return client.FetchReviews(ctx, owner, repo, Flags.PR)
+						},
+					),
+				)
+			}
+
+			// Non-TTY / pipe mode: block until all data is fetched.
 			g, ctx := errgroup.WithContext(ctx)
 
 			var threads *domain.CommentsResult
@@ -98,15 +126,6 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			// Apply --since filter (no-op if not set).
 			FilterThreadsBySince(threads, Flags.Since)
 			FilterChecksBySince(checks, Flags.Since)
-
-			// TTY → launch TUI; non-TTY / --no-tui → pipe mode.
-			if Flags.IsTTY {
-				repoStr := owner + "/" + repo
-				return launchTUI(tui.ViewSummary,
-					withRepo(repoStr), withPR(Flags.PR),
-					withComments(threads), withChecks(checks), withReviews(reviews),
-				)
-			}
 
 			// Merge readiness logic. If review fetch failed, not merge-ready.
 			mergeReady := !reviewFetchFailed && IsMergeReady(threads, checks, reviews)
