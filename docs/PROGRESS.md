@@ -7,10 +7,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 7: Distribution & Ecosystem — COMPLETE |
-| **Current Task** | Task 7.1 DONE. Agent Skill created. |
+| **Current Phase** | Phase 8: Polish & DX |
+| **Current Task** | Task 8.1 DONE. Styled help & version output. |
 | **Blocker** | None |
-| **Last Action** | Agent Skill (skill/SKILL.md + 5 supporting files) verified against real CLI output. |
+| **Last Action** | Custom Cobra templates with Tokyo Night styling, TTY-aware graceful degradation. |
 | **Last Updated** | 2026-02-24 |
 
 ## How to Resume
@@ -78,11 +78,20 @@
 
 > **Milestone: Distribution complete** — Agent Skill installable via `npx skills add indrasvat/gh-ghent`
 
+### Phase 8: Polish & DX
+- [x] Task 8.1: Styled help & version output → `docs/tasks/031-styled-help-version.md`
+
 ## Blockers
 
 (None currently)
 
 ## Session Log
+
+### 2026-02-24 (Phase 8: Polish — Task 8.1 Styled Help & Version)
+- **Task 8.1 (Styled Help & Version):** Custom Cobra templates with Tokyo Night lipgloss styling for `--version`, `--help` (root + all 5 subcommands). TTY-aware: full color in terminal, clean plain text when piped. Created `internal/cli/help.go` with template functions, added `ShortCommit()`/`ShortDate()` to version package.
+- **Test count:** 489 → 501 (12 new version helper tests)
+- **L4:** 8/8 iterm2-driver tests pass. Screenshots in `.claude/screenshots/ghent_help_*.png`.
+- Also fixed false positive in `pre-task-done-gate.sh` hook (matched prose "DONE" in session protocols).
 
 ### 2026-02-24 (Phase 7: Distribution — Task 7.1 Agent Skill)
 - **Task 7.1 (Agent Skill):** Created `skill/` directory with 6 files (1,088 total lines):

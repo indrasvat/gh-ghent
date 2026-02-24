@@ -47,7 +47,7 @@ for AI agents. Works wherever gh is authenticated — zero config.
 
   # Watch CI until done, fail-fast on failure
   gh ghent checks --pr 42 --watch`,
-		Version: version.String(),
+		Version: version.Version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Root().PersistentFlags()
 
@@ -131,6 +131,9 @@ for AI agents. Works wherever gh is authenticated — zero config.
 		newReplyCmd(),
 		newSummaryCmd(),
 	)
+
+	// Styled help/version output (Tokyo Night theme, TTY-aware).
+	setupHelp(cmd)
 
 	return cmd
 }

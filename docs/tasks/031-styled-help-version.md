@@ -1,7 +1,7 @@
 # Task 8.1: Styled Help & Version Output
 
 - **Phase:** 8 (Polish & DX)
-- **Status:** TODO
+- **Status:** DONE
 - **Depends on:** None (all feature tasks complete)
 - **Blocks:** None
 - **L4 Visual:** Required (styled terminal output — verify with iterm2-driver screenshots)
@@ -323,6 +323,26 @@ Custom Cobra templates with lipgloss-styled help text and version
 display. TTY-aware: full Tokyo Night colors in terminal, clean plain
 text when piped. Consistent with TUI aesthetic.
 ```
+
+## Visual Test Results
+
+L4 iterm2-driver tests: **8/8 PASS** (2026-02-24)
+
+```
+✓ make install: PASS
+✓ Root help lists subcommands: PASS — 5/5 found
+✓ Comments help: PASS — Flags and examples present
+✓ checks help: PASS — Contains --watch
+✓ resolve help: PASS — Contains --thread
+✓ reply help: PASS — Contains --body
+✓ summary help: PASS — Contains --format
+✓ gh ghent --version: PASS
+```
+
+Screenshots:
+- `.claude/screenshots/ghent_help_root.png`
+- `.claude/screenshots/ghent_help_comments.png`
+- `.claude/screenshots/ghent_help_version.png`
 
 ## Session Protocol
 

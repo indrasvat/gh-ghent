@@ -180,7 +180,8 @@ async def run_test(connection):
     await session.async_send_text("gh ghent --version 2>&1; echo VERSION_DONE\n")
     await asyncio.sleep(3.0)
 
-    if await verify_screen_contains(session, "ghent version", "version output"):
+    # Version output: styled TTY shows "ghent v0.x.y", pipe shows "ghent v0.x.y (commit: ...)"
+    if await verify_screen_contains(session, "ghent v", "version output"):
         log_result("gh ghent --version", "PASS")
     else:
         log_result("gh ghent --version", "FAIL", "Version string not found")
