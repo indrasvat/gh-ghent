@@ -7,6 +7,8 @@ set -eo pipefail
 TAG="${1:-dev}"
 COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")"
 BUILD_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+# Asset naming: gh-ghent_{tag}_{os}-{arch}{ext} (matches gh extension install convention)
+EXT_NAME="gh-ghent"
 
 MODULE="github.com/indrasvat/gh-ghent"
 LDFLAGS="-s -w"
@@ -34,7 +36,7 @@ for platform in "${platforms[@]}"; do
     echo "Building ${goos}/${goarch}..."
     CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \
         go build -trimpath -ldflags="${LDFLAGS}" \
-        -o "dist/${goos}-${goarch}${ext}" ./cmd/ghent
+        -o "dist/${EXT_NAME}_${TAG}_${goos}-${goarch}${ext}" ./cmd/ghent
 done
 
 echo "Build complete."
