@@ -1,0 +1,53 @@
+{
+  "total_count": 4,
+  "check_runs": [
+    {
+      "id": 100001,
+      "name": "Lint",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-02-20T10:00:00Z",
+      "completed_at": "2026-02-20T10:02:30Z",
+      "html_url": "https://github.com/owner/repo/runs/100001",
+      "output": {
+        "annotations_count": 2
+      }
+    },
+    {
+      "id": 100002,
+      "name": "Test",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-02-20T10:00:00Z",
+      "completed_at": "2026-02-20T10:05:00Z",
+      "html_url": "https://github.com/owner/repo/runs/100002",
+      "output": {
+        "annotations_count": 0
+      }
+    },
+    {
+      "id": 100003,
+      "name": "Build",
+      "status": "in_progress",
+      "conclusion": null,
+      "started_at": "2026-02-20T10:00:00Z",
+      "completed_at": null,
+      "html_url": "https://github.com/owner/repo/runs/100003",
+      "output": {
+        "annotations_count": 0
+      }
+    },
+    {
+      "id": 100004,
+      "name": "Security Scan",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-02-20T10:00:00Z",
+      "completed_at": "2026-02-20T10:00:05Z",
+      "html_url": "https://github.com/owner/repo/runs/100004",
+      "output": {
+        "annotations_count": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "totalCount": 4,
+          "nodes": [
+            {
+              "id": "PRRT_thread4",
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "internal/handler/handler.go",
+              "line": 99,
+              "startLine": 95,
+              "viewerCanResolve": true,
+              "viewerCanUnresolve": false,
+              "viewerCanReply": true,
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "PRRC_comment4",
+                    "databaseId": 1005,
+                    "body": "This endpoint needs rate limiting",
+                    "author": { "login": "reviewer2" },
+                    "path": "internal/handler/handler.go",
+                    "diffHunk": "@@ -90,6 +90,12 @@\n func handleRequest() {",
+                    "createdAt": "2026-02-20T14:00:00Z",
+                    "url": "https://github.com/owner/repo/pull/42#discussion_r1005"
+                  }
+                ]
+              }
+            }
+          ],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": "cursor_def"
+          }
+        }
+      }
+    }
+  }
+}

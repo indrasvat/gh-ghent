@@ -1,0 +1,21 @@
+2025-01-15T10:30:00.0000000Z Current runner version: '2.321.0'
+2025-01-15T10:30:00.1234567Z Prepare workflow directory
+2025-01-15T10:30:01.0000000Z Prepare all required actions
+2025-01-15T10:30:02.0000000Z Getting action download info
+2025-01-15T10:30:03.0000000Z Download action repository 'actions/checkout@v4'
+2025-01-15T10:30:05.0000000Z ##[group]Run actions/checkout@v4
+2025-01-15T10:30:05.1000000Z with:
+2025-01-15T10:30:05.2000000Z   repository: owner/repo
+2025-01-15T10:30:05.3000000Z   ref: refs/pull/42/merge
+2025-01-15T10:30:06.0000000Z ##[endgroup]
+2025-01-15T10:30:10.0000000Z ##[group]Run go test ./...
+2025-01-15T10:30:10.1000000Z go test ./...
+2025-01-15T10:30:10.2000000Z ##[endgroup]
+2025-01-15T10:30:15.0000000Z ok  	github.com/owner/repo/internal/utils	0.245s
+2025-01-15T10:30:16.0000000Z ok  	github.com/owner/repo/internal/config	0.312s
+2025-01-15T10:30:20.0000000Z --- FAIL: TestParseConfig (0.00s)
+2025-01-15T10:30:20.1000000Z     config_test.go:42: expected "production", got "development"
+2025-01-15T10:30:20.2000000Z --- FAIL: TestValidateInput (0.01s)
+2025-01-15T10:30:20.3000000Z     validate_test.go:15: validation should have returned error for empty input
+2025-01-15T10:30:21.0000000Z FAIL	github.com/owner/repo/internal/handler	0.523s
+2025-01-15T10:30:21.1000000Z ##[error]Process completed with exit code 1.

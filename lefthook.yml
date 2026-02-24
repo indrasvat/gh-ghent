@@ -1,0 +1,8 @@
+# lefthook.yml - Git hooks configuration
+# Runs full CI on pre-push only (not pre-commit for speed)
+
+pre-push:
+  commands:
+    ci:
+      run: make ci
+      fail_text: "CI failed! Fix issues before pushing."

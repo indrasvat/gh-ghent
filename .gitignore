@@ -25,8 +25,35 @@ go.work
 go.work.sum
 
 # env file
-.env
+*.env
+
+*.log
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+
+# Build output
+bin/
+dist/
+gh-ghent
+
+# Coverage
+coverage/
+
+# Debug
+__debug_bin*
+
+# Temp
+*.tmp
+*~
+*.swp
+Thumbs.db
+
+.local/
+.codemap/
+.claude/screenshots/
+.claude/worktrees/
+.agent/
+
+.DS_Store

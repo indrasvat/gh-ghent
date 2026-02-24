@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ghent — TUI Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'Sora', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+    /* Page chrome */
+    --page-bg: #0c0e14;
+    --page-surface: #13151e;
+    --page-border: rgba(255, 255, 255, 0.06);
+    --page-text: #c0caf5;
+    --page-dim: #565f89;
+
+    /* Terminal / TUI Theme — Tokyo Night inspired */
+    --term-bg: #1a1b26;
+    --term-surface: #24283b;
+    --term-surface2: #292e42;
+    --term-border: #3b4261;
+    --term-text: #c0caf5;
+    --term-dim: #565f89;
+    --term-bright: #c0caf5;
+
+    /* Semantic colors */
+    --green: #9ece6a;
+    --green-dim: #41a6b5;
+    --red: #f7768e;
+    --blue: #7aa2f7;
+    --purple: #bb9af7;
+    --cyan: #7dcfff;
+    --orange: #ff9e64;
+    --yellow: #e0af68;
+    --magenta: #bb9af7;
+    --teal: #73daca;
+    --pink: #ff007c;
+
+    /* Lipgloss-style border */
+    --lip-border: #3b4261;
+    --lip-border-focus: #7aa2f7;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --page-bg: #f0f0f5;
+      --page-surface: #ffffff;
+      --page-border: rgba(0, 0, 0, 0.08);
+      --page-text: #1a1b26;
+      --page-dim: #6b7089;
+
+      --term-bg: #1a1b26;
+      --term-surface: #24283b;
+      --term-surface2: #292e42;
+      --term-border: #3b4261;
+      --term-text: #c0caf5;
+      --term-dim: #565f89;
+      --term-bright: #c0caf5;
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--page-bg);
+    background-image:
+      radial-gradient(ellipse at 15% 0%, rgba(122, 162, 247, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 85% 100%, rgba(187, 154, 247, 0.06) 0%, transparent 40%);
+    color: var(--page-text);
+    font-family: var(--font-body);
+    padding: 40px;
+    min-height: 100vh;
+  }
+
+  /* ============ LAYOUT ============ */
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  h1 {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -1.2px;
+    margin-bottom: 6px;
+  }
+  h1 .accent {
+    background: linear-gradient(135deg, var(--blue), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .subtitle {
+    color: var(--page-dim);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    margin-bottom: 32px;
+  }
+
+  /* ============ THEME SWATCHES ============ */
+  .theme-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+    padding: 16px 20px;
+    background: var(--page-surface);
+    border: 1px solid var(--page-border);
+    border-radius: 10px;
+  }
+  .swatch {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--page-dim);
+  }
+  .swatch-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  /* ============ VIEW TABS ============ */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+  .tab {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 8px 18px;
+    border-radius: 8px 8px 0 0;
+    border: 1px solid var(--page-border);
+    border-bottom: none;
+    background: var(--page-surface);
+    color: var(--page-dim);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .tab:hover { color: var(--page-text); background: rgba(122, 162, 247, 0.06); }
+  .tab.active {
+    color: var(--blue);
+    background: var(--term-bg);
+    border-color: var(--lip-border);
+  }
+
+  /* ============ TERMINAL WINDOW ============ */
+  .term-window {
+    display: none;
+    background: var(--term-bg);
+    border: 1px solid var(--lip-border);
+    border-radius: 0 12px 12px 12px;
+    overflow: hidden;
+    margin-bottom: 28px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+  }
+  .term-window.active { display: block; }
+
+  .term-titlebar {
+    background: var(--term-surface);
+    border-bottom: 1px solid var(--lip-border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .term-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .term-dot--red { background: #f7768e; }
+  .term-dot--yellow { background: #e0af68; }
+  .term-dot--green { background: #9ece6a; }
+  .term-title {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--term-dim);
+    margin-left: 8px;
+    flex: 1;
+    text-align: center;
+  }
+
+  .term-body {
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--term-text);
+    min-height: 400px;
+  }
+
+  /* ============ TUI COMPONENTS ============ */
+
+  /* Command prompt line */
+  .prompt-line {
+    padding: 12px 18px;
+    background: var(--term-surface);
+    border-bottom: 1px solid rgba(59, 66, 97, 0.5);
+    color: var(--term-dim);
+  }
+  .prompt-line .prompt { color: var(--green); }
+  .prompt-line .cmd { color: var(--term-text); }
+  .prompt-line .flag { color: var(--cyan); }
+  .prompt-line .val { color: var(--orange); }
+
+  /* Status bar (top) */
+  .status-bar {
+    padding: 8px 18px;
+    background: var(--term-surface2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid rgba(59, 66, 97, 0.5);
+    font-size: 12px;
+  }
+  .status-left { display: flex; align-items: center; gap: 12px; }
+  .status-right { display: flex; align-items: center; gap: 12px; color: var(--term-dim); }
+  .status-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+  .status-badge--blue { background: rgba(122, 162, 247, 0.15); color: var(--blue); }
+  .status-badge--green { background: rgba(158, 206, 106, 0.15); color: var(--green); }
+  .status-badge--red { background: rgba(247, 118, 142, 0.15); color: var(--red); }
+  .status-badge--yellow { background: rgba(224, 175, 104, 0.15); color: var(--yellow); }
+  .status-badge--purple { background: rgba(187, 154, 247, 0.15); color: var(--purple); }
+
+  /* Lipgloss border box */
+  .lip-box {
+    margin: 8px 16px;
+    border: 1px solid var(--lip-border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .lip-box--focus { border-color: var(--lip-border-focus); }
+  .lip-box-title {
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--term-surface);
+    border-bottom: 1px solid var(--lip-border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Content area */
+  .tui-content {
+    padding: 14px 18px;
+  }
+
+  /* Thread/item row */
+  .thread-row {
+    padding: 10px 14px;
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: 10px;
+    border-bottom: 1px solid rgba(59, 66, 97, 0.3);
+    transition: background 0.1s;
+  }
+  .thread-row:last-child { border-bottom: none; }
+  .thread-row--selected { background: rgba(122, 162, 247, 0.08); }
+  .thread-row--cursor { background: rgba(122, 162, 247, 0.12); border-left: 2px solid var(--blue); padding-left: 12px; }
+
+  .thread-marker { color: var(--term-dim); text-align: center; padding-top: 2px; }
+  .thread-marker--cursor { color: var(--blue); }
+  .thread-marker--check { color: var(--green); }
+  .thread-marker--selected { color: var(--purple); }
+
+  .thread-file { color: var(--cyan); font-size: 12px; }
+  .thread-line { color: var(--yellow); }
+  .thread-author { color: var(--orange); }
+  .thread-body { color: var(--term-text); font-size: 12px; margin-top: 4px; }
+  .thread-body-dim { color: var(--term-dim); }
+  .thread-meta { color: var(--term-dim); font-size: 11px; margin-top: 3px; }
+  .thread-id { color: var(--purple); font-size: 10px; }
+
+  /* Expanded comment view */
+  .comment-expanded {
+    margin: 8px 0 4px 0;
+    padding: 10px 14px;
+    background: var(--term-surface);
+    border-radius: 4px;
+    border-left: 2px solid var(--blue);
+  }
+  .comment-expanded .diff-hunk {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .diff-add { color: var(--green); }
+  .diff-del { color: var(--red); }
+  .diff-ctx { color: var(--term-dim); }
+  .diff-hdr { color: var(--purple); }
+
+  /* Check run row */
+  .check-row {
+    padding: 8px 14px;
+    display: grid;
+    grid-template-columns: 18px 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    border-bottom: 1px solid rgba(59, 66, 97, 0.3);
+  }
+  .check-row:last-child { border-bottom: none; }
+  .check-icon { text-align: center; font-size: 13px; }
+  .check-icon--pass { color: var(--green); }
+  .check-icon--fail { color: var(--red); }
+  .check-icon--pending { color: var(--yellow); }
+  .check-icon--running { color: var(--blue); }
+  .check-name { color: var(--term-text); font-size: 12px; }
+  .check-time { color: var(--term-dim); font-size: 11px; text-align: right; }
+  .check-status { font-size: 11px; text-align: right; }
+
+  /* Log view */
+  .log-view {
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.2);
+    font-size: 11px;
+    line-height: 1.6;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .log-error { color: var(--red); }
+  .log-warn { color: var(--yellow); }
+  .log-info { color: var(--term-dim); }
+  .log-step { color: var(--blue); font-weight: 600; }
+  .log-line-num { color: var(--term-dim); display: inline-block; width: 36px; text-align: right; margin-right: 8px; user-select: none; }
+
+  /* Annotation row */
+  .annotation-row {
+    padding: 6px 14px;
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    gap: 8px;
+    font-size: 11px;
+    border-bottom: 1px solid rgba(59, 66, 97, 0.2);
+  }
+  .annotation-row:last-child { border-bottom: none; }
+  .annotation-icon { color: var(--red); text-align: center; }
+  .annotation-file { color: var(--cyan); }
+  .annotation-msg { color: var(--term-text); margin-top: 2px; }
+
+  /* Help bar (bottom) */
+  .help-bar {
+    padding: 8px 18px;
+    background: var(--term-surface);
+    border-top: 1px solid rgba(59, 66, 97, 0.5);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    font-size: 11px;
+  }
+  .help-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .help-key kbd {
+    background: var(--term-surface2);
+    color: var(--blue);
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--lip-border);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .help-key span { color: var(--term-dim); }
+
+  /* Spinner */
+  @keyframes spin {
+    0% { content: '⠋'; }
+    10% { content: '⠙'; }
+    20% { content: '⠹'; }
+    30% { content: '⠸'; }
+    40% { content: '⠼'; }
+    50% { content: '⠴'; }
+    60% { content: '⠦'; }
+    70% { content: '⠧'; }
+    80% { content: '⠇'; }
+    90% { content: '⠏'; }
+  }
+  .spinner::before {
+    content: '⠋';
+    animation: spin 0.8s steps(10) infinite;
+    color: var(--blue);
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .progress-track {
+    width: 120px;
+    height: 4px;
+    background: var(--term-surface2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+  .progress-fill--green { background: var(--green); }
+  .progress-fill--blue { background: var(--blue); }
+
+  /* Resolve checkbox */
+  .checkbox { display: inline-block; width: 16px; text-align: center; }
+  .checkbox--on { color: var(--green); }
+  .checkbox--off { color: var(--term-dim); }
+
+  /* Summary section card */
+  .summary-section {
+    margin: 8px 16px;
+    padding: 12px 16px;
+    border: 1px solid var(--lip-border);
+    border-radius: 6px;
+  }
+  .summary-section--green { border-color: rgba(158, 206, 106, 0.3); }
+  .summary-section--red { border-color: rgba(247, 118, 142, 0.3); }
+  .summary-section--yellow { border-color: rgba(224, 175, 104, 0.3); }
+  .summary-section--blue { border-color: rgba(122, 162, 247, 0.3); }
+
+  .summary-header {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .summary-count {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+  .summary-label { font-size: 10px; color: var(--term-dim); text-transform: uppercase; letter-spacing: 1px; }
+
+  /* Section annotations */
+  .mockup-note {
+    margin-top: 12px;
+    margin-bottom: 28px;
+    padding: 14px 18px;
+    background: var(--page-surface);
+    border: 1px solid var(--page-border);
+    border-left: 3px solid var(--purple);
+    border-radius: 0 8px 8px 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--page-dim);
+  }
+  .mockup-note strong { color: var(--page-text); }
+  .mockup-note code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: rgba(122, 162, 247, 0.1);
+    color: var(--blue);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* Animation */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .anim {
+    animation: fadeUp 0.4s ease-out both;
+    animation-delay: calc(var(--i, 0) * 0.06s);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+    }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    body { padding: 16px; }
+    h1 { font-size: 24px; }
+    .term-body { font-size: 11px; }
+    .thread-row { grid-template-columns: 16px 1fr; }
+    .check-row { grid-template-columns: 16px 1fr auto; }
+    .check-time { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <h1 class="anim" style="--i:0"><span class="accent">ghent</span> TUI Mockups</h1>
+  <p class="subtitle anim" style="--i:1">bubbletea + lipgloss &middot; terminal interface design</p>
+
+  <!-- Theme Palette -->
+  <div class="theme-bar anim" style="--i:2">
+    <div class="swatch"><div class="swatch-color" style="background:#1a1b26"></div> bg</div>
+    <div class="swatch"><div class="swatch-color" style="background:#24283b"></div> surface</div>
+    <div class="swatch"><div class="swatch-color" style="background:#c0caf5"></div> text</div>
+    <div class="swatch"><div class="swatch-color" style="background:#9ece6a"></div> green</div>
+    <div class="swatch"><div class="swatch-color" style="background:#f7768e"></div> red</div>
+    <div class="swatch"><div class="swatch-color" style="background:#7aa2f7"></div> blue</div>
+    <div class="swatch"><div class="swatch-color" style="background:#bb9af7"></div> purple</div>
+    <div class="swatch"><div class="swatch-color" style="background:#7dcfff"></div> cyan</div>
+    <div class="swatch"><div class="swatch-color" style="background:#ff9e64"></div> orange</div>
+    <div class="swatch"><div class="swatch-color" style="background:#e0af68"></div> yellow</div>
+    <div class="swatch"><div class="swatch-color" style="background:#73daca"></div> teal</div>
+    <div class="swatch"><div class="swatch-color" style="background:#565f89"></div> dim</div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs anim" style="--i:3">
+    <div class="tab active" onclick="showView('comments')">comments</div>
+    <div class="tab" onclick="showView('comments-expanded')">comments (expanded)</div>
+    <div class="tab" onclick="showView('checks')">checks</div>
+    <div class="tab" onclick="showView('checks-watch')">checks --watch</div>
+    <div class="tab" onclick="showView('resolve')">resolve</div>
+    <div class="tab" onclick="showView('summary')">summary</div>
+    <div class="tab" onclick="showView('pipe')">pipe mode</div>
+  </div>
+
+  <!-- ============ VIEW 1: COMMENTS ============ -->
+  <div id="view-comments" class="term-window active anim" style="--i:4">
+    <div class="term-titlebar">
+      <div class="term-dot term-dot--red"></div>
+      <div class="term-dot term-dot--yellow"></div>
+      <div class="term-dot term-dot--green"></div>
+      <div class="term-title">gh ghent comments</div>
+    </div>
+    <div class="term-body">
+
+      <div class="prompt-line">
+        <span class="prompt">$</span> <span class="cmd">gh ghent comments</span> <span class="flag">--pr</span> <span class="val">42</span>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-left">
+          <span style="color:var(--blue); font-weight:600;">ghent</span>
+          <span style="color:var(--term-dim)">indrasvat/my-project</span>
+          <span class="status-badge status-badge--purple">PR #42</span>
+        </div>
+        <div class="status-right">
+          <span class="status-badge status-badge--red">5 unresolved</span>
+          <span style="color:var(--term-dim)">2 resolved</span>
+        </div>
+      </div>
+
+      <div style="padding:6px 0;">
+        <!-- Thread 1 - cursor -->
+        <div class="thread-row thread-row--cursor">
+          <div class="thread-marker thread-marker--cursor">&#9654;</div>
+          <div>
+            <div>
+              <span class="thread-file">internal/api/graphql.go</span><span class="thread-line">:47</span>
+              <span style="color:var(--term-dim); margin:0 6px;">&#8212;</span>
+              <span class="thread-author">@reviewer1</span>
+              <span class="thread-meta" style="display:inline; margin:0 0 0 6px;">2h ago</span>
+            </div>
+            <div class="thread-body">This error should be wrapped with context. Use <span style="color:var(--cyan)">fmt.Errorf("fetch threads: %w", err)</span> so callers can identify the source.</div>
+            <div class="thread-meta"><span class="thread-id">PRRT_kwDON1...</span> &middot; 2 replies</div>
+          </div>
+        </div>
+
+        <!-- Thread 2 -->
+        <div class="thread-row">
+          <div class="thread-marker">&nbsp;</div>
+          <div>
+            <div>
+              <span class="thread-file">internal/cli/comments.go</span><span class="thread-line">:123</span>
+              <span style="color:var(--term-dim); margin:0 6px;">&#8212;</span>
+              <span class="thread-author">@reviewer2</span>
+              <span class="thread-meta" style="display:inline; margin:0 0 0 6px;">3h ago</span>
+            </div>
+            <div class="thread-body">Consider using a <span style="color:var(--cyan)">tableprinter</span> here for consistent output formatting. The raw fmt.Printf won't handle TTY detection.</div>
+            <div class="thread-meta"><span class="thread-id">PRRT_kwDON2...</span> &middot; 1 reply</div>
+          </div>
+        </div>
+
+        <!-- Thread 3 -->
+        <div class="thread-row">
+          <div class="thread-marker">&nbsp;</div>
+          <div>
+            <div>
+              <span class="thread-file">internal/format/markdown.go</span><span class="thread-line">:89</span>
+              <span style="color:var(--term-dim); margin:0 6px;">&#8212;</span>
+              <span class="thread-author">@reviewer1</span>
+              <span class="thread-meta" style="display:inline; margin:0 0 0 6px;">3h ago</span>
+            </div>
+            <div class="thread-body">Nit: This function is exported but only used internally. Make it lowercase.</div>
+            <div class="thread-meta"><span class="thread-id">PRRT_kwDON3...</span></div>
+          </div>
+        </div>
+
+        <!-- Thread 4 -->
+        <div class="thread-row">
+          <div class="thread-marker">&nbsp;</div>
+          <div>
+            <div>
+              <span class="thread-file">internal/watch/poller.go</span><span class="thread-line">:31-45</span>
+              <span style="color:var(--term-dim); margin:0 6px;">&#8212;</span>
+              <span class="thread-author">@reviewer3</span>
+              <span class="thread-meta" style="display:inline; margin:0 0 0 6px;">5h ago</span>
+            </div>
+            <div class="thread-body">The polling interval should be configurable. Hardcoding 10s may be too aggressive for rate-limited environments. Add a <span style="color:var(--cyan)">--interval</span> flag.</div>
+            <div class="thread-meta"><span class="thread-id">PRRT_kwDON4...</span> &middot; 3 replies</div>
+          </div>
+        </div>
+
+        <!-- Thread 5 -->
+        <div class="thread-row">
+          <div class="thread-marker">&nbsp;</div>
+          <div>
+            <div>
+              <span class="thread-file">cmd/gh-ghent/main.go</span><span class="thread-line">:12</span>
+              <span style="color:var(--term-dim); margin:0 6px;">&#8212;</span>
+              <span class="thread-author">@reviewer2</span>
+              <span class="thread-meta" style="display:inline; margin:0 0 0 6px;">6h ago</span>
+            </div>
+            <div class="thread-body">Add version info display. Use the ldflags pattern from our other projects.</div>
+            <div class="thread-meta"><span class="thread-id">PRRT_kwDON5...</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="help-bar">
+        <div class="help-key"><kbd>j/k</kbd> <span>navigate</span></div>
+        <div class="help-key"><kbd>enter</kbd> <span>expand</span></div>
+        <div class="help-key"><kbd>r</kbd> <span>resolve</span></div>
+        <div class="help-key"><kbd>y</kbd> <span>copy ID</span></div>
+        <div class="help-key"><kbd>o</kbd> <span>open in browser</span></div>
+        <div class="help-key"><kbd>f</kbd> <span>filter by file</span></div>
+        <div class="help-key"><kbd>tab</kbd> <span>checks view</span></div>
+        <div class="help-key"><kbd>q</kbd> <span>quit</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup-note" id="note-comments">
+    <strong>Comments View.</strong> Default TUI mode for <code>gh ghent comments</code>.
+    Uses a <code>bubbles/list</code> with custom item delegate for thread rendering.
+    Lipgloss styles handle file paths (cyan), line numbers (yellow), authors (orange).
+    The cursor row uses a left-border accent (Lipgloss <code>Border(lipgloss.ThickBorder()).BorderLeft(true)</code>).
+    Navigation with j/k (vim) or arrow keys. Thread count in status bar via Lipgloss badges.
+  </div>
+
+  <!-- ============ VIEW 2: COMMENTS EXPANDED ============ -->
+  <div id="view-comments-expanded" class="term-window">
+    <div class="term-titlebar">
+      <div class="term-dot term-dot--red"></div>
+      <div class="term-dot term-dot--yellow"></div>
+      <div class="term-dot term-dot--green"></div>
+      <div class="term-title">gh ghent comments (expanded thread)</div>
+    </div>
+    <div class="term-body">
+
+      <div class="prompt-line">
+        <span class="prompt">$</span> <span class="cmd">gh ghent comments</span> <span class="flag">--pr</span> <span class="val">42</span>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-left">
+          <span style="color:var(--blue); font-weight:600;">ghent</span>
+          <span style="color:var(--term-dim)">indrasvat/my-project</span>
+          <span class="status-badge status-badge--purple">PR #42</span>
+        </div>
+        <div class="status-right">
+          <span class="status-badge status-badge--red">5 unresolved</span>
+          <span style="color:var(--term-dim)">Thread 1 of 5</span>
+        </div>
+      </div>
+
+      <div style="padding: 10px 16px;">
+        <!-- Expanded thread header -->
+        <div style="margin-bottom:8px;">
+          <span class="thread-file" style="font-size:14px;">internal/api/graphql.go</span><span class="thread-line" style="font-size:14px;">:47</span>
+          <span class="thread-id" style="margin-left:10px;">PRRT_kwDON1...</span>
+        </div>
+
+        <!-- Diff hunk -->
+        <div class="comment-expanded" style="border-left-color:var(--term-dim); margin-left:0;">
+          <div style="font-size:11px; color:var(--term-dim); margin-bottom:6px;">Diff context:</div>
+          <div class="diff-hunk">
+<span class="diff-hdr">@@ -44,8 +44,10 @@</span>
+<span class="diff-ctx"> func (c *Client) FetchThreads(owner, repo string, pr int) ([]Thread, error) {</span>
+<span class="diff-ctx">     var query threadQuery</span>
+<span class="diff-ctx">     err := c.gql.Query("PullRequestThreads", &amp;query, variables)</span>
+<span class="diff-del">-    if err != nil {</span>
+<span class="diff-del">-        return nil, err</span>
+<span class="diff-add">+    if err != nil {</span>
+<span class="diff-add">+        return nil, fmt.Errorf("fetch threads: %w", err)</span>
+<span class="diff-ctx">     }</span>
+<span class="diff-ctx">     return mapThreads(query), nil</span>
+          </div>
+        </div>
+
+        <!-- Comment 1 -->
+        <div class="comment-expanded" style="margin-top:12px;">
+          <div style="margin-bottom:6px;">
+            <span class="thread-author">@reviewer1</span>
+            <span class="thread-meta" style="display:inline; margin-left:8px;">2 hours ago</span>
+          </div>
+          <div style="color:var(--term-text); font-size:12px; line-height:1.6;">
+            This error should be wrapped with context. Use <span style="color:var(--cyan)">fmt.Errorf("fetch threads: %w", err)</span> so callers can identify the source.
+          </div>
+        </div>
+
+        <!-- Reply 1 -->
+        <div class="comment-expanded" style="margin-left:20px; margin-top:8px; border-left-color:var(--green);">
+          <div style="margin-bottom:6px;">
+            <span style="color:var(--teal);">@you</span>
+            <span class="thread-meta" style="display:inline; margin-left:8px;">1 hour ago</span>
+          </div>
+          <div style="color:var(--term-text); font-size:12px; line-height:1.6;">
+            Good catch, fixed! I've updated the error wrapping pattern across all API methods while I was at it.
+          </div>
+        </div>
+
+        <!-- Reply 2 -->
+        <div class="comment-expanded" style="margin-left:20px; margin-top:8px; border-left-color:var(--orange);">
+          <div style="margin-bottom:6px;">
+            <span class="thread-author">@reviewer1</span>
+            <span class="thread-meta" style="display:inline; margin-left:8px;">45 min ago</span>
+          </div>
+          <div style="color:var(--term-text); font-size:12px; line-height:1.6;">
+            Looks great, thanks!
+          </div>
+        </div>
+      </div>
+
+      <div class="help-bar">
+        <div class="help-key"><kbd>esc</kbd> <span>back to list</span></div>
+        <div class="help-key"><kbd>j/k</kbd> <span>scroll</span></div>
+        <div class="help-key"><kbd>r</kbd> <span>resolve thread</span></div>
+        <div class="help-key"><kbd>y</kbd> <span>copy ID</span></div>
+        <div class="help-key"><kbd>o</kbd> <span>open in browser</span></div>
+        <div class="help-key"><kbd>n/p</kbd> <span>next/prev thread</span></div>
+        <div class="help-key"><kbd>q</kbd> <span>quit</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup-note" id="note-comments-expanded" style="display:none;">
+    <strong>Expanded Thread View.</strong> Pressing <code>enter</code> on a thread opens this detail view using a <code>bubbles/viewport</code> for scrollable content.
+    Shows the full diff hunk context, all comments with nested replies (indented with <code>lipgloss.Padding</code>),
+    and author coloring (own comments in teal, reviewers in orange). The diff uses standard green/red coloring.
+    Border colors on the left indicate comment ownership. Scroll with j/k or mouse wheel.
+  </div>
+
+  <!-- ============ VIEW 3: CHECKS ============ -->
+  <div id="view-checks" class="term-window">
+    <div class="term-titlebar">
+      <div class="term-dot term-dot--red"></div>
+      <div class="term-dot term-dot--yellow"></div>
+      <div class="term-dot term-dot--green"></div>
+      <div class="term-title">gh ghent checks</div>
+    </div>
+    <div class="term-body">
+
+      <div class="prompt-line">
+        <span class="prompt">$</span> <span class="cmd">gh ghent checks</span> <span class="flag">--pr</span> <span class="val">42</span>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-left">
+          <span style="color:var(--blue); font-weight:600;">ghent</span>
+          <span class="status-badge status-badge--purple">PR #42</span>
+          <span style="color:var(--term-dim)">HEAD: a1b2c3d</span>
+        </div>
+        <div class="status-right">
+          <span class="status-badge status-badge--green">4 passed</span>
+          <span class="status-badge status-badge--red">1 failed</span>
+          <span style="color:var(--term-dim)">5 total</span>
+        </div>
+      </div>
+
+      <div style="padding:6px 0;">
+        <!-- Check: passed -->
+        <div class="check-row">
+          <div class="check-icon check-icon--pass">&#10003;</div>
+          <div class="check-name">build (ubuntu-latest, go-1.26)</div>
+          <div class="check-time">42s</div>
+          <div class="check-status" style="color:var(--green);">passed</div>
+        </div>
+        <div class="check-row">
+          <div class="check-icon check-icon--pass">&#10003;</div>
+          <div class="check-name">build (macos-latest, go-1.26)</div>
+          <div class="check-time">38s</div>
+          <div class="check-status" style="color:var(--green);">passed</div>
+        </div>
+        <div class="check-row">
+          <div class="check-icon check-icon--pass">&#10003;</div>
+          <div class="check-name">test (ubuntu-latest, go-1.26)</div>
+          <div class="check-time">1m 12s</div>
+          <div class="check-status" style="color:var(--green);">passed</div>
+        </div>
+        <!-- Check: failed (expanded) -->
+        <div class="check-row" style="background:rgba(247, 118, 142, 0.06); border-left:2px solid var(--red); padding-left:12px;">
+          <div class="check-icon check-icon--fail">&#10007;</div>
+          <div class="check-name" style="color:var(--red); font-weight:600;">lint (golangci-lint)</div>
+          <div class="check-time">28s</div>
+          <div class="check-status" style="color:var(--red);">failed</div>
+        </div>
+
+        <!-- Lint annotations -->
+        <div style="margin:0 16px 8px 16px; border:1px solid rgba(247,118,142,0.2); border-radius:4px; overflow:hidden;">
+          <div style="padding:6px 12px; background:rgba(247,118,142,0.06); font-size:11px; color:var(--red); font-weight:600; border-bottom:1px solid rgba(247,118,142,0.15);">
+            3 lint errors
+          </div>
+          <div class="annotation-row">
+            <div class="annotation-icon">&#9679;</div>
+            <div>
+              <div><span class="annotation-file">internal/api/rest.go</span><span class="thread-line">:23</span></div>
+              <div class="annotation-msg"><span style="color:var(--yellow)">[errcheck]</span> Error return value of `resp.Body.Close()` is not checked</div>
+            </div>
+          </div>
+          <div class="annotation-row">
+            <div class="annotation-icon">&#9679;</div>
+            <div>
+              <div><span class="annotation-file">internal/cli/root.go</span><span class="thread-line">:67</span></div>
+              <div class="annotation-msg"><span style="color:var(--yellow)">[unused]</span> func `formatDuration` is unused</div>
+            </div>
+          </div>
+          <div class="annotation-row">
+            <div class="annotation-icon">&#9679;</div>
+            <div>
+              <div><span class="annotation-file">internal/watch/poller.go</span><span class="thread-line">:15</span></div>
+              <div class="annotation-msg"><span style="color:var(--yellow)">[govet]</span> printf: `fmt.Sprintf` call has arguments but no formatting directives</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Check: passed -->
+        <div class="check-row">
+          <div class="check-icon check-icon--pass">&#10003;</div>
+          <div class="check-name">security (govulncheck)</div>
+          <div class="check-time">15s</div>
+          <div class="check-status" style="color:var(--green);">passed</div>
+        </div>
+      </div>
+
+      <div class="help-bar">
+        <div class="help-key"><kbd>j/k</kbd> <span>navigate</span></div>
+        <div class="help-key"><kbd>enter</kbd> <span>view logs</span></div>
+        <div class="help-key"><kbd>l</kbd> <span>view full log</span></div>
+        <div class="help-key"><kbd>o</kbd> <span>open in browser</span></div>
+        <div class="help-key"><kbd>R</kbd> <span>re-run failed</span></div>
+        <div class="help-key"><kbd>tab</kbd> <span>comments view</span></div>
+        <div class="help-key"><kbd>q</kbd> <span>quit</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup-note" id="note-checks" style="display:none;">
+    <strong>Checks View.</strong> Shows all CI check runs for the PR head commit.
+    Pass/fail icons use Lipgloss <code>Foreground()</code> coloring.
+    Failed checks auto-expand to show lint annotations with file:line references.
+    The annotation panel uses a Lipgloss bordered box with red tint background.
+    Check names, duration, and status are laid out with <code>lipgloss.JoinHorizontal()</code>.
+    Log viewing (enter key) switches to a <code>bubbles/viewport</code> with the failing step's log.
+  </div>
+
+  <!-- ============ VIEW 4: CHECKS --watch ============ -->
+  <div id="view-checks-watch" class="term-window">
+    <div class="term-titlebar">
+      <div class="term-dot term-dot--red"></div>
+      <div class="term-dot term-dot--yellow"></div>
+      <div class="term-dot term-dot--green"></div>
+      <div class="term-title">gh ghent checks --watch</div>
+    </div>
+    <div class="term-body">
+
+      <div class="prompt-line">
+        <span class="prompt">$</span> <span class="cmd">gh ghent checks</span> <span class="flag">--watch</span> <span class="flag">--pr</span> <span class="val">42</span>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-left">
+          <span style="color:var(--blue); font-weight:600;">ghent</span>
+          <span class="status-badge status-badge--yellow"><span class="spinner"></span>&nbsp; watching</span>
+          <span style="color:var(--term-dim)">poll: 10s</span>
+        </div>
+        <div class="status-right">
+          <div class="progress-bar">
+            <div class="progress-track">
+              <div class="progress-fill progress-fill--blue" style="width:60%;"></div>
+            </div>
+            <span style="color:var(--blue)">3/5</span>
+          </div>
+          <span style="color:var(--term-dim)">elapsed: 2m 34s</span>
+        </div>
+      </div>
+
+      <div style="padding:6px 0;">
+        <div class="check-row">
+          <div class="check-icon check-icon--pass">&#10003;</div>
+          <div class="check-name">build (ubuntu-latest, go-1.26)</div>
+          <div class="check-time">42s</div>
+          <div class="check-status" style="color:var(--green);">passed</div>
+        </div>
+        <div class="check-row">
+          <div class="check-icon check-icon--pass">&#10003;</div>
+          <div class="check-name">build (macos-latest, go-1.26)</div>
+          <div class="check-time">38s</div>
+          <div class="check-status" style="color:var(--green);">passed</div>
+        </div>
+        <div class="check-row">
+          <div class="check-icon check-icon--pass">&#10003;</div>
+          <div class="check-name">test (ubuntu-latest, go-1.26)</div>
+          <div class="check-time">1m 12s</div>
+          <div class="check-status" style="color:var(--green);">passed</div>
+        </div>
+        <!-- Running -->
+        <div class="check-row" style="background:rgba(122, 162, 247, 0.06);">
+          <div class="check-icon check-icon--running"><span class="spinner"></span></div>
+          <div class="check-name" style="color:var(--blue);">lint (golangci-lint)</div>
+          <div class="check-time" style="color:var(--blue);">running...</div>
+          <div class="check-status" style="color:var(--blue);">in_progress</div>
+        </div>
+        <!-- Pending -->
+        <div class="check-row">
+          <div class="check-icon check-icon--pending">&#9675;</div>
+          <div class="check-name" style="color:var(--term-dim);">security (govulncheck)</div>
+          <div class="check-time" style="color:var(--term-dim);">&#8212;</div>
+          <div class="check-status" style="color:var(--yellow);">queued</div>
+        </div>
+      </div>
+
+      <!-- Watch log -->
+      <div style="margin:4px 16px; border:1px solid var(--lip-border); border-radius:4px; overflow:hidden;">
+        <div style="padding:6px 12px; background:var(--term-surface); font-size:11px; color:var(--term-dim); border-bottom:1px solid rgba(59,66,97,0.5); display:flex; align-items:center; gap:8px;">
+          <span style="color:var(--blue);">Event Log</span>
+          <span style="flex:1"></span>
+          <span>last updated 3s ago</span>
+        </div>
+        <div style="padding:8px 12px; font-size:11px; line-height:1.6;">
+          <div><span style="color:var(--term-dim)">14:32:05</span> <span style="color:var(--green);">&#10003;</span> build (ubuntu-latest) passed in 42s</div>
+          <div><span style="color:var(--term-dim)">14:32:08</span> <span style="color:var(--green);">&#10003;</span> build (macos-latest) passed in 38s</div>
+          <div><span style="color:var(--term-dim)">14:32:45</span> <span style="color:var(--green);">&#10003;</span> test (ubuntu-latest) passed in 1m 12s</div>
+          <div><span style="color:var(--term-dim)">14:32:47</span> <span style="color:var(--blue);"><span class="spinner"></span></span> lint (golangci-lint) started</div>
+        </div>
+      </div>
+
+      <div class="help-bar">
+        <div class="help-key"><kbd>j/k</kbd> <span>navigate</span></div>
+        <div class="help-key"><kbd>enter</kbd> <span>view logs</span></div>
+        <div class="help-key"><kbd>ctrl+c</kbd> <span>stop watching</span></div>
+        <div class="help-key"><kbd>q</kbd> <span>quit</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup-note" id="note-checks-watch" style="display:none;">
+    <strong>Watch Mode.</strong> <code>--watch</code> activates a <code>bubbles/spinner</code> and polls every 10s.
+    The progress bar (built with Lipgloss <code>lipgloss.NewStyle().Width(n).Background()</code>) shows completion.
+    An event log at the bottom shows real-time updates using a <code>bubbles/viewport</code>.
+    <strong>Fail-fast behavior:</strong> If any check fails, it immediately expands to show the error details
+    and stops waiting (exit code 2). If all checks eventually pass, exits cleanly (exit code 0).
+    The spinner uses the <code>bubbles/spinner.Dot</code> style for the "braille dots" animation.
+  </div>
+
+  <!-- ============ VIEW 5: RESOLVE ============ -->
+  <div id="view-resolve" class="term-window">
+    <div class="term-titlebar">
+      <div class="term-dot term-dot--red"></div>
+      <div class="term-dot term-dot--yellow"></div>
+      <div class="term-dot term-dot--green"></div>
+      <div class="term-title">gh ghent resolve</div>
+    </div>
+    <div class="term-body">
+
+      <div class="prompt-line">
+        <span class="prompt">$</span> <span class="cmd">gh ghent resolve</span> <span class="flag">--pr</span> <span class="val">42</span>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-left">
+          <span style="color:var(--blue); font-weight:600;">ghent</span>
+          <span style="color:var(--term-dim)">resolve mode</span>
+          <span class="status-badge status-badge--purple">PR #42</span>
+        </div>
+        <div class="status-right">
+          <span style="color:var(--green)">2 selected</span>
+          <span style="color:var(--term-dim)">of 5 unresolved</span>
+        </div>
+      </div>
+
+      <div style="padding:6px 0;">
+        <!-- Thread 1 - selected -->
+        <div class="thread-row thread-row--selected">
+          <div class="thread-marker"><span class="checkbox checkbox--on">[&#10003;]</span></div>
+          <div>
+            <div>
+              <span class="thread-file">internal/api/graphql.go</span><span class="thread-line">:47</span>
+              <span style="color:var(--term-dim); margin:0 6px;">&#8212;</span>
+              <span class="thread-author">@reviewer1</span>
+            </div>
+            <div class="thread-body">This error should be wrapped with context...</div>
+          </div>
+        </div>
+
+        <!-- Thread 2 - cursor + selected -->
+        <div class="thread-row thread-row--cursor" style="background:rgba(158, 206, 106, 0.08);">
+          <div class="thread-marker"><span class="checkbox checkbox--on">[&#10003;]</span></div>
+          <div>
+            <div>
+              <span class="thread-file">internal/cli/comments.go</span><span class="thread-line">:123</span>
+              <span style="color:var(--term-dim); margin:0 6px;">&#8212;</span>
+              <span class="thread-author">@reviewer2</span>
+            </div>
+            <div class="thread-body">Consider using a tableprinter here...</div>
+          </div>
+        </div>
+
+        <!-- Thread 3 - not selected -->
+        <div class="thread-row">
+          <div class="thread-marker"><span class="checkbox checkbox--off">[ ]</span></div>
+          <div>
+            <div>
+              <span class="thread-file">internal/format/markdown.go</span><span class="thread-line">:89</span>
+              <span style="color:var(--term-dim); margin:0 6px;">&#8212;</span>
+              <span class="thread-author">@reviewer1</span>
+            </div>
+            <div class="thread-body">Nit: This function is exported but only used internally...</div>
+          </div>
+        </div>
+
+        <!-- Thread 4 - not selected -->
+        <div class="thread-row">
+          <div class="thread-marker"><span class="checkbox checkbox--off">[ ]</span></div>
+          <div>
+            <div>
+              <span class="thread-file">internal/watch/poller.go</span><span class="thread-line">:31-45</span>
+              <span style="color:var(--term-dim); margin:0 6px;">&#8212;</span>
+              <span class="thread-author">@reviewer3</span>
+            </div>
+            <div class="thread-body">The polling interval should be configurable...</div>
+          </div>
+        </div>
+
+        <!-- Thread 5 - not selected -->
+        <div class="thread-row">
+          <div class="thread-marker"><span class="checkbox checkbox--off">[ ]</span></div>
+          <div>
+            <div>
+              <span class="thread-file">cmd/gh-ghent/main.go</span><span class="thread-line">:12</span>
+              <span style="color:var(--term-dim); margin:0 6px;">&#8212;</span>
+              <span class="thread-author">@reviewer2</span>
+            </div>
+            <div class="thread-body">Add version info display...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confirmation bar -->
+      <div style="margin:6px 16px 10px; padding:10px 14px; background:rgba(158, 206, 106, 0.08); border:1px solid rgba(158, 206, 106, 0.2); border-radius:6px; font-size:12px; display:flex; align-items:center; gap:12px;">
+        <span style="color:var(--green); font-weight:600;">Resolve 2 threads?</span>
+        <span style="color:var(--term-dim);">Press</span>
+        <kbd style="background:var(--term-surface2); color:var(--green); padding:2px 8px; border-radius:3px; border:1px solid var(--lip-border); font-size:11px;">enter</kbd>
+        <span style="color:var(--term-dim);">to confirm</span>
+      </div>
+
+      <div class="help-bar">
+        <div class="help-key"><kbd>j/k</kbd> <span>navigate</span></div>
+        <div class="help-key"><kbd>space</kbd> <span>toggle select</span></div>
+        <div class="help-key"><kbd>a</kbd> <span>select all</span></div>
+        <div class="help-key"><kbd>enter</kbd> <span>resolve selected</span></div>
+        <div class="help-key"><kbd>esc</kbd> <span>cancel</span></div>
+        <div class="help-key"><kbd>q</kbd> <span>quit</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup-note" id="note-resolve" style="display:none;">
+    <strong>Resolve Mode.</strong> Multi-select interface using <code>bubbles/list</code> with custom checkboxes.
+    Space toggles individual threads, <code>a</code> selects all. Selected items show a green checkmark
+    (Lipgloss <code>Foreground(green)</code>). A confirmation bar appears at the bottom when items are selected.
+    Enter triggers the <code>resolveReviewThread</code> GraphQL mutation for each selected thread.
+    Shows a spinner during resolution, then updates the list with resolved status.
+    <strong>For non-interactive use:</strong> <code>gh ghent resolve --thread-id PRRT_xxx</code> or <code>gh ghent resolve --all</code> bypass TUI.
+  </div>
+
+  <!-- ============ VIEW 6: SUMMARY ============ -->
+  <div id="view-summary" class="term-window">
+    <div class="term-titlebar">
+      <div class="term-dot term-dot--red"></div>
+      <div class="term-dot term-dot--yellow"></div>
+      <div class="term-dot term-dot--green"></div>
+      <div class="term-title">gh ghent summary</div>
+    </div>
+    <div class="term-body">
+
+      <div class="prompt-line">
+        <span class="prompt">$</span> <span class="cmd">gh ghent summary</span> <span class="flag">--pr</span> <span class="val">42</span>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-left">
+          <span style="color:var(--blue); font-weight:600;">ghent</span>
+          <span style="color:var(--term-dim)">indrasvat/my-project</span>
+          <span class="status-badge status-badge--purple">PR #42</span>
+          <span style="color:var(--term-dim)">feat: add GraphQL client</span>
+        </div>
+        <div class="status-right">
+          <span class="status-badge status-badge--red">NOT READY</span>
+        </div>
+      </div>
+
+      <!-- Summary cards row -->
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; padding:12px 16px;">
+        <div class="summary-section summary-section--red" style="text-align:center; margin:0;">
+          <div class="summary-count" style="color:var(--red);">5</div>
+          <div class="summary-label">Unresolved</div>
+        </div>
+        <div class="summary-section summary-section--green" style="text-align:center; margin:0;">
+          <div class="summary-count" style="color:var(--green);">4</div>
+          <div class="summary-label">Checks Passed</div>
+        </div>
+        <div class="summary-section summary-section--red" style="text-align:center; margin:0;">
+          <div class="summary-count" style="color:var(--red);">1</div>
+          <div class="summary-label">Checks Failed</div>
+        </div>
+        <div class="summary-section summary-section--yellow" style="text-align:center; margin:0;">
+          <div class="summary-count" style="color:var(--yellow);">1</div>
+          <div class="summary-label">Approval</div>
+        </div>
+      </div>
+
+      <!-- Review Threads section -->
+      <div class="lip-box">
+        <div class="lip-box-title">
+          <span style="color:var(--red);">&#9679;</span>
+          <span style="color:var(--term-text);">Review Threads</span>
+          <span style="color:var(--term-dim); margin-left:auto;">5 unresolved &middot; 2 resolved</span>
+        </div>
+        <div style="padding:4px 0;">
+          <div style="padding:5px 14px; font-size:11px; display:grid; grid-template-columns:1fr auto; gap:8px;">
+            <span><span class="thread-file">internal/api/graphql.go</span><span class="thread-line">:47</span> <span style="color:var(--term-dim)">&#8212;</span> <span class="thread-author">@reviewer1</span></span>
+            <span style="color:var(--term-dim);">2h ago</span>
+          </div>
+          <div style="padding:5px 14px; font-size:11px; display:grid; grid-template-columns:1fr auto; gap:8px;">
+            <span><span class="thread-file">internal/cli/comments.go</span><span class="thread-line">:123</span> <span style="color:var(--term-dim)">&#8212;</span> <span class="thread-author">@reviewer2</span></span>
+            <span style="color:var(--term-dim);">3h ago</span>
+          </div>
+          <div style="padding:5px 14px; font-size:11px; color:var(--term-dim);">
+            ... and 3 more
+          </div>
+        </div>
+      </div>
+
+      <!-- Checks section -->
+      <div class="lip-box">
+        <div class="lip-box-title">
+          <span style="color:var(--red);">&#9679;</span>
+          <span style="color:var(--term-text);">CI Checks</span>
+          <span style="color:var(--term-dim); margin-left:auto;">4 passed &middot; 1 failed</span>
+        </div>
+        <div style="padding:4px 0;">
+          <div style="padding:5px 14px; font-size:11px; display:flex; align-items:center; gap:8px;">
+            <span style="color:var(--red);">&#10007;</span>
+            <span style="color:var(--red);">lint (golangci-lint)</span>
+            <span style="color:var(--term-dim); margin-left:auto;">3 errors</span>
+          </div>
+          <div style="padding:2px 14px 2px 36px; font-size:10px;">
+            <div style="color:var(--term-dim);"><span class="annotation-file">internal/api/rest.go</span><span class="thread-line">:23</span> <span style="color:var(--yellow)">[errcheck]</span></div>
+            <div style="color:var(--term-dim);"><span class="annotation-file">internal/cli/root.go</span><span class="thread-line">:67</span> <span style="color:var(--yellow)">[unused]</span></div>
+            <div style="color:var(--term-dim);"><span class="annotation-file">internal/watch/poller.go</span><span class="thread-line">:15</span> <span style="color:var(--yellow)">[govet]</span></div>
+          </div>
+          <div style="padding:5px 14px; font-size:11px; display:flex; align-items:center; gap:8px; color:var(--green);">
+            <span>&#10003;</span>
+            <span>4 checks passed</span>
+            <span style="color:var(--term-dim); font-size:10px;">(build x2, test, security)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Approval section -->
+      <div class="lip-box" style="margin-bottom:10px;">
+        <div class="lip-box-title">
+          <span style="color:var(--yellow);">&#9679;</span>
+          <span style="color:var(--term-text);">Approvals</span>
+          <span style="color:var(--term-dim); margin-left:auto;">1 of 2 required</span>
+        </div>
+        <div style="padding:6px 14px; font-size:11px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color:var(--green);">&#10003;</span>
+            <span class="thread-author">@reviewer1</span>
+            <span style="color:var(--green);">approved</span>
+            <span style="color:var(--term-dim); margin-left:auto;">2h ago</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+            <span style="color:var(--yellow);">&#9675;</span>
+            <span class="thread-author">@reviewer3</span>
+            <span style="color:var(--yellow);">changes requested</span>
+            <span style="color:var(--term-dim); margin-left:auto;">5h ago</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="help-bar">
+        <div class="help-key"><kbd>c</kbd> <span>comments</span></div>
+        <div class="help-key"><kbd>k</kbd> <span>checks</span></div>
+        <div class="help-key"><kbd>r</kbd> <span>resolve</span></div>
+        <div class="help-key"><kbd>o</kbd> <span>open PR</span></div>
+        <div class="help-key"><kbd>R</kbd> <span>re-run failed</span></div>
+        <div class="help-key"><kbd>q</kbd> <span>quit</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup-note" id="note-summary" style="display:none;">
+    <strong>Summary View.</strong> A dashboard overview of the entire PR state.
+    Uses Lipgloss <code>JoinVertical</code> to stack sections and <code>JoinHorizontal</code> for the KPI cards row.
+    Each section is a Lipgloss bordered box with a title bar.
+    The "NOT READY" / "READY" badge in the status bar reflects the merge readiness check.
+    Compact mode: shows top items per section with "... and N more" truncation.
+    Quick-nav keys (c/k/r) jump directly to the full views for each section.
+    This is the ideal single-command view for AI agents using <code>gh ghent summary --format json</code>.
+  </div>
+
+  <!-- ============ VIEW 7: PIPE MODE ============ -->
+  <div id="view-pipe" class="term-window">
+    <div class="term-titlebar">
+      <div class="term-dot term-dot--red"></div>
+      <div class="term-dot term-dot--yellow"></div>
+      <div class="term-dot term-dot--green"></div>
+      <div class="term-title">gh ghent (non-TTY / pipe mode)</div>
+    </div>
+    <div class="term-body">
+
+      <div class="prompt-line">
+        <span class="prompt">$</span> <span class="cmd">gh ghent comments</span> <span class="flag">--format</span> <span class="val">md</span> <span class="flag">--pr</span> <span class="val">42</span>
+      </div>
+
+      <div style="padding:14px 18px; font-size:12px; line-height:1.7;">
+        <div style="color:var(--blue); font-weight:600; font-size:14px; margin-bottom:8px;">## Unresolved Review Threads (5)</div>
+        <div style="margin-bottom:16px; color:var(--term-dim);">PR #42 &middot; indrasvat/my-project &middot; feat: add GraphQL client</div>
+
+        <div style="margin-bottom:14px;">
+          <div style="color:var(--purple); font-weight:600;">### internal/api/graphql.go:47</div>
+          <div style="color:var(--orange); margin-top:2px;">**@reviewer1** (2h ago)</div>
+          <div style="color:var(--term-text); margin-top:4px;">This error should be wrapped with context. Use `fmt.Errorf("fetch threads: %w", err)` so callers can identify the source.</div>
+          <div style="color:var(--term-dim); margin-top:2px; font-size:10px;">Thread ID: PRRT_kwDON1... &middot; 2 replies</div>
+        </div>
+
+        <div style="border-top:1px solid var(--lip-border); margin:0 0 14px;"></div>
+
+        <div style="margin-bottom:14px;">
+          <div style="color:var(--purple); font-weight:600;">### internal/cli/comments.go:123</div>
+          <div style="color:var(--orange); margin-top:2px;">**@reviewer2** (3h ago)</div>
+          <div style="color:var(--term-text); margin-top:4px;">Consider using a `tableprinter` here for consistent output formatting.</div>
+          <div style="color:var(--term-dim); margin-top:2px; font-size:10px;">Thread ID: PRRT_kwDON2... &middot; 1 reply</div>
+        </div>
+
+        <div style="border-top:1px solid var(--lip-border); margin:0 0 14px;"></div>
+
+        <div style="color:var(--term-dim); font-style:italic;">... 3 more threads</div>
+      </div>
+
+      <div style="border-top:1px solid var(--lip-border);"></div>
+
+      <div class="prompt-line" style="border:none; margin-top:4px;">
+        <span class="prompt">$</span> <span class="cmd">gh ghent comments</span> <span class="flag">--format</span> <span class="val">json</span> <span class="flag">--pr</span> <span class="val">42</span> <span style="color:var(--term-dim)">| jq '.[0]'</span>
+      </div>
+
+      <div style="padding:10px 18px; font-size:11px; line-height:1.6;">
+        <div style="color:var(--term-dim);">{</div>
+        <div style="padding-left:16px;">
+          <span style="color:var(--cyan);">"id"</span><span style="color:var(--term-dim);">:</span> <span style="color:var(--green);">"PRRT_kwDON1..."</span><span style="color:var(--term-dim);">,</span>
+        </div>
+        <div style="padding-left:16px;">
+          <span style="color:var(--cyan);">"path"</span><span style="color:var(--term-dim);">:</span> <span style="color:var(--green);">"internal/api/graphql.go"</span><span style="color:var(--term-dim);">,</span>
+        </div>
+        <div style="padding-left:16px;">
+          <span style="color:var(--cyan);">"line"</span><span style="color:var(--term-dim);">:</span> <span style="color:var(--orange);">47</span><span style="color:var(--term-dim);">,</span>
+        </div>
+        <div style="padding-left:16px;">
+          <span style="color:var(--cyan);">"isResolved"</span><span style="color:var(--term-dim);">:</span> <span style="color:var(--orange);">false</span><span style="color:var(--term-dim);">,</span>
+        </div>
+        <div style="padding-left:16px;">
+          <span style="color:var(--cyan);">"author"</span><span style="color:var(--term-dim);">:</span> <span style="color:var(--green);">"reviewer1"</span><span style="color:var(--term-dim);">,</span>
+        </div>
+        <div style="padding-left:16px;">
+          <span style="color:var(--cyan);">"body"</span><span style="color:var(--term-dim);">:</span> <span style="color:var(--green);">"This error should be wrapped..."</span><span style="color:var(--term-dim);">,</span>
+        </div>
+        <div style="padding-left:16px;">
+          <span style="color:var(--cyan);">"replyCount"</span><span style="color:var(--term-dim);">:</span> <span style="color:var(--orange);">2</span>
+        </div>
+        <div style="color:var(--term-dim);">}</div>
+      </div>
+
+      <div style="border-top:1px solid var(--lip-border);"></div>
+
+      <div class="prompt-line" style="border:none; margin-top:4px;">
+        <span class="prompt">$</span> <span class="cmd">gh ghent comments</span> <span class="flag">--format</span> <span class="val">xml</span> <span class="flag">--pr</span> <span class="val">42</span>
+      </div>
+
+      <div style="padding:10px 18px; font-size:11px; line-height:1.6;">
+        <div style="color:var(--term-dim);">&lt;<span style="color:var(--blue);">threads</span> <span style="color:var(--cyan);">count</span>=<span style="color:var(--green);">"5"</span> <span style="color:var(--cyan);">pr</span>=<span style="color:var(--green);">"42"</span>&gt;</div>
+        <div style="padding-left:16px; color:var(--term-dim);">&lt;<span style="color:var(--blue);">thread</span> <span style="color:var(--cyan);">id</span>=<span style="color:var(--green);">"PRRT_kwDON1..."</span> <span style="color:var(--cyan);">file</span>=<span style="color:var(--green);">"internal/api/graphql.go"</span> <span style="color:var(--cyan);">line</span>=<span style="color:var(--green);">"47"</span>&gt;</div>
+        <div style="padding-left:32px; color:var(--term-dim);">&lt;<span style="color:var(--blue);">comment</span> <span style="color:var(--cyan);">author</span>=<span style="color:var(--green);">"reviewer1"</span>&gt;</div>
+        <div style="padding-left:48px; color:var(--term-text);">This error should be wrapped with context.</div>
+        <div style="padding-left:32px; color:var(--term-dim);">&lt;/<span style="color:var(--blue);">comment</span>&gt;</div>
+        <div style="padding-left:16px; color:var(--term-dim);">&lt;/<span style="color:var(--blue);">thread</span>&gt;</div>
+        <div style="padding-left:16px; color:var(--term-dim);">...</div>
+        <div style="color:var(--term-dim);">&lt;/<span style="color:var(--blue);">threads</span>&gt;</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="mockup-note" id="note-pipe" style="display:none;">
+    <strong>Pipe / Non-Interactive Mode.</strong> When stdout is not a TTY (piped to file, another command, or AI agent),
+    ghent skips the TUI entirely and outputs directly. Detected via <code>go-gh/v2/pkg/term.FromEnv().IsTerminalOutput()</code>.
+    Three formats: <strong>Markdown</strong> (human-readable, default), <strong>JSON</strong> (machine-parseable, one object per thread),
+    and <strong>XML</strong> (semantic tags with attributes for file/line/author).
+    JSON output is designed for <code>jq</code> piping. XML uses attributes for metadata and element content for the comment body,
+    making it ideal for AI agents that parse XML tags. Thread IDs are always included for programmatic resolution.
+  </div>
+
+</div>
+
+<script>
+  function showView(name) {
+    // Hide all views and notes
+    document.querySelectorAll('.term-window').forEach(function(el) { el.classList.remove('active'); });
+    document.querySelectorAll('.mockup-note').forEach(function(el) { el.style.display = 'none'; });
+    document.querySelectorAll('.tab').forEach(function(el) { el.classList.remove('active'); });
+
+    // Show selected
+    var view = document.getElementById('view-' + name);
+    if (view) view.classList.add('active');
+
+    var note = document.getElementById('note-' + name);
+    if (note) note.style.display = 'block';
+
+    // Mark tab active
+    var tabs = document.querySelectorAll('.tab');
+    tabs.forEach(function(tab) {
+      if (tab.textContent.trim().replace(/\s+/g, '-').toLowerCase().indexOf(name.replace('-', ' ').split(' ')[0]) !== -1) {
+        tab.classList.add('active');
+      }
+    });
+
+    // More reliable tab activation
+    var nameMap = {
+      'comments': 0,
+      'comments-expanded': 1,
+      'checks': 2,
+      'checks-watch': 3,
+      'resolve': 4,
+      'summary': 5,
+      'pipe': 6
+    };
+    if (nameMap[name] !== undefined) {
+      tabs[nameMap[name]].classList.add('active');
+    }
+  }
+
+  // Show first note by default
+  document.getElementById('note-comments').style.display = 'block';
+</script>
+
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "data": {
+    "resolveReviewThread": {
+      "thread": {
+        "id": "PRRT_thread1",
+        "isResolved": true,
+        "path": "internal/api/graphql.go",
+        "line": 47
+      }
+    }
+  }
+}

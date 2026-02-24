@@ -1,0 +1,526 @@
+package tui
+
+import (
+	"strings"
+	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/indrasvat/gh-ghent/internal/domain"
+)
+
+func sendKey(app App, key string) App {
+	model, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)})
+	return model.(App)
+}
+
+func sendSpecialKey(app App, keyType tea.KeyType) App {
+	model, _ := app.Update(tea.KeyMsg{Type: keyType})
+	return model.(App)
+}
+
+func sendWindowSize(app App, w, h int) App {
+	model, _ := app.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	return model.(App)
+}
+
+func TestNewApp(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	if app.ActiveView() != ViewCommentsList {
+		t.Errorf("expected ViewCommentsList, got %v", app.ActiveView())
+	}
+	if app.Width() != 0 || app.Height() != 0 {
+		t.Error("expected zero dimensions before WindowSizeMsg")
+	}
+}
+
+func TestWindowSizeMsg(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app = sendWindowSize(app, 120, 40)
+	if app.Width() != 120 {
+		t.Errorf("expected width 120, got %d", app.Width())
+	}
+	if app.Height() != 40 {
+		t.Errorf("expected height 40, got %d", app.Height())
+	}
+}
+
+func TestWindowSizeMsgPropagatesAllSubModels(t *testing.T) {
+	// When sub-models are added, this test should verify propagation.
+	// For now, verify dimensions are stored on the root model from any view.
+	views := []View{ViewCommentsList, ViewChecksList, ViewResolve, ViewSummary}
+	for _, v := range views {
+		app := NewApp("owner/repo", 42, v)
+		app = sendWindowSize(app, 80, 24)
+		if app.Width() != 80 || app.Height() != 24 {
+			t.Errorf("view %v: expected 80x24, got %dx%d", v, app.Width(), app.Height())
+		}
+	}
+}
+
+func TestTabCyclesViews(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+
+	// Tab: comments → checks
+	app = sendSpecialKey(app, tea.KeyTab)
+	if app.ActiveView() != ViewChecksList {
+		t.Errorf("expected ViewChecksList after Tab, got %v", app.ActiveView())
+	}
+
+	// Tab: checks → comments (wraps)
+	app = sendSpecialKey(app, tea.KeyTab)
+	if app.ActiveView() != ViewCommentsList {
+		t.Errorf("expected ViewCommentsList after second Tab, got %v", app.ActiveView())
+	}
+}
+
+func TestShiftTabCyclesReverse(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+
+	// Shift+Tab: comments → checks (reverse wraps)
+	app = sendSpecialKey(app, tea.KeyShiftTab)
+	if app.ActiveView() != ViewChecksList {
+		t.Errorf("expected ViewChecksList after Shift+Tab, got %v", app.ActiveView())
+	}
+
+	// Shift+Tab: checks → comments
+	app = sendSpecialKey(app, tea.KeyShiftTab)
+	if app.ActiveView() != ViewCommentsList {
+		t.Errorf("expected ViewCommentsList after second Shift+Tab, got %v", app.ActiveView())
+	}
+}
+
+func TestEnterDrillsIntoDetail(t *testing.T) {
+	// Comments list: Enter goes through sub-model → selectThreadMsg.
+	// Need thread data so the sub-model has something to select.
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			{ID: "t1", Path: "file.go", Line: 10, Comments: []domain.Comment{{Author: "alice", Body: "fix this"}}},
+		},
+		UnresolvedCount: 1,
+	})
+	app = sendWindowSize(app, 80, 24)
+
+	// Enter on the comments list sub-model returns a selectThreadMsg cmd.
+	model, cmd := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app = model.(App)
+	if cmd != nil {
+		// Execute the command to get the selectThreadMsg.
+		msg := cmd()
+		model, _ = app.Update(msg)
+		app = model.(App)
+	}
+	if app.ActiveView() != ViewCommentsExpand {
+		t.Errorf("Enter from comments list: expected ViewCommentsExpand, got %v", app.ActiveView())
+	}
+
+	// Checks list: Enter goes through sub-model → selectCheckMsg.
+	app2 := NewApp("owner/repo", 42, ViewChecksList)
+	app2.SetChecks(&domain.ChecksResult{
+		Checks: []domain.CheckRun{
+			{ID: 1, Name: "build", Status: "completed", Conclusion: "success"},
+		},
+		PassCount: 1,
+	})
+	app2 = sendWindowSize(app2, 80, 24)
+	model2, cmd2 := app2.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app2 = model2.(App)
+	if cmd2 != nil {
+		msg2 := cmd2()
+		model2, _ = app2.Update(msg2)
+		app2 = model2.(App)
+	}
+	if app2.ActiveView() != ViewChecksLog {
+		t.Errorf("Enter from checks: expected ViewChecksLog, got %v", app2.ActiveView())
+	}
+}
+
+func TestEscReturnsToList(t *testing.T) {
+	tests := []struct {
+		start    View
+		expected View
+	}{
+		{ViewCommentsExpand, ViewCommentsList},
+		{ViewChecksLog, ViewChecksList},
+	}
+	for _, tt := range tests {
+		app := NewApp("owner/repo", 42, tt.start)
+		app = sendSpecialKey(app, tea.KeyEscape)
+		if app.ActiveView() != tt.expected {
+			t.Errorf("Esc from %v: expected %v, got %v", tt.start, tt.expected, app.ActiveView())
+		}
+	}
+}
+
+func TestQuitSendsQuitCmd(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+	if cmd == nil {
+		t.Error("expected tea.Quit command on 'q', got nil")
+	}
+}
+
+func TestSummaryShortcuts(t *testing.T) {
+	tests := []struct {
+		key      string
+		expected View
+	}{
+		{"c", ViewCommentsList},
+		{"k", ViewChecksList},
+		{"r", ViewResolve},
+	}
+	for _, tt := range tests {
+		app := NewApp("owner/repo", 42, ViewSummary)
+		app = sendKey(app, tt.key)
+		if app.ActiveView() != tt.expected {
+			t.Errorf("key %q from Summary: expected %v, got %v", tt.key, tt.expected, app.ActiveView())
+		}
+	}
+}
+
+func TestEscFromSummaryReturnsToPrevView(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	// Simulate navigating to summary via c from summary... instead, set directly
+	app.activeView = ViewSummary
+	app.prevView = ViewCommentsList
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewCommentsList {
+		t.Errorf("expected ViewCommentsList after Esc from Summary, got %v", app.ActiveView())
+	}
+}
+
+func TestEscFromResolveReturnsToPrevView(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.activeView = ViewResolve
+	app.prevView = ViewChecksList
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewChecksList {
+		t.Errorf("expected ViewChecksList after Esc from Resolve, got %v", app.ActiveView())
+	}
+}
+
+func TestTabFromDetailGoesToNextTopLevel(t *testing.T) {
+	// If you're in comments-expand and press Tab, should go to checks list.
+	// Start directly in CommentsExpand to avoid needing sub-model Enter flow.
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.activeView = ViewCommentsExpand
+	if app.ActiveView() != ViewCommentsExpand {
+		t.Fatalf("expected ViewCommentsExpand, got %v", app.ActiveView())
+	}
+	app = sendSpecialKey(app, tea.KeyTab)
+	if app.ActiveView() != ViewChecksList {
+		t.Errorf("Tab from CommentsExpand: expected ViewChecksList, got %v", app.ActiveView())
+	}
+}
+
+func TestViewRenders(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app = sendWindowSize(app, 80, 24)
+
+	output := app.View()
+	if output == "" {
+		t.Error("expected non-empty View output")
+	}
+	// Status bar should contain "ghent"
+	if !strings.Contains(output, "ghent") {
+		t.Error("missing 'ghent' in status bar")
+	}
+	// Should contain comments list content (empty list message or threads)
+	if !strings.Contains(output, "No review threads") {
+		t.Error("missing empty comments list message")
+	}
+}
+
+func TestViewRendersEmpty(t *testing.T) {
+	// Before WindowSizeMsg, View should return empty (no crash).
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	output := app.View()
+	if output != "" {
+		t.Errorf("expected empty View before WindowSizeMsg, got %q", output)
+	}
+}
+
+func TestStatusBarShowsCommentCounts(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.SetComments(&domain.CommentsResult{
+		UnresolvedCount: 5,
+		ResolvedCount:   2,
+	})
+	app = sendWindowSize(app, 120, 40)
+	output := app.View()
+	if !strings.Contains(output, "5 unresolved") {
+		t.Error("missing unresolved count in status bar")
+	}
+	if !strings.Contains(output, "2 resolved") {
+		t.Error("missing resolved count in status bar")
+	}
+}
+
+func TestStatusBarShowsCheckCounts(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewChecksList)
+	app.SetChecks(&domain.ChecksResult{
+		HeadSHA:   "abc1234567890",
+		PassCount: 4,
+		FailCount: 1,
+	})
+	app = sendWindowSize(app, 120, 40)
+	output := app.View()
+	if !strings.Contains(output, "abc1234") {
+		t.Error("missing HEAD SHA in status bar")
+	}
+	if !strings.Contains(output, "4 passed") {
+		t.Error("missing pass count in status bar")
+	}
+	if !strings.Contains(output, "1 failed") {
+		t.Error("missing fail count in status bar")
+	}
+}
+
+func TestHelpBarChangesPerView(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app = sendWindowSize(app, 120, 40)
+
+	commentsOutput := app.View()
+
+	app = sendSpecialKey(app, tea.KeyTab)
+	checksOutput := app.View()
+
+	// Comments help should contain "expand" (enter → expand)
+	if !strings.Contains(commentsOutput, "expand") {
+		t.Error("missing 'expand' in comments help bar")
+	}
+	// Checks help should contain "view logs"
+	if !strings.Contains(checksOutput, "view logs") {
+		t.Error("missing 'view logs' in checks help bar")
+	}
+}
+
+func TestViewStringValues(t *testing.T) {
+	tests := []struct {
+		view     View
+		expected string
+	}{
+		{ViewCommentsList, "comments"},
+		{ViewCommentsExpand, "comments-expand"},
+		{ViewChecksList, "checks"},
+		{ViewChecksLog, "checks-log"},
+		{ViewResolve, "resolve"},
+		{ViewSummary, "summary"},
+		{ViewWatch, "watch"},
+		{View(99), "unknown"},
+	}
+	for _, tt := range tests {
+		if got := tt.view.String(); got != tt.expected {
+			t.Errorf("View(%d).String() = %q, want %q", tt.view, got, tt.expected)
+		}
+	}
+}
+
+func TestSetData(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+
+	app.SetComments(&domain.CommentsResult{UnresolvedCount: 3})
+	if app.comments == nil || app.comments.UnresolvedCount != 3 {
+		t.Error("SetComments failed")
+	}
+
+	app.SetChecks(&domain.ChecksResult{PassCount: 5})
+	if app.checks == nil || app.checks.PassCount != 5 {
+		t.Error("SetChecks failed")
+	}
+
+	app.SetReviews([]domain.Review{{Author: "alice"}})
+	if len(app.reviews) != 1 || app.reviews[0].Author != "alice" {
+		t.Error("SetReviews failed")
+	}
+}
+
+func TestEnterFromNonListViewIsNoOp(t *testing.T) {
+	// Enter from summary/resolve should not change view.
+	for _, v := range []View{ViewSummary, ViewResolve, ViewWatch} {
+		app := NewApp("owner/repo", 42, v)
+		app = sendSpecialKey(app, tea.KeyEnter)
+		if app.ActiveView() != v {
+			t.Errorf("Enter from %v should be no-op, got %v", v, app.ActiveView())
+		}
+	}
+}
+
+func TestEscFromTopLevelIsNoOp(t *testing.T) {
+	for _, v := range []View{ViewCommentsList, ViewChecksList} {
+		app := NewApp("owner/repo", 42, v)
+		app = sendSpecialKey(app, tea.KeyEscape)
+		if app.ActiveView() != v {
+			t.Errorf("Esc from %v should be no-op, got %v", v, app.ActiveView())
+		}
+	}
+}
+
+func TestFormatCount(t *testing.T) {
+	tests := []struct {
+		n     int
+		label string
+		want  string
+	}{
+		{5, "unresolved", "5 unresolved"},
+		{1, "passed", "1 passed"},
+		{0, "failed", "0 failed"},
+		{12, "checks", "12 checks"},
+	}
+	for _, tt := range tests {
+		got := formatCount(tt.n, tt.label)
+		if got != tt.want {
+			t.Errorf("formatCount(%d, %q) = %q, want %q", tt.n, tt.label, got, tt.want)
+		}
+	}
+}
+
+func TestStatusBarShowsThreadCount(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			{ID: "t1", Path: "a.go", Line: 10, Comments: []domain.Comment{{Author: "alice", Body: "fix"}}},
+			{ID: "t2", Path: "b.go", Line: 20, Comments: []domain.Comment{{Author: "bob", Body: "nit"}}},
+		},
+		UnresolvedCount: 2,
+	})
+	app = sendWindowSize(app, 120, 40)
+
+	// Enter to expand thread 0.
+	model, cmd := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app = model.(App)
+	if cmd != nil {
+		msg := cmd()
+		model, _ = app.Update(msg)
+		app = model.(App)
+	}
+	if app.ActiveView() != ViewCommentsExpand {
+		t.Fatalf("expected ViewCommentsExpand, got %v", app.ActiveView())
+	}
+
+	output := app.View()
+	if !strings.Contains(output, "Thread 1 of 2") {
+		t.Error("missing 'Thread 1 of 2' in expanded view status bar")
+	}
+}
+
+func TestExpandedViewRendersContent(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			{
+				ID: "t1", Path: "internal/api.go", Line: 42,
+				Comments: []domain.Comment{
+					{Author: "reviewer1", Body: "This needs error wrapping."},
+					{Author: "you", Body: "Done!"},
+				},
+			},
+		},
+		UnresolvedCount: 1,
+	})
+	app = sendWindowSize(app, 120, 40)
+
+	// Enter to expand.
+	model, cmd := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app = model.(App)
+	if cmd != nil {
+		msg := cmd()
+		model, _ = app.Update(msg)
+		app = model.(App)
+	}
+
+	output := app.View()
+	if !strings.Contains(output, "internal/api.go") {
+		t.Error("missing file path in expanded view")
+	}
+	if !strings.Contains(output, ":42") {
+		t.Error("missing line number in expanded view")
+	}
+	if !strings.Contains(output, "@reviewer1") {
+		t.Error("missing author in expanded view")
+	}
+	if !strings.Contains(output, "error wrapping") {
+		t.Error("missing comment body in expanded view")
+	}
+}
+
+func TestEscFromExpandedReturnsToList(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			{ID: "t1", Path: "a.go", Line: 10, Comments: []domain.Comment{{Author: "alice", Body: "fix"}}},
+		},
+		UnresolvedCount: 1,
+	})
+	app = sendWindowSize(app, 120, 40)
+
+	// Enter to expand.
+	model, cmd := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app = model.(App)
+	if cmd != nil {
+		msg := cmd()
+		model, _ = app.Update(msg)
+		app = model.(App)
+	}
+	if app.ActiveView() != ViewCommentsExpand {
+		t.Fatalf("expected expanded, got %v", app.ActiveView())
+	}
+
+	// Esc to return.
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewCommentsList {
+		t.Errorf("expected ViewCommentsList after Esc, got %v", app.ActiveView())
+	}
+}
+
+func TestEscFromResolveConfirmingCancelsNotSwitchesView(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewResolve)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			makeThread("PRRT_aaa", "main.go", 10, true),
+		},
+		UnresolvedCount: 1,
+	})
+	app = sendWindowSize(app, 100, 30)
+
+	// Space to select thread.
+	app = sendKey(app, " ")
+	// Enter to start confirmation.
+	app = sendSpecialKey(app, tea.KeyEnter)
+	if app.resolve.state != resolveStateConfirming {
+		t.Fatalf("expected confirming state, got %d", app.resolve.state)
+	}
+
+	// Esc should cancel confirmation, NOT switch view.
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewResolve {
+		t.Errorf("Esc from confirming: expected ViewResolve, got %v", app.ActiveView())
+	}
+	if app.resolve.state != resolveStateBrowsing {
+		t.Errorf("Esc from confirming: expected browsing state, got %d", app.resolve.state)
+	}
+
+	// Esc again (from browsing) should switch back to prevView.
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() == ViewResolve {
+		t.Error("Esc from browsing should switch away from resolve")
+	}
+}
+
+func TestTruncateSHA(t *testing.T) {
+	tests := []struct {
+		sha  string
+		want string
+	}{
+		{"abc1234567890", "abc1234"},
+		{"short", "short"},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		got := truncateSHA(tt.sha)
+		if got != tt.want {
+			t.Errorf("truncateSHA(%q) = %q, want %q", tt.sha, got, tt.want)
+		}
+	}
+}

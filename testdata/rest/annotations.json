@@ -1,0 +1,18 @@
+[
+  {
+    "path": "internal/api/handler.go",
+    "start_line": 42,
+    "end_line": 42,
+    "annotation_level": "failure",
+    "title": "golangci-lint",
+    "message": "unused variable 'x' (deadcode)"
+  },
+  {
+    "path": "internal/api/handler.go",
+    "start_line": 55,
+    "end_line": 57,
+    "annotation_level": "warning",
+    "title": "golangci-lint",
+    "message": "function 'processData' is too complex (cyclomatic complexity 15)"
+  }
+]
