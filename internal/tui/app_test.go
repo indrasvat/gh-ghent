@@ -718,3 +718,260 @@ func TestTruncateSHA(t *testing.T) {
 		}
 	}
 }
+
+// ── Task 033: New keybinding tests ──────────────────────────────
+
+func TestCommentsListRSwitchesToResolve(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			{ID: "t1", Path: "file.go", Line: 10, Comments: []domain.Comment{{Author: "alice", Body: "fix"}}},
+		},
+		UnresolvedCount: 1,
+	})
+	app = sendWindowSize(app, 80, 24)
+
+	app = sendKey(app, "r")
+	if app.ActiveView() != ViewResolve {
+		t.Errorf("expected ViewResolve after 'r' from comments list, got %v", app.ActiveView())
+	}
+	if app.prevView != ViewCommentsList {
+		t.Errorf("expected prevView=ViewCommentsList, got %v", app.prevView)
+	}
+}
+
+func TestCommentsListRThenEscReturns(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app = sendWindowSize(app, 80, 24)
+
+	// r → resolve, esc → back to comments list.
+	app = sendKey(app, "r")
+	if app.ActiveView() != ViewResolve {
+		t.Fatalf("expected ViewResolve, got %v", app.ActiveView())
+	}
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewCommentsList {
+		t.Errorf("expected ViewCommentsList after Esc from resolve, got %v", app.ActiveView())
+	}
+}
+
+func TestExpandedRResolvesThread(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			makeThread("PRRT_aaa", "main.go", 10, true),
+		},
+		UnresolvedCount: 1,
+	})
+
+	// Set up resolveFunc that tracks calls.
+	var resolvedID string
+	app.resolveFunc = func(id string) error {
+		resolvedID = id
+		return nil
+	}
+
+	app = sendWindowSize(app, 120, 40)
+
+	// Enter to expand.
+	model, cmd := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app = model.(App)
+	if cmd != nil {
+		msg := cmd()
+		model, _ = app.Update(msg)
+		app = model.(App)
+	}
+	if app.ActiveView() != ViewCommentsExpand {
+		t.Fatalf("expected ViewCommentsExpand, got %v", app.ActiveView())
+	}
+
+	// Press 'r' to resolve.
+	model, cmd = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+	app = model.(App)
+	if cmd == nil {
+		t.Fatal("expected a command from 'r' in expanded view, got nil")
+	}
+
+	// Execute the command.
+	msg := cmd()
+	rtm, ok := msg.(resolveThreadMsg)
+	if !ok {
+		t.Fatalf("expected resolveThreadMsg, got %T", msg)
+	}
+	if rtm.threadID != "PRRT_aaa" {
+		t.Errorf("expected threadID 'PRRT_aaa', got %q", rtm.threadID)
+	}
+	if resolvedID != "PRRT_aaa" {
+		t.Errorf("expected resolveFunc called with 'PRRT_aaa', got %q", resolvedID)
+	}
+}
+
+func TestExpandedRNoResolveFuncNoOp(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			makeThread("PRRT_bbb", "main.go", 10, true),
+		},
+		UnresolvedCount: 1,
+	})
+	// No resolveFunc set.
+	app = sendWindowSize(app, 120, 40)
+
+	// Enter to expand.
+	model, cmd := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app = model.(App)
+	if cmd != nil {
+		msg := cmd()
+		model, _ = app.Update(msg)
+		app = model.(App)
+	}
+
+	// Press 'r' — should be no-op since resolveFunc is nil.
+	_, cmd = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+	if cmd != nil {
+		t.Error("expected nil command when resolveFunc is nil")
+	}
+}
+
+func TestExpandedRNotResolvableNoOp(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			makeThread("PRRT_ccc", "main.go", 10, false), // ViewerCanResolve = false
+		},
+		UnresolvedCount: 1,
+	})
+	app.resolveFunc = func(id string) error { return nil }
+	app = sendWindowSize(app, 120, 40)
+
+	// Enter to expand.
+	model, cmd := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	app = model.(App)
+	if cmd != nil {
+		msg := cmd()
+		model, _ = app.Update(msg)
+		app = model.(App)
+	}
+
+	// Press 'r' — should be no-op since ViewerCanResolve is false.
+	_, cmd = app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+	if cmd != nil {
+		t.Error("expected nil command when ViewerCanResolve is false")
+	}
+}
+
+func TestSummaryOKeyOpensPR(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app = sendWindowSize(app, 80, 24)
+
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
+	if cmd == nil {
+		t.Fatal("expected a command from 'o' in summary, got nil")
+	}
+}
+
+func TestSummaryOKeyNoRepoNoOp(t *testing.T) {
+	app := NewApp("", 0, ViewSummary)
+	app = sendWindowSize(app, 80, 24)
+
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
+	if cmd != nil {
+		t.Error("expected nil command for 'o' with empty repo")
+	}
+}
+
+func TestChecksListRKeyRerunsFailed(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewChecksList)
+	app.SetChecks(&domain.ChecksResult{
+		Checks: []domain.CheckRun{
+			{
+				ID: 1, Name: "build", Status: "completed", Conclusion: "failure",
+				HTMLURL: "https://github.com/owner/repo/actions/runs/12345/job/67890",
+			},
+		},
+		FailCount: 1,
+	})
+	app = sendWindowSize(app, 80, 24)
+
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("R")})
+	if cmd == nil {
+		t.Fatal("expected a command from 'R' in checks list, got nil")
+	}
+}
+
+func TestChecksListRKeyNoFailsNoOp(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewChecksList)
+	app.SetChecks(&domain.ChecksResult{
+		Checks: []domain.CheckRun{
+			{ID: 1, Name: "build", Status: "completed", Conclusion: "success"},
+		},
+		PassCount: 1,
+		FailCount: 0,
+	})
+	app = sendWindowSize(app, 80, 24)
+
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("R")})
+	if cmd != nil {
+		t.Error("expected nil command for 'R' with no failed checks")
+	}
+}
+
+func TestSummaryRKeyRerunsFailed(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app.SetChecks(&domain.ChecksResult{
+		Checks: []domain.CheckRun{
+			{
+				ID: 1, Name: "build", Status: "completed", Conclusion: "failure",
+				HTMLURL: "https://github.com/owner/repo/actions/runs/99999/job/11111",
+			},
+		},
+		FailCount: 1,
+	})
+	app = sendWindowSize(app, 80, 24)
+
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("R")})
+	if cmd == nil {
+		t.Fatal("expected a command from 'R' in summary, got nil")
+	}
+}
+
+func TestSummaryRKeyNoFailsNoOp(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app.SetChecks(&domain.ChecksResult{
+		PassCount: 3,
+		FailCount: 0,
+	})
+	app = sendWindowSize(app, 80, 24)
+
+	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("R")})
+	if cmd != nil {
+		t.Error("expected nil command for 'R' with no failed checks in summary")
+	}
+}
+
+func TestStatusBarShowsFilterIndicator(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewCommentsList)
+	app.SetComments(&domain.CommentsResult{
+		Threads: []domain.ReviewThread{
+			{ID: "t1", Path: "src/main.go", Line: 10, Comments: []domain.Comment{{Author: "a", Body: "b"}}},
+			{ID: "t2", Path: "src/util.go", Line: 20, Comments: []domain.Comment{{Author: "a", Body: "b"}}},
+		},
+		UnresolvedCount: 2,
+	})
+	app = sendWindowSize(app, 120, 40)
+
+	// No filter initially — status bar should NOT show "filter:".
+	output := app.View()
+	if strings.Contains(output, "filter:") {
+		t.Error("should not show filter indicator initially")
+	}
+
+	// Activate filter by pressing 'f' (forwarded to comments list model).
+	model, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
+	app = model.(App)
+
+	output = app.View()
+	if !strings.Contains(output, "filter:") {
+		t.Error("missing filter indicator in status bar after pressing 'f'")
+	}
+}

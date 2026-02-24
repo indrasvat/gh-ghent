@@ -22,6 +22,11 @@ type selectCheckMsg struct {
 	checkIdx int
 }
 
+// rerunResultMsg is returned after attempting to re-run failed checks.
+type rerunResultMsg struct {
+	err error
+}
+
 // ── Checks list model ───────────────────────────────────────────
 
 // checksListModel renders a scrollable list of CI check runs with status icons
@@ -466,6 +471,62 @@ func formatCheckDuration(ch domain.CheckRun) string {
 		return fmt.Sprintf("%dm", m)
 	}
 	return fmt.Sprintf("%dm %ds", m, s)
+}
+
+// extractRunID parses a workflow run ID from a GitHub Actions HTML URL.
+// Handles both formats:
+//   - /actions/runs/{runID}/job/{jobID}  (workflow run URLs)
+//   - /runs/{runID}                      (check run URLs)
+func extractRunID(htmlURL string) string {
+	// Try the full /actions/runs/ path first.
+	const actionsMarker = "/actions/runs/"
+	idx := strings.Index(htmlURL, actionsMarker)
+	if idx >= 0 {
+		rest := htmlURL[idx+len(actionsMarker):]
+		if slashIdx := strings.IndexByte(rest, '/'); slashIdx > 0 {
+			return rest[:slashIdx]
+		}
+		return rest
+	}
+	// Fallback: /runs/{id} (check runs REST API format).
+	const runsMarker = "/runs/"
+	idx = strings.Index(htmlURL, runsMarker)
+	if idx >= 0 {
+		rest := htmlURL[idx+len(runsMarker):]
+		if slashIdx := strings.IndexByte(rest, '/'); slashIdx > 0 {
+			return rest[:slashIdx]
+		}
+		// Trim query params if present.
+		if qIdx := strings.IndexByte(rest, '?'); qIdx > 0 {
+			return rest[:qIdx]
+		}
+		return rest
+	}
+	return ""
+}
+
+// rerunFailedChecks returns a tea.Cmd that re-runs failed workflow runs via `gh run rerun`.
+func rerunFailedChecks(repo string, checks []domain.CheckRun) tea.Cmd {
+	return func() tea.Msg {
+		// Collect unique run IDs from failed checks.
+		seen := make(map[string]bool)
+		for _, ch := range checks {
+			if !checkIsFailed(ch) {
+				continue
+			}
+			runID := extractRunID(ch.HTMLURL)
+			if runID == "" || seen[runID] {
+				continue
+			}
+			seen[runID] = true
+			//nolint:gosec // repo and runID come from GitHub API
+			cmd := exec.CommandContext(context.Background(), "gh", "run", "rerun", runID, "--failed", "-R", repo)
+			if err := cmd.Run(); err != nil {
+				return rerunResultMsg{err: err}
+			}
+		}
+		return rerunResultMsg{}
+	}
 }
 
 // openInBrowser opens a URL in the system browser without suspending the TUI.

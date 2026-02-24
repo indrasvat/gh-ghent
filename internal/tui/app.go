@@ -289,6 +289,14 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.checksLog.setSize(a.width, contentHeight)
 		}
 		return a, nil
+
+	case clipboardCopyMsg:
+		// Clipboard operation completed — consumed silently.
+		return a, nil
+
+	case rerunResultMsg:
+		// Re-run operation completed — consumed silently.
+		return a, nil
 	}
 
 	// Forward other messages to the active view's sub-model.
@@ -330,7 +338,46 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 
-	// Summary-specific shortcuts: c/k/r jump to views, j/↑/↓ scroll.
+	// Comments list: 'r' switches to resolve view.
+	if a.activeView == ViewCommentsList {
+		if key.Matches(msg, a.keys.Resolve) {
+			a.prevView = ViewCommentsList
+			a.activeView = ViewResolve
+			return a, nil
+		}
+	}
+
+	// Comments expanded: 'r' resolves the current thread directly.
+	if a.activeView == ViewCommentsExpand {
+		if key.Matches(msg, a.keys.Resolve) {
+			if a.resolveFunc != nil &&
+				a.commentsExpanded.threadIdx >= 0 &&
+				a.commentsExpanded.threadIdx < len(a.commentsExpanded.threads) {
+				t := a.commentsExpanded.threads[a.commentsExpanded.threadIdx]
+				if t.ViewerCanResolve {
+					resolveFunc := a.resolveFunc
+					threadID := t.ID
+					return a, func() tea.Msg {
+						err := resolveFunc(threadID)
+						return resolveThreadMsg{threadID: threadID, err: err}
+					}
+				}
+			}
+			return a, nil
+		}
+	}
+
+	// Checks list: 'R' re-runs failed checks.
+	if a.activeView == ViewChecksList {
+		if key.Matches(msg, a.keys.Rerun) {
+			if a.checks != nil && a.checks.FailCount > 0 {
+				return a, rerunFailedChecks(a.repo, a.checks.Checks)
+			}
+			return a, nil
+		}
+	}
+
+	// Summary-specific shortcuts: c/k/r jump to views, o/R actions, j/↑/↓ scroll.
 	if a.activeView == ViewSummary {
 		switch {
 		case key.Matches(msg, a.keys.Comments):
@@ -344,6 +391,17 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, a.keys.Resolve):
 			a.prevView = ViewSummary
 			a.activeView = ViewResolve
+			return a, nil
+		case key.Matches(msg, a.keys.OpenPR):
+			if a.repo != "" && a.pr > 0 {
+				url := fmt.Sprintf("https://github.com/%s/pull/%d", a.repo, a.pr)
+				return a, openInBrowser(url)
+			}
+			return a, nil
+		case key.Matches(msg, a.keys.Rerun):
+			if a.checks != nil && a.checks.FailCount > 0 {
+				return a, rerunFailedChecks(a.repo, a.checks.Checks)
+			}
 			return a, nil
 		}
 		// Scroll: j/↓ = down, ↑ = up (k is taken by checks shortcut).
@@ -430,6 +488,10 @@ func (a App) renderStatusBar() string {
 	case ViewCommentsList, ViewCommentsExpand:
 		if a.comments != nil {
 			right := ""
+			// Show active file filter indicator.
+			if a.activeView == ViewCommentsList && a.commentsList.filterFile != "" {
+				right += styles.BadgeYellow.Render("filter: "+a.commentsList.filterFile) + "  "
+			}
 			if a.comments.UnresolvedCount > 0 {
 				right += styles.BadgeRed.Render(
 					formatCount(a.comments.UnresolvedCount, "unresolved"))

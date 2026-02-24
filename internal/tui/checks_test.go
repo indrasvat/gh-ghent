@@ -379,6 +379,60 @@ func TestScreenLinesForCheck(t *testing.T) {
 	}
 }
 
+// ── Task 033: New keybinding tests ──────────────────────────────
+
+func TestExtractRunID(t *testing.T) {
+	tests := []struct {
+		name    string
+		htmlURL string
+		want    string
+	}{
+		{
+			"standard GitHub Actions URL",
+			"https://github.com/owner/repo/actions/runs/12345/job/67890",
+			"12345",
+		},
+		{
+			"URL without job suffix",
+			"https://github.com/owner/repo/actions/runs/99999",
+			"99999",
+		},
+		{
+			"external CI URL (no actions/runs)",
+			"https://ci.example.com/builds/123",
+			"",
+		},
+		{
+			"empty URL",
+			"",
+			"",
+		},
+		{
+			"URL with long numeric run ID",
+			"https://github.com/indrasvat/peek-it/actions/runs/13579246801/job/37890",
+			"13579246801",
+		},
+		{
+			"check run /runs/ format (REST API)",
+			"https://github.com/owner/repo/runs/100001",
+			"100001",
+		},
+		{
+			"check run /runs/ with query params",
+			"https://github.com/owner/repo/runs/100001?check_suite_focus=true",
+			"100001",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractRunID(tt.htmlURL)
+			if got != tt.want {
+				t.Errorf("extractRunID(%q) = %q, want %q", tt.htmlURL, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestChecksAppIntegration(t *testing.T) {
 	app := NewApp("owner/repo", 42, ViewChecksList)
 	app.SetChecks(&domain.ChecksResult{

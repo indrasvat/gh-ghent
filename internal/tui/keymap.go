@@ -15,6 +15,10 @@ type AppKeyMap struct {
 	Comments key.Binding
 	Checks   key.Binding
 	Resolve  key.Binding
+
+	// Cross-view actions.
+	OpenPR key.Binding
+	Rerun  key.Binding
 }
 
 // DefaultKeyMap returns the default global key bindings.
@@ -51,6 +55,14 @@ func DefaultKeyMap() AppKeyMap {
 		Resolve: key.NewBinding(
 			key.WithKeys("r"),
 			key.WithHelp("r", "resolve"),
+		),
+		OpenPR: key.NewBinding(
+			key.WithKeys("o"),
+			key.WithHelp("o", "open PR"),
+		),
+		Rerun: key.NewBinding(
+			key.WithKeys("R"),
+			key.WithHelp("R", "re-run failed"),
 		),
 	}
 }

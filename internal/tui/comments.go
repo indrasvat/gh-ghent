@@ -49,12 +49,19 @@ type commentsListModel struct {
 	offset  int        // scroll offset for viewport
 	width   int
 	height  int
+
+	// File filter state (cycled by 'f' key).
+	filterFile  string   // empty = show all
+	uniquePaths []string // sorted unique file paths
+	filterIdx   int      // -1 = show all, 0..N-1 = filter to uniquePaths[filterIdx]
 }
 
 func newCommentsListModel(threads []domain.ReviewThread) commentsListModel {
 	m := commentsListModel{
-		threads: threads,
+		threads:   threads,
+		filterIdx: -1, // show all
 	}
+	m.computeUniquePaths()
 	m.buildItems()
 	// Set cursor to the first thread item.
 	for i, item := range m.items {
@@ -66,7 +73,20 @@ func newCommentsListModel(threads []domain.ReviewThread) commentsListModel {
 	return m
 }
 
+// computeUniquePaths extracts sorted unique file paths from all threads.
+func (m *commentsListModel) computeUniquePaths() {
+	seen := make(map[string]bool)
+	for _, t := range m.threads {
+		if !seen[t.Path] {
+			seen[t.Path] = true
+			m.uniquePaths = append(m.uniquePaths, t.Path)
+		}
+	}
+	sort.Strings(m.uniquePaths)
+}
+
 // buildItems creates the flattened item list from threads, grouped by file path.
+// When filterFile is set, only threads matching that path are included.
 func (m *commentsListModel) buildItems() {
 	if len(m.threads) == 0 {
 		m.items = nil
@@ -78,6 +98,10 @@ func (m *commentsListModel) buildItems() {
 	var paths []string
 	for i := range m.threads {
 		p := m.threads[i].Path
+		// Skip threads that don't match the active filter.
+		if m.filterFile != "" && p != m.filterFile {
+			continue
+		}
 		if _, ok := groups[p]; !ok {
 			paths = append(paths, p)
 		}
@@ -97,6 +121,33 @@ func (m *commentsListModel) buildItems() {
 		}
 	}
 	m.items = items
+}
+
+// cycleFilter advances the file filter to the next unique path.
+// Cycles: all → path[0] → path[1] → ... → path[N-1] → all → ...
+func (m *commentsListModel) cycleFilter() {
+	if len(m.uniquePaths) == 0 {
+		return
+	}
+	m.filterIdx++
+	if m.filterIdx >= len(m.uniquePaths) {
+		m.filterIdx = -1 // back to "show all"
+	}
+	if m.filterIdx < 0 {
+		m.filterFile = ""
+	} else {
+		m.filterFile = m.uniquePaths[m.filterIdx]
+	}
+	m.buildItems()
+	m.cursor = 0
+	m.offset = 0
+	// Move cursor to first thread item.
+	for i, item := range m.items {
+		if item.kind == listItemThread {
+			m.cursor = i
+			break
+		}
+	}
 }
 
 // setSize sets the viewport dimensions.
@@ -126,6 +177,21 @@ func (m commentsListModel) Update(msg tea.Msg) (commentsListModel, tea.Cmd) {
 			if idx >= 0 {
 				return m, func() tea.Msg { return selectThreadMsg{threadIdx: idx} }
 			}
+		case key.Matches(typedMsg, commentsKeys.Copy):
+			idx := m.selectedThreadIdx()
+			if idx >= 0 && idx < len(m.threads) {
+				return m, copyToClipboard(m.threads[idx].ID)
+			}
+		case key.Matches(typedMsg, commentsKeys.Open):
+			idx := m.selectedThreadIdx()
+			if idx >= 0 && idx < len(m.threads) {
+				t := m.threads[idx]
+				if len(t.Comments) > 0 && t.Comments[0].URL != "" {
+					return m, openInBrowser(t.Comments[0].URL)
+				}
+			}
+		case key.Matches(typedMsg, commentsKeys.Filter):
+			m.cycleFilter()
 		}
 	}
 	return m, nil
@@ -538,6 +604,17 @@ func (m commentsExpandedModel) Update(msg tea.Msg) (commentsExpandedModel, tea.C
 			m.nextThread()
 		case key.Matches(typedMsg, expandedKeys.PrevThread):
 			m.prevThread()
+		case key.Matches(typedMsg, expandedKeys.Copy):
+			if m.threadIdx >= 0 && m.threadIdx < len(m.threads) {
+				return m, copyToClipboard(m.threads[m.threadIdx].ID)
+			}
+		case key.Matches(typedMsg, expandedKeys.Open):
+			if m.threadIdx >= 0 && m.threadIdx < len(m.threads) {
+				t := m.threads[m.threadIdx]
+				if len(t.Comments) > 0 && t.Comments[0].URL != "" {
+					return m, openInBrowser(t.Comments[0].URL)
+				}
+			}
 		}
 	}
 	return m, nil
@@ -592,9 +669,12 @@ func (m commentsExpandedModel) View() string {
 // ── Key bindings ────────────────────────────────────────────────
 
 type commentsKeyMap struct {
-	Up    key.Binding
-	Down  key.Binding
-	Enter key.Binding
+	Up     key.Binding
+	Down   key.Binding
+	Enter  key.Binding
+	Copy   key.Binding
+	Open   key.Binding
+	Filter key.Binding
 }
 
 var commentsKeys = commentsKeyMap{
@@ -610,6 +690,18 @@ var commentsKeys = commentsKeyMap{
 		key.WithKeys("enter"),
 		key.WithHelp("enter", "expand"),
 	),
+	Copy: key.NewBinding(
+		key.WithKeys("y"),
+		key.WithHelp("y", "copy ID"),
+	),
+	Open: key.NewBinding(
+		key.WithKeys("o"),
+		key.WithHelp("o", "open in browser"),
+	),
+	Filter: key.NewBinding(
+		key.WithKeys("f"),
+		key.WithHelp("f", "filter by file"),
+	),
 }
 
 type expandedKeyMap struct {
@@ -617,6 +709,8 @@ type expandedKeyMap struct {
 	ScrollUp   key.Binding
 	NextThread key.Binding
 	PrevThread key.Binding
+	Copy       key.Binding
+	Open       key.Binding
 }
 
 var expandedKeys = expandedKeyMap{
@@ -635,5 +729,13 @@ var expandedKeys = expandedKeyMap{
 	PrevThread: key.NewBinding(
 		key.WithKeys("p"),
 		key.WithHelp("p", "prev thread"),
+	),
+	Copy: key.NewBinding(
+		key.WithKeys("y"),
+		key.WithHelp("y", "copy ID"),
+	),
+	Open: key.NewBinding(
+		key.WithKeys("o"),
+		key.WithHelp("o", "open in browser"),
 	),
 }
