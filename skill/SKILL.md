@@ -98,6 +98,10 @@ For complete flag reference, see [references/command-reference.md](references/co
 | `--verbose` | | `false` | Include additional context |
 | `--debug` | | `false` | Debug logging to stderr |
 
+**Troubleshooting:** If output seems incomplete (e.g., empty `log_excerpt`, missing checks),
+add `--debug` to see API calls and timing on stderr. This reveals 404s from expired logs,
+rate limits, and context cancellations without changing stdout.
+
 ## Core Workflow
 
 ```bash
@@ -107,13 +111,14 @@ SUMMARY=$(gh ghent summary --pr 42 --logs --format json --no-tui)
 # 2. Check merge readiness
 echo "$SUMMARY" | jq '.is_merge_ready'
 
-# 3. If CI failing, read the log excerpts
-echo "$SUMMARY" | jq '.checks.checks[] | select(.conclusion=="failure") | {name, log_excerpt, annotations}'
+# 3. If CI failing, read the log excerpts (covers failure, timed_out, cancelled, etc.)
+echo "$SUMMARY" | jq '.checks.checks[] | select(.log_excerpt) | {name, conclusion, log_excerpt, annotations}'
 
 # 4. If threads need fixing, read them
 echo "$SUMMARY" | jq '.comments.threads[] | {path, line, body: .comments[0].body}'
 
 # 5. Fix code, then resolve + reply
+# Thread IDs are in comments output at .threads[].id (e.g., PRRT_kwDO...)
 gh ghent resolve --pr 42 --all
 ```
 

@@ -98,7 +98,7 @@ This is the recommended approach: it waits for CI, then fetches threads + review
 with log excerpts in a single output. Parse failures:
 ```bash
 gh ghent summary --pr 42 --watch --logs --format json --no-tui 2>/dev/null | \
-  jq '.checks.checks[] | select(.conclusion=="failure") | {name, log_excerpt, annotations}'
+  jq '.checks.checks[] | select(.log_excerpt) | {name, conclusion, log_excerpt, annotations}'
 ```
 
 ### Alternative: checks --watch for CI-only monitoring
@@ -126,7 +126,7 @@ sleep 10
 
 # Watch and get full report with failure diagnostics
 gh ghent summary --pr 42 --watch --logs --format json --no-tui 2>/dev/null | \
-  jq '{merge_ready: .is_merge_ready, checks: .check_status, failures: [.checks.checks[] | select(.conclusion=="failure") | .name]}'
+  jq '{merge_ready: .is_merge_ready, checks: .check_status, failures: [.checks.checks[] | select(.log_excerpt) | .name]}'
 ```
 
 ## Step 8: Use --since for Only New Checks

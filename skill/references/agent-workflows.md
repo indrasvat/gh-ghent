@@ -55,7 +55,7 @@ Poll CI checks until they complete, then get full summary with failure diagnosti
 gh ghent summary --pr 42 --watch --logs --format json --no-tui 2>/dev/null | jq
 # Watch status → stderr, full summary with logs → stdout.
 # After CI completes, parse failures from the summary:
-# jq '.checks.checks[] | select(.conclusion=="failure") | {name, log_excerpt, annotations}'
+# jq '.checks.checks[] | select(.log_excerpt) | {name, conclusion, log_excerpt, annotations}'
 
 # Alternative: checks --watch for CI-only monitoring
 gh ghent checks --pr 42 --watch --format json --no-tui
@@ -67,8 +67,8 @@ gh ghent checks --pr 42 --watch --format json --no-tui
 ```bash
 # Get annotations and log excerpts for failed checks
 SUMMARY=$(gh ghent summary --pr 42 --logs --format json --no-tui)
-echo "$SUMMARY" | jq -r '.checks.checks[] | select(.conclusion == "failure") | .annotations[]? | "\(.path):\(.start_line) [\(.annotation_level)] \(.message)"'
-echo "$SUMMARY" | jq -r '.checks.checks[] | select(.log_excerpt != null and .log_excerpt != "") | "--- \(.name) ---\n\(.log_excerpt)"'
+echo "$SUMMARY" | jq -r '.checks.checks[] | select(.log_excerpt) | .annotations[]? | "\(.path):\(.start_line) [\(.annotation_level)] \(.message)"'
+echo "$SUMMARY" | jq -r '.checks.checks[] | select(.log_excerpt) | "--- \(.name) [\(.conclusion)] ---\n\(.log_excerpt)"'
 ```
 
 ### Standalone checks with logs
@@ -102,7 +102,7 @@ fi
 CHECK_STATUS=$(echo "$SUMMARY" | jq -r '.check_status')
 if [ "$CHECK_STATUS" = "failure" ]; then
   gh ghent checks --pr $PR --format json --no-tui --logs | \
-    jq -r '.checks[] | select(.conclusion == "failure") | .annotations[]? | "\(.path):\(.start_line) \(.message)"'
+    jq -r '.checks[] | select(.log_excerpt or (.conclusion | IN("failure","timed_out","cancelled"))) | .annotations[]? | "\(.path):\(.start_line) \(.message)"'
   # ... apply fixes based on annotations ...
 fi
 
