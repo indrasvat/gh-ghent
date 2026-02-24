@@ -20,17 +20,22 @@ type summaryModel struct {
 	width        int
 	height       int
 	scrollOffset int
+	maxScroll    int  // cached max scroll offset, updated on data/size change
 	loading      bool // true while async data is being fetched
+	hasErrors    bool // true if any core fetch failed — blocks merge readiness
 }
 
 func (m *summaryModel) setSize(width, height int) {
 	m.width = width
 	m.height = height
+	m.recomputeMaxScroll()
 }
 
-// scrollDown moves the viewport down by one line.
+// scrollDown moves the viewport down by one line, clamped to maxScroll.
 func (m *summaryModel) scrollDown() {
-	m.scrollOffset++
+	if m.scrollOffset < m.maxScroll {
+		m.scrollOffset++
+	}
 }
 
 // scrollUp moves the viewport up by one line.
@@ -40,8 +45,44 @@ func (m *summaryModel) scrollUp() {
 	}
 }
 
+// recomputeMaxScroll recalculates the maximum scroll offset based on content
+// and viewport size. Called on data or size changes so scrollDown can clamp
+// on a pointer receiver (unlike View which uses a value receiver).
+func (m *summaryModel) recomputeMaxScroll() {
+	if m.width == 0 || m.height == 0 {
+		m.maxScroll = 0
+		return
+	}
+	content := m.renderContent()
+	totalLines := strings.Count(content, "\n") + 1
+	m.maxScroll = max(totalLines-m.height, 0)
+	if m.scrollOffset > m.maxScroll {
+		m.scrollOffset = m.maxScroll
+	}
+}
+
+// renderContent builds the full dashboard content string (used by both View and recomputeMaxScroll).
+func (m summaryModel) renderContent() string {
+	if m.loading && m.comments == nil && m.checks == nil && m.reviews == nil {
+		return ""
+	}
+
+	var sections []string
+	sections = append(sections, m.renderKPICards())
+	sections = append(sections, "")
+	sections = append(sections, m.renderThreadsSection())
+	sections = append(sections, "")
+	sections = append(sections, m.renderChecksSection())
+	sections = append(sections, "")
+	sections = append(sections, m.renderApprovalsSection())
+	return strings.Join(sections, "\n")
+}
+
 // isMergeReady mirrors the CLI's IsMergeReady logic.
 func (m summaryModel) isMergeReady() bool {
+	if m.hasErrors {
+		return false
+	}
 	if m.comments != nil && m.comments.UnresolvedCount > 0 {
 		return false
 	}
@@ -97,14 +138,8 @@ func (m summaryModel) View() string {
 	allLines := strings.Split(content, "\n")
 	totalLines := len(allLines)
 
-	// Clamp scroll offset to valid range.
-	maxScroll := max(totalLines-m.height, 0)
-	if m.scrollOffset > maxScroll {
-		m.scrollOffset = maxScroll
-	}
-
-	// Apply scroll: slice to visible window.
-	startLine := m.scrollOffset
+	// Apply scroll: slice to visible window (clamping is done in scrollDown/scrollUp).
+	startLine := min(m.scrollOffset, max(totalLines-1, 0))
 	endLine := min(startLine+m.height, totalLines)
 	visibleLines := allLines[startLine:endLine]
 

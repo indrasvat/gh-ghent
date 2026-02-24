@@ -220,12 +220,14 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.summary.loading = a.isLoading()
 		if typedMsg.err != nil {
 			a.loadErrors = append(a.loadErrors, fmt.Sprintf("threads: %v", typedMsg.err))
+			a.summary.hasErrors = true
 		} else {
 			a.SetComments(typedMsg.result)
 			contentHeight := max(a.height-2, 1)
 			a.commentsList.setSize(a.width, contentHeight)
 			a.resolve.setSize(a.width, contentHeight)
 		}
+		a.summary.recomputeMaxScroll()
 		return a, nil
 
 	case checksLoadedMsg:
@@ -233,11 +235,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.summary.loading = a.isLoading()
 		if typedMsg.err != nil {
 			a.loadErrors = append(a.loadErrors, fmt.Sprintf("checks: %v", typedMsg.err))
+			a.summary.hasErrors = true
 		} else {
 			a.SetChecks(typedMsg.result)
 			contentHeight := max(a.height-2, 1)
 			a.checksList.setSize(a.width, contentHeight)
 		}
+		a.summary.recomputeMaxScroll()
 		return a, nil
 
 	case reviewsLoadedMsg:
@@ -245,9 +249,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.summary.loading = a.isLoading()
 		if typedMsg.err != nil {
 			a.loadErrors = append(a.loadErrors, fmt.Sprintf("reviews: %v", typedMsg.err))
+			a.summary.hasErrors = true
 		} else {
 			a.SetReviews(typedMsg.reviews)
 		}
+		a.summary.recomputeMaxScroll()
 		return a, nil
 
 	// Messages from sub-models

@@ -56,14 +56,23 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			// TTY → launch TUI immediately with async fetch (P2: instant startup).
 			if Flags.IsTTY {
 				repoStr := owner + "/" + repo
+				sinceFilter := Flags.Since // capture for closures
 				return launchTUI(tui.ViewSummary,
 					withRepo(repoStr), withPR(Flags.PR),
 					withAsyncFetch(
 						func() (*domain.CommentsResult, error) {
-							return client.FetchThreads(ctx, owner, repo, Flags.PR)
+							result, err := client.FetchThreads(ctx, owner, repo, Flags.PR)
+							if err == nil {
+								FilterThreadsBySince(result, sinceFilter)
+							}
+							return result, err
 						},
 						func() (*domain.ChecksResult, error) {
-							return client.FetchChecks(ctx, owner, repo, Flags.PR)
+							result, err := client.FetchChecks(ctx, owner, repo, Flags.PR)
+							if err == nil {
+								FilterChecksBySince(result, sinceFilter)
+							}
+							return result, err
 						},
 						func() ([]domain.Review, error) {
 							return client.FetchReviews(ctx, owner, repo, Flags.PR)

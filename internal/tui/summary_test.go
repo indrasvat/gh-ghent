@@ -540,6 +540,65 @@ func TestSummaryLoadingClearsOnData(t *testing.T) {
 	}
 }
 
+func TestSummaryHasErrorsBlocksMergeReady(t *testing.T) {
+	// Even with perfect data, hasErrors should block merge readiness.
+	m := summaryModel{
+		comments:  &domain.CommentsResult{UnresolvedCount: 0},
+		checks:    &domain.ChecksResult{OverallStatus: domain.StatusPass},
+		reviews:   []domain.Review{{State: domain.ReviewApproved}},
+		hasErrors: true,
+	}
+	if m.isMergeReady() {
+		t.Error("isMergeReady() should return false when hasErrors is true")
+	}
+	badge, _ := m.mergeReadyBadge()
+	if badge != "NOT READY" {
+		t.Errorf("badge = %q, want NOT READY when hasErrors", badge)
+	}
+}
+
+func TestSummaryScrollDownClampsToMaxScroll(t *testing.T) {
+	m := summaryModel{
+		comments: &domain.CommentsResult{UnresolvedCount: 1},
+		checks:   &domain.ChecksResult{PassCount: 2},
+	}
+	m.setSize(120, 5) // Small height forces scroll
+
+	// Scroll down many times — should not exceed maxScroll.
+	for range 200 {
+		m.scrollDown()
+	}
+	if m.scrollOffset > m.maxScroll {
+		t.Errorf("scrollOffset %d exceeds maxScroll %d", m.scrollOffset, m.maxScroll)
+	}
+	if m.scrollOffset != m.maxScroll {
+		t.Errorf("scrollOffset %d should equal maxScroll %d after many scrolls", m.scrollOffset, m.maxScroll)
+	}
+}
+
+func TestSummaryRecomputeMaxScrollOnDataChange(t *testing.T) {
+	m := summaryModel{}
+	m.setSize(120, 5)
+
+	// Initially no data — maxScroll should be computed.
+	initialMax := m.maxScroll
+
+	// Add data — more content increases maxScroll.
+	m.comments = &domain.CommentsResult{
+		UnresolvedCount: 3,
+		Threads: []domain.ReviewThread{
+			{Path: "a.go", Line: 1, Comments: []domain.Comment{{Author: "x"}}},
+			{Path: "b.go", Line: 2, Comments: []domain.Comment{{Author: "y"}}},
+			{Path: "c.go", Line: 3, Comments: []domain.Comment{{Author: "z"}}},
+		},
+	}
+	m.recomputeMaxScroll()
+
+	if m.maxScroll <= initialMax {
+		t.Errorf("maxScroll should increase with more data: was %d, now %d", initialMax, m.maxScroll)
+	}
+}
+
 func TestReviewPriority(t *testing.T) {
 	tests := []struct {
 		state    domain.ReviewState

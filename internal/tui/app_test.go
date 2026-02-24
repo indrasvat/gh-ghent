@@ -667,6 +667,41 @@ func TestAsyncLoadErrorIsRecorded(t *testing.T) {
 	}
 }
 
+func TestAsyncLoadErrorSetsHasErrors(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app.commentsLoading = true
+	app.checksLoading = true
+	app.reviewsLoading = true
+	app.summary.loading = true
+	app = sendWindowSize(app, 80, 24)
+
+	// Comments error → hasErrors.
+	model, _ := app.Update(commentsLoadedMsg{err: fmt.Errorf("fail")})
+	app = model.(App)
+	if !app.summary.hasErrors {
+		t.Error("summary.hasErrors should be true after comments load error")
+	}
+
+	// Checks error → hasErrors stays true.
+	model, _ = app.Update(checksLoadedMsg{err: fmt.Errorf("fail")})
+	app = model.(App)
+	if !app.summary.hasErrors {
+		t.Error("summary.hasErrors should remain true after checks load error")
+	}
+
+	// Reviews error → hasErrors stays true.
+	model, _ = app.Update(reviewsLoadedMsg{err: fmt.Errorf("fail")})
+	app = model.(App)
+	if !app.summary.hasErrors {
+		t.Error("summary.hasErrors should remain true after reviews load error")
+	}
+
+	// Merge readiness should be false despite no data blocking it otherwise.
+	if app.summary.isMergeReady() {
+		t.Error("isMergeReady() should return false when hasErrors is true")
+	}
+}
+
 func TestTruncateSHA(t *testing.T) {
 	tests := []struct {
 		sha  string
