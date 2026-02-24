@@ -20,6 +20,7 @@ type summaryModel struct {
 	width        int
 	height       int
 	scrollOffset int
+	loading      bool // true while async data is being fetched
 }
 
 func (m *summaryModel) setSize(width, height int) {
@@ -70,6 +71,11 @@ func (m summaryModel) View() string {
 		return ""
 	}
 
+	// Show loading state while data is being fetched.
+	if m.loading && m.comments == nil && m.checks == nil && m.reviews == nil {
+		return m.renderLoadingView()
+	}
+
 	var sections []string
 
 	// ── KPI cards row ────────────────────────────────────
@@ -110,6 +116,19 @@ func (m summaryModel) View() string {
 	}
 
 	return strings.Join(visibleLines, "\n")
+}
+
+// renderLoadingView shows a loading message while data is being fetched.
+func (m summaryModel) renderLoadingView() string {
+	loading := dimStyle.Render("  Loading PR data...")
+
+	// Pad to fill content area height.
+	content := loading
+	lineCount := strings.Count(content, "\n") + 1
+	if lineCount < m.height {
+		content += strings.Repeat("\n", m.height-lineCount)
+	}
+	return content
 }
 
 // ── KPI Cards ────────────────────────────────────────────────────

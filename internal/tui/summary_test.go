@@ -515,6 +515,31 @@ func TestSummaryScrollClamp(t *testing.T) {
 	}
 }
 
+func TestSummaryLoadingView(t *testing.T) {
+	m := summaryModel{loading: true}
+	m.setSize(120, 30)
+	view := m.View()
+	if !strings.Contains(view, "Loading PR data") {
+		t.Errorf("expected loading message, got %q", view)
+	}
+}
+
+func TestSummaryLoadingClearsOnData(t *testing.T) {
+	m := summaryModel{loading: true}
+	m.setSize(120, 30)
+
+	// Once comments arrive, loading view should not show.
+	m.comments = &domain.CommentsResult{UnresolvedCount: 1}
+	m.loading = false
+	view := m.View()
+	if strings.Contains(view, "Loading PR data") {
+		t.Error("loading message should not appear after data arrives")
+	}
+	if !strings.Contains(view, "Review Threads") {
+		t.Error("expected Review Threads section after data arrives")
+	}
+}
+
 func TestReviewPriority(t *testing.T) {
 	tests := []struct {
 		state    domain.ReviewState

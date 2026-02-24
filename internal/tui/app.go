@@ -71,6 +71,35 @@ func (v View) parentView() View {
 	}
 }
 
+// ── Async data loading messages ──────────────────────────────────
+
+// commentsLoadedMsg is sent when the comments fetch completes.
+type commentsLoadedMsg struct {
+	result *domain.CommentsResult
+	err    error
+}
+
+// checksLoadedMsg is sent when the checks fetch completes.
+type checksLoadedMsg struct {
+	result *domain.ChecksResult
+	err    error
+}
+
+// reviewsLoadedMsg is sent when the reviews fetch completes.
+type reviewsLoadedMsg struct {
+	reviews []domain.Review
+	err     error
+}
+
+// FetchCommentsFunc fetches review threads for a PR.
+type FetchCommentsFunc func() (*domain.CommentsResult, error)
+
+// FetchChecksFunc fetches check runs for a PR.
+type FetchChecksFunc func() (*domain.ChecksResult, error)
+
+// FetchReviewsFunc fetches reviews for a PR.
+type FetchReviewsFunc func() ([]domain.Review, error)
+
 // App is the root Bubble Tea model for the ghent TUI.
 type App struct {
 	// View state
@@ -87,6 +116,17 @@ type App struct {
 	comments *domain.CommentsResult
 	checks   *domain.ChecksResult
 	reviews  []domain.Review
+
+	// Loading state for async data fetching.
+	commentsLoading bool
+	checksLoading   bool
+	reviewsLoading  bool
+	loadErrors      []string
+
+	// Async fetch functions (set by CLI, fired in Init).
+	fetchCommentsFn FetchCommentsFunc
+	fetchChecksFn   FetchChecksFunc
+	fetchReviewsFn  FetchReviewsFunc
 
 	// Resolver callback for resolve view mutations.
 	resolveFunc func(threadID string) error
@@ -120,6 +160,33 @@ func (a App) Init() tea.Cmd {
 	if a.activeView == ViewWatch {
 		return a.watcher.Init()
 	}
+
+	// Fire async data fetches if configured.
+	var cmds []tea.Cmd
+	if a.fetchCommentsFn != nil {
+		fn := a.fetchCommentsFn
+		cmds = append(cmds, func() tea.Msg {
+			result, err := fn()
+			return commentsLoadedMsg{result: result, err: err}
+		})
+	}
+	if a.fetchChecksFn != nil {
+		fn := a.fetchChecksFn
+		cmds = append(cmds, func() tea.Msg {
+			result, err := fn()
+			return checksLoadedMsg{result: result, err: err}
+		})
+	}
+	if a.fetchReviewsFn != nil {
+		fn := a.fetchReviewsFn
+		cmds = append(cmds, func() tea.Msg {
+			reviews, err := fn()
+			return reviewsLoadedMsg{reviews: reviews, err: err}
+		})
+	}
+	if len(cmds) > 0 {
+		return tea.Batch(cmds...)
+	}
 	return nil
 }
 
@@ -146,6 +213,42 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		return a.handleKey(typedMsg)
+
+	// Async data loaded messages — progressive rendering.
+	case commentsLoadedMsg:
+		a.commentsLoading = false
+		a.summary.loading = a.isLoading()
+		if typedMsg.err != nil {
+			a.loadErrors = append(a.loadErrors, fmt.Sprintf("threads: %v", typedMsg.err))
+		} else {
+			a.SetComments(typedMsg.result)
+			contentHeight := max(a.height-2, 1)
+			a.commentsList.setSize(a.width, contentHeight)
+			a.resolve.setSize(a.width, contentHeight)
+		}
+		return a, nil
+
+	case checksLoadedMsg:
+		a.checksLoading = false
+		a.summary.loading = a.isLoading()
+		if typedMsg.err != nil {
+			a.loadErrors = append(a.loadErrors, fmt.Sprintf("checks: %v", typedMsg.err))
+		} else {
+			a.SetChecks(typedMsg.result)
+			contentHeight := max(a.height-2, 1)
+			a.checksList.setSize(a.width, contentHeight)
+		}
+		return a, nil
+
+	case reviewsLoadedMsg:
+		a.reviewsLoading = false
+		a.summary.loading = a.isLoading()
+		if typedMsg.err != nil {
+			a.loadErrors = append(a.loadErrors, fmt.Sprintf("reviews: %v", typedMsg.err))
+		} else {
+			a.SetReviews(typedMsg.reviews)
+		}
+		return a, nil
 
 	// Messages from sub-models
 	case selectThreadMsg:
@@ -479,6 +582,29 @@ func (a *App) SetWatchFetch(fn watchFetchFunc, interval time.Duration) {
 func (a *App) SetReviews(r []domain.Review) {
 	a.reviews = r
 	a.summary.reviews = r
+}
+
+// SetAsyncFetch configures async data fetching — TUI launches immediately,
+// data loads progressively via Init() commands.
+func (a *App) SetAsyncFetch(comments FetchCommentsFunc, checks FetchChecksFunc, reviews FetchReviewsFunc) {
+	if comments != nil {
+		a.fetchCommentsFn = comments
+		a.commentsLoading = true
+	}
+	if checks != nil {
+		a.fetchChecksFn = checks
+		a.checksLoading = true
+	}
+	if reviews != nil {
+		a.fetchReviewsFn = reviews
+		a.reviewsLoading = true
+	}
+	a.summary.loading = a.isLoading()
+}
+
+// isLoading returns true if any data is still being fetched.
+func (a App) isLoading() bool {
+	return a.commentsLoading || a.checksLoading || a.reviewsLoading
 }
 
 // ActiveView returns the current active view.

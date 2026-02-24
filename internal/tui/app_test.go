@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -557,6 +558,112 @@ func TestEscFromResolveConfirmingCancelsNotSwitchesView(t *testing.T) {
 	app = sendSpecialKey(app, tea.KeyEscape)
 	if app.ActiveView() != ViewSummary {
 		t.Errorf("Esc from browsing: expected ViewSummary, got %v", app.ActiveView())
+	}
+}
+
+func TestSetAsyncFetchMarksLoading(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app.SetAsyncFetch(
+		func() (*domain.CommentsResult, error) { return nil, nil },
+		func() (*domain.ChecksResult, error) { return nil, nil },
+		func() ([]domain.Review, error) { return nil, nil },
+	)
+	if !app.commentsLoading || !app.checksLoading || !app.reviewsLoading {
+		t.Error("expected all loading flags to be true after SetAsyncFetch")
+	}
+	if !app.isLoading() {
+		t.Error("expected isLoading() to be true")
+	}
+	if !app.summary.loading {
+		t.Error("expected summary.loading to be true")
+	}
+}
+
+func TestAsyncInitReturnsCommands(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app.SetAsyncFetch(
+		func() (*domain.CommentsResult, error) {
+			return &domain.CommentsResult{UnresolvedCount: 3}, nil
+		},
+		func() (*domain.ChecksResult, error) {
+			return &domain.ChecksResult{PassCount: 5}, nil
+		},
+		func() ([]domain.Review, error) {
+			return []domain.Review{{Author: "alice", State: domain.ReviewApproved}}, nil
+		},
+	)
+
+	cmd := app.Init()
+	if cmd == nil {
+		t.Fatal("expected Init() to return a command for async fetches")
+	}
+}
+
+func TestAsyncLoadedMsgUpdatesData(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app.commentsLoading = true
+	app.checksLoading = true
+	app.reviewsLoading = true
+	app.summary.loading = true
+	app = sendWindowSize(app, 80, 24)
+
+	// Simulate commentsLoadedMsg.
+	model, _ := app.Update(commentsLoadedMsg{
+		result: &domain.CommentsResult{UnresolvedCount: 2},
+	})
+	app = model.(App)
+	if app.commentsLoading {
+		t.Error("commentsLoading should be false after commentsLoadedMsg")
+	}
+	if app.comments == nil || app.comments.UnresolvedCount != 2 {
+		t.Error("comments data not set after commentsLoadedMsg")
+	}
+
+	// Simulate checksLoadedMsg.
+	model, _ = app.Update(checksLoadedMsg{
+		result: &domain.ChecksResult{PassCount: 4},
+	})
+	app = model.(App)
+	if app.checksLoading {
+		t.Error("checksLoading should be false after checksLoadedMsg")
+	}
+	if app.checks == nil || app.checks.PassCount != 4 {
+		t.Error("checks data not set after checksLoadedMsg")
+	}
+
+	// Simulate reviewsLoadedMsg.
+	model, _ = app.Update(reviewsLoadedMsg{
+		reviews: []domain.Review{{Author: "bob", State: domain.ReviewApproved}},
+	})
+	app = model.(App)
+	if app.reviewsLoading {
+		t.Error("reviewsLoading should be false after reviewsLoadedMsg")
+	}
+	if len(app.reviews) != 1 || app.reviews[0].Author != "bob" {
+		t.Error("reviews data not set after reviewsLoadedMsg")
+	}
+	if app.isLoading() {
+		t.Error("expected isLoading() to be false after all data loaded")
+	}
+	if app.summary.loading {
+		t.Error("expected summary.loading to be false after all data loaded")
+	}
+}
+
+func TestAsyncLoadErrorIsRecorded(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app.commentsLoading = true
+	app.summary.loading = true
+
+	model, _ := app.Update(commentsLoadedMsg{
+		err: fmt.Errorf("network error"),
+	})
+	app = model.(App)
+	if len(app.loadErrors) == 0 {
+		t.Fatal("expected load error to be recorded")
+	}
+	if !strings.Contains(app.loadErrors[0], "network error") {
+		t.Errorf("expected error message to contain 'network error', got %q", app.loadErrors[0])
 	}
 }
 
