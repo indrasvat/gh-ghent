@@ -8,9 +8,9 @@
 | Field | Value |
 |-------|-------|
 | **Current Phase** | Phase 9: Bug Fixes |
-| **Current Task** | Task 032 DONE. Summary overflow, async startup, Esc navigation. |
+| **Current Task** | Task 033 DONE. Fix 10 dead TUI keybindings. |
 | **Blocker** | None |
-| **Last Action** | Fixed summary approvals overflow (cap 5 + priority sort), async TUI loading (instant startup), Esc navigation from sub-views. |
+| **Last Action** | All 10 keybindings implemented, 60 new tests, L4 11/11 PASS. |
 | **Last Updated** | 2026-02-24 |
 
 ## How to Resume
@@ -83,12 +83,24 @@
 
 ### Phase 9: Bug Fixes
 - [x] Task 9.1: Summary overflow, async startup, Esc navigation → `docs/tasks/032-summary-overflow-esc-nav.md`
+- [x] Task 9.2: Dead keybindings → `docs/tasks/033-dead-keybindings.md`
 
 ## Blockers
 
 (None currently)
 
 ## Session Log
+
+### 2026-02-24 (Phase 9: Bug Fixes — Task 033 Dead Keybindings)
+- **Task 033 (Dead keybindings):** Fixed all 10 advertised-but-unimplemented TUI keybindings across 4 views.
+  - **Comments list:** `f` (filter by file cycling), `y` (copy thread ID to clipboard), `o` (open comment in browser), `r` (switch to resolve view)
+  - **Comments expanded:** `r` (resolve current thread via API), `y` (copy thread ID), `o` (open in browser)
+  - **Checks list:** `R` (re-run failed checks via `gh run rerun`)
+  - **Summary:** `o` (open PR in browser), `R` (re-run failed checks)
+- **New files:** `internal/tui/clipboard.go` — clipboard helper (`pbcopy`/`xclip`/`xsel`), following `openInBrowser()` pattern
+- **Modified files:** `comments.go` (y/o/f handlers + filter state + `cycleFilter()` + `computeUniquePaths()`), `app.go` (r/o/R app-level handlers + `clipboardCopyMsg`/`rerunResultMsg` msg cases + filter indicator in status bar), `checks.go` (`extractRunID()` + `rerunFailedChecks()` + `rerunResultMsg`), `keymap.go` (OpenPR + Rerun bindings)
+- **Test count:** 489 → 549 (60 new tests). `make ci-fast` clean with race detector.
+- **L4:** `.claude/automations/test_ghent_keybindings.py` rewritten with exhaustive content-specific assertions: 11/11 PASS (10 keybinding tests + 1 regression). Clipboard verified via `pbpaste` (PRRT_ prefix), filter cycling verified with badge + item count + clear, resolve view switch verified with multi-indicator (checkboxes, help bar), roundtrip Esc confirmed.
 
 ### 2026-02-24 (Phase 9: Bug Fixes — Task 032 Summary Overflow, Async Startup, Esc Nav)
 - **P3 (Esc navigation):** Generalized Esc handler in `handleKey()` — returns to `prevView` from any list view, not just resolve/summary. Initialized `prevView = initialView` in `NewApp()`. 3 new tests.

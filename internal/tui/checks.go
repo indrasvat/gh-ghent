@@ -22,6 +22,11 @@ type selectCheckMsg struct {
 	checkIdx int
 }
 
+// rerunResultMsg is returned after attempting to re-run failed checks.
+type rerunResultMsg struct {
+	err error
+}
+
 // ── Checks list model ───────────────────────────────────────────
 
 // checksListModel renders a scrollable list of CI check runs with status icons
@@ -466,6 +471,46 @@ func formatCheckDuration(ch domain.CheckRun) string {
 		return fmt.Sprintf("%dm", m)
 	}
 	return fmt.Sprintf("%dm %ds", m, s)
+}
+
+// extractRunID parses a workflow run ID from a GitHub Actions HTML URL.
+// URL format: https://github.com/{owner}/{repo}/actions/runs/{runID}/job/{jobID}
+func extractRunID(htmlURL string) string {
+	const marker = "/actions/runs/"
+	idx := strings.Index(htmlURL, marker)
+	if idx < 0 {
+		return ""
+	}
+	rest := htmlURL[idx+len(marker):]
+	// Run ID is everything until the next '/'.
+	if slashIdx := strings.IndexByte(rest, '/'); slashIdx > 0 {
+		return rest[:slashIdx]
+	}
+	return rest
+}
+
+// rerunFailedChecks returns a tea.Cmd that re-runs failed workflow runs via `gh run rerun`.
+func rerunFailedChecks(repo string, checks []domain.CheckRun) tea.Cmd {
+	return func() tea.Msg {
+		// Collect unique run IDs from failed checks.
+		seen := make(map[string]bool)
+		for _, ch := range checks {
+			if !checkIsFailed(ch) {
+				continue
+			}
+			runID := extractRunID(ch.HTMLURL)
+			if runID == "" || seen[runID] {
+				continue
+			}
+			seen[runID] = true
+			//nolint:gosec // repo and runID come from GitHub API
+			cmd := exec.CommandContext(context.Background(), "gh", "run", "rerun", runID, "--failed", "-R", repo)
+			if err := cmd.Run(); err != nil {
+				return rerunResultMsg{err: err}
+			}
+		}
+		return rerunResultMsg{}
+	}
 }
 
 // openInBrowser opens a URL in the system browser without suspending the TUI.

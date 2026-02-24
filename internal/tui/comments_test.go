@@ -653,3 +653,230 @@ func TestExpandedModelNoDiffHunk(t *testing.T) {
 		t.Error("missing comment body")
 	}
 }
+
+// ── Task 033: New keybinding tests ──────────────────────────────
+
+func TestCommentsListYKeyCopiesThreadID(t *testing.T) {
+	m := newCommentsListModel(testThreads())
+	m.setSize(80, 24)
+
+	// Cursor starts on first thread (PRRT_1).
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	if cmd == nil {
+		t.Fatal("expected a command from 'y', got nil")
+	}
+
+	msg := cmd()
+	clipMsg, ok := msg.(clipboardCopyMsg)
+	if !ok {
+		t.Fatalf("expected clipboardCopyMsg, got %T", msg)
+	}
+	if clipMsg.text != "PRRT_1" {
+		t.Errorf("expected clipboard text 'PRRT_1', got %q", clipMsg.text)
+	}
+}
+
+func TestCommentsListYKeySecondThread(t *testing.T) {
+	m := newCommentsListModel(testThreads())
+	m.setSize(80, 24)
+
+	// Move to second thread.
+	m.moveCursor(1)
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	if cmd == nil {
+		t.Fatal("expected a command from 'y', got nil")
+	}
+
+	msg := cmd()
+	clipMsg, ok := msg.(clipboardCopyMsg)
+	if !ok {
+		t.Fatalf("expected clipboardCopyMsg, got %T", msg)
+	}
+	if clipMsg.text != "PRRT_2" {
+		t.Errorf("expected clipboard text 'PRRT_2', got %q", clipMsg.text)
+	}
+}
+
+func TestCommentsListYKeyEmptyListNoOp(t *testing.T) {
+	m := newCommentsListModel(nil)
+	m.setSize(80, 24)
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	if cmd != nil {
+		t.Error("expected nil command for 'y' on empty list")
+	}
+}
+
+func TestCommentsListOKeyOpensBrowser(t *testing.T) {
+	threads := []domain.ReviewThread{
+		{
+			ID: "PRRT_1", Path: "file.go", Line: 10,
+			Comments: []domain.Comment{
+				{Author: "alice", Body: "fix", URL: "https://github.com/test/pr/1#discussion_r1"},
+			},
+		},
+	}
+	m := newCommentsListModel(threads)
+	m.setSize(80, 24)
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
+	if cmd == nil {
+		t.Fatal("expected a command from 'o', got nil")
+	}
+	// Command returns nil (openInBrowser fires and forgets).
+	// Just verify the command is returned (non-nil).
+}
+
+func TestCommentsListOKeyNoURLNoOp(t *testing.T) {
+	// Thread with empty URL.
+	threads := []domain.ReviewThread{
+		{
+			ID: "PRRT_1", Path: "file.go", Line: 10,
+			Comments: []domain.Comment{
+				{Author: "alice", Body: "fix", URL: ""},
+			},
+		},
+	}
+	m := newCommentsListModel(threads)
+	m.setSize(80, 24)
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
+	if cmd != nil {
+		t.Error("expected nil command for 'o' when URL is empty")
+	}
+}
+
+func TestCommentsListFilterCycles(t *testing.T) {
+	// testThreads() has 2 unique paths:
+	// "internal/api/graphql.go" and "internal/cli/comments.go"
+	m := newCommentsListModel(testThreads())
+	m.setSize(80, 24)
+
+	if len(m.uniquePaths) != 2 {
+		t.Fatalf("expected 2 unique paths, got %d", len(m.uniquePaths))
+	}
+
+	// Initially: show all (3 threads, 2 headers = 5 items).
+	if m.filterFile != "" {
+		t.Errorf("expected empty filter initially, got %q", m.filterFile)
+	}
+	if len(m.items) != 5 {
+		t.Errorf("expected 5 items initially, got %d", len(m.items))
+	}
+
+	// Press 'f': filter to first file (internal/api/graphql.go — 2 threads).
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
+	if m.filterFile != "internal/api/graphql.go" {
+		t.Errorf("expected filter 'internal/api/graphql.go', got %q", m.filterFile)
+	}
+	// 1 header + 2 threads = 3 items.
+	if len(m.items) != 3 {
+		t.Errorf("expected 3 items after first filter, got %d", len(m.items))
+	}
+
+	// Press 'f': filter to second file (internal/cli/comments.go — 1 thread).
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
+	if m.filterFile != "internal/cli/comments.go" {
+		t.Errorf("expected filter 'internal/cli/comments.go', got %q", m.filterFile)
+	}
+	// 1 header + 1 thread = 2 items.
+	if len(m.items) != 2 {
+		t.Errorf("expected 2 items after second filter, got %d", len(m.items))
+	}
+
+	// Press 'f': back to show all.
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
+	if m.filterFile != "" {
+		t.Errorf("expected empty filter after full cycle, got %q", m.filterFile)
+	}
+	if len(m.items) != 5 {
+		t.Errorf("expected 5 items after clearing filter, got %d", len(m.items))
+	}
+}
+
+func TestCommentsListFilterEmptyList(t *testing.T) {
+	m := newCommentsListModel(nil)
+	m.setSize(80, 24)
+
+	// Pressing 'f' on empty list should be a no-op.
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
+	if m.filterFile != "" {
+		t.Error("expected no filter change on empty list")
+	}
+}
+
+func TestExpandedYKeyCopiesThreadID(t *testing.T) {
+	threads := expandedThreads()
+	m := newCommentsExpandedModel(threads, 0)
+	m.setSize(120, 30)
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	if cmd == nil {
+		t.Fatal("expected a command from 'y', got nil")
+	}
+
+	msg := cmd()
+	clipMsg, ok := msg.(clipboardCopyMsg)
+	if !ok {
+		t.Fatalf("expected clipboardCopyMsg, got %T", msg)
+	}
+	if clipMsg.text != "PRRT_1" {
+		t.Errorf("expected clipboard text 'PRRT_1', got %q", clipMsg.text)
+	}
+}
+
+func TestExpandedYKeySecondThread(t *testing.T) {
+	threads := expandedThreads()
+	m := newCommentsExpandedModel(threads, 1) // start on second thread
+	m.setSize(120, 30)
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	if cmd == nil {
+		t.Fatal("expected a command from 'y', got nil")
+	}
+
+	msg := cmd()
+	clipMsg, ok := msg.(clipboardCopyMsg)
+	if !ok {
+		t.Fatalf("expected clipboardCopyMsg, got %T", msg)
+	}
+	if clipMsg.text != "PRRT_2" {
+		t.Errorf("expected clipboard text 'PRRT_2', got %q", clipMsg.text)
+	}
+}
+
+func TestExpandedOKeyOpensBrowser(t *testing.T) {
+	threads := []domain.ReviewThread{
+		{
+			ID: "PRRT_1", Path: "file.go", Line: 10,
+			Comments: []domain.Comment{
+				{Author: "alice", Body: "fix", URL: "https://github.com/test/pr/1#discussion_r1"},
+			},
+		},
+	}
+	m := newCommentsExpandedModel(threads, 0)
+	m.setSize(120, 30)
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
+	if cmd == nil {
+		t.Fatal("expected a command from 'o', got nil")
+	}
+}
+
+func TestExpandedOKeyNoURLNoOp(t *testing.T) {
+	threads := []domain.ReviewThread{
+		{
+			ID: "PRRT_1", Path: "file.go", Line: 10,
+			Comments: []domain.Comment{
+				{Author: "alice", Body: "fix", URL: ""},
+			},
+		},
+	}
+	m := newCommentsExpandedModel(threads, 0)
+	m.setSize(120, 30)
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
+	if cmd != nil {
+		t.Error("expected nil command for 'o' when URL is empty")
+	}
+}
