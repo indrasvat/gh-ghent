@@ -108,6 +108,7 @@ type App struct {
 func NewApp(repo string, pr int, initialView View) App {
 	return App{
 		activeView: initialView,
+		prevView:   initialView, // Esc is no-op until user navigates away
 		repo:       repo,
 		pr:         pr,
 		keys:       DefaultKeyMap(),
@@ -212,8 +213,8 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if a.activeView == ViewResolve && a.resolve.state == resolveStateConfirming {
 			return a.forwardToActiveView(tea.Msg(msg))
 		}
-		// From resolve/summary, return to previous view.
-		if a.activeView == ViewResolve || a.activeView == ViewSummary {
+		// Return to previous view if set (covers summary→comments, summary→checks, etc.).
+		if a.prevView != a.activeView {
 			a.activeView = a.prevView
 			return a, nil
 		}

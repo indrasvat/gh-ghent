@@ -357,6 +357,51 @@ func TestEscFromTopLevelIsNoOp(t *testing.T) {
 	}
 }
 
+func TestEscFromCommentsListReturnsToPrevView(t *testing.T) {
+	// Simulate: summary → 'c' → comments list → Esc → back to summary.
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app = sendKey(app, "c")
+	if app.ActiveView() != ViewCommentsList {
+		t.Fatalf("expected ViewCommentsList after 'c', got %v", app.ActiveView())
+	}
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewSummary {
+		t.Errorf("Esc from comments list: expected ViewSummary, got %v", app.ActiveView())
+	}
+}
+
+func TestEscFromChecksListReturnsToPrevView(t *testing.T) {
+	// Simulate: summary → 'k' → checks list → Esc → back to summary.
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app = sendKey(app, "k")
+	if app.ActiveView() != ViewChecksList {
+		t.Fatalf("expected ViewChecksList after 'k', got %v", app.ActiveView())
+	}
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewSummary {
+		t.Errorf("Esc from checks list: expected ViewSummary, got %v", app.ActiveView())
+	}
+}
+
+func TestEscRoundTripFromSummary(t *testing.T) {
+	// Full round-trip: summary → c → esc → summary → k → esc → summary.
+	app := NewApp("owner/repo", 42, ViewSummary)
+
+	// summary → comments → back
+	app = sendKey(app, "c")
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewSummary {
+		t.Fatalf("first round-trip: expected ViewSummary, got %v", app.ActiveView())
+	}
+
+	// summary → checks → back
+	app = sendKey(app, "k")
+	app = sendSpecialKey(app, tea.KeyEscape)
+	if app.ActiveView() != ViewSummary {
+		t.Errorf("second round-trip: expected ViewSummary, got %v", app.ActiveView())
+	}
+}
+
 func TestFormatCount(t *testing.T) {
 	tests := []struct {
 		n     int
@@ -475,7 +520,8 @@ func TestEscFromExpandedReturnsToList(t *testing.T) {
 }
 
 func TestEscFromResolveConfirmingCancelsNotSwitchesView(t *testing.T) {
-	app := NewApp("owner/repo", 42, ViewResolve)
+	// Enter resolve from summary (r key), so prevView = ViewSummary.
+	app := NewApp("owner/repo", 42, ViewSummary)
 	app.SetComments(&domain.CommentsResult{
 		Threads: []domain.ReviewThread{
 			makeThread("PRRT_aaa", "main.go", 10, true),
@@ -483,6 +529,12 @@ func TestEscFromResolveConfirmingCancelsNotSwitchesView(t *testing.T) {
 		UnresolvedCount: 1,
 	})
 	app = sendWindowSize(app, 100, 30)
+
+	// Navigate to resolve via 'r' from summary.
+	app = sendKey(app, "r")
+	if app.ActiveView() != ViewResolve {
+		t.Fatalf("expected ViewResolve after 'r', got %v", app.ActiveView())
+	}
 
 	// Space to select thread.
 	app = sendKey(app, " ")
@@ -501,10 +553,10 @@ func TestEscFromResolveConfirmingCancelsNotSwitchesView(t *testing.T) {
 		t.Errorf("Esc from confirming: expected browsing state, got %d", app.resolve.state)
 	}
 
-	// Esc again (from browsing) should switch back to prevView.
+	// Esc again (from browsing) should switch back to summary.
 	app = sendSpecialKey(app, tea.KeyEscape)
-	if app.ActiveView() == ViewResolve {
-		t.Error("Esc from browsing should switch away from resolve")
+	if app.ActiveView() != ViewSummary {
+		t.Errorf("Esc from browsing: expected ViewSummary, got %v", app.ActiveView())
 	}
 }
 
