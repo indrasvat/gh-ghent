@@ -1,7 +1,7 @@
 # Task 032: Summary Pane Overflow, Slow Startup & Esc Navigation
 
 - **Phase:** 9 (Bug Fixes)
-- **Status:** TODO
+- **Status:** IN PROGRESS
 - **Depends on:** None
 - **Blocks:** None
 - **L4 Visual:** Required (TUI layout, scrolling, navigation — verify with iterm2-driver)
@@ -520,6 +520,63 @@ Verify: each summary view shows correct KPI counts and sections.
 """
 # Launch each and screenshot for visual regression
 ```
+
+## Performance Benchmarks (hyperfine)
+
+Capture before/after wall-clock times with `hyperfine`. Run **before** starting
+implementation and **after** each major fix to track regression/improvement.
+
+### Benchmark Commands
+
+```bash
+# ── BEFORE: Run once and save output ──────────────────────────────
+hyperfine --warmup 1 --runs 3 -i \
+  -n 'PR #24063 (101 threads, 61 reviews)' \
+    'gh ghent summary -R oven-sh/bun --pr 24063 --no-tui --format json 2>/dev/null > /dev/null' \
+  -n 'PR #27327 (68 threads, 25 reviews)' \
+    'gh ghent summary -R oven-sh/bun --pr 27327 --no-tui --format json 2>/dev/null > /dev/null' \
+  -n 'PR #27269 (0 threads, 0 reviews)' \
+    'gh ghent summary -R oven-sh/bun --pr 27269 --no-tui --format json 2>/dev/null > /dev/null' \
+  --export-markdown /tmp/ghent-before-perf.md
+
+# ── AFTER: Run same commands, export to different file ────────────
+hyperfine --warmup 1 --runs 3 -i \
+  -n 'PR #24063 (101 threads, 61 reviews)' \
+    'gh ghent summary -R oven-sh/bun --pr 24063 --no-tui --format json 2>/dev/null > /dev/null' \
+  -n 'PR #27327 (68 threads, 25 reviews)' \
+    'gh ghent summary -R oven-sh/bun --pr 27327 --no-tui --format json 2>/dev/null > /dev/null' \
+  -n 'PR #27269 (0 threads, 0 reviews)' \
+    'gh ghent summary -R oven-sh/bun --pr 27269 --no-tui --format json 2>/dev/null > /dev/null' \
+  --export-markdown /tmp/ghent-after-perf.md
+```
+
+Notes:
+- `-i` ignores non-zero exit codes (exit 1 = "not merge ready", expected)
+- `--no-tui --format json` measures pure API + processing time (no TUI overhead)
+- For TUI perceived-latency (time-to-first-frame), use iterm2-driver screenshot timing
+- Network variance is high — run benchmarks at similar times of day for fair comparison
+
+### BEFORE Baselines (captured 2026-02-24)
+
+| PR | Threads | Reviews | Mean | Min | Max |
+|----|---------|---------|------|-----|-----|
+| #24063 | 101 unresolved | 61 | **6.46s** ± 0.59s | 5.79s | 6.89s |
+| #27327 | 68 unresolved | 25 | **1.95s** ± 0.28s | 1.70s | 2.25s |
+| #27269 | 0 | 0 | **1.33s** ± 0.07s | 1.25s | 1.39s |
+
+PR #24063 is **4.86x slower** than the small PR #27269.
+
+### AFTER Results
+
+_Fill in after implementation. Target: TUI frame appears within ~1s for all PRs.
+Pipe-mode total time won't change (API latency is fixed), but perceived TUI
+startup should be near-instant since data loads asynchronously._
+
+| PR | Threads | Reviews | Mean (pipe) | TUI first-frame |
+|----|---------|---------|-------------|-----------------|
+| #24063 | 101 | 61 | _TBD_ | _TBD_ |
+| #27327 | 68 | 25 | _TBD_ | _TBD_ |
+| #27269 | 0 | 0 | _TBD_ | _TBD_ |
 
 ## Discovered Issue: Missing Buildkite/Commit Status Data
 
