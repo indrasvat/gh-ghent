@@ -50,8 +50,8 @@ func (c *Client) ReplyToThread(ctx context.Context, owner, repo string, pr int, 
 		Body string `json:"body"`
 	}{Body: body}
 
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(reqBody); err != nil {
+	encoded, err := json.Marshal(reqBody)
+	if err != nil {
 		return nil, fmt.Errorf("reply: encode body: %w", err)
 	}
 
@@ -59,7 +59,7 @@ func (c *Client) ReplyToThread(ctx context.Context, owner, repo string, pr int, 
 
 	var resp replyResponse
 	if err := doWithRetry(func() error {
-		return c.rest.DoWithContext(ctx, http.MethodPost, endpoint, &buf, &resp)
+		return c.rest.DoWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(encoded), &resp)
 	}); err != nil {
 		return nil, classifyError(err)
 	}

@@ -153,7 +153,7 @@ func (m resolveModel) handleKey(msg tea.KeyMsg) (resolveModel, tea.Cmd) {
 		if m.cursor >= 0 && m.cursor < len(m.threads) {
 			t := m.threads[m.cursor]
 			if len(t.Comments) > 0 {
-				openInBrowser(t.Comments[0].URL)
+				return m, openInBrowser(t.Comments[0].URL)
 			}
 		}
 	}
