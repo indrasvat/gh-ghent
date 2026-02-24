@@ -210,6 +210,16 @@ gh ghent comments --pr 42 --format md
 gh ghent checks --pr 42 --format xml
 ```
 
+## For AI Agents (Agent Skill)
+
+ghent ships an [Agent Skill](https://agentskills.io) so AI coding agents (Claude Code, Codex, Cursor, Cline, Copilot, Amp, etc.) can discover and use it automatically.
+
+```bash
+npx skills add indrasvat/gh-ghent
+```
+
+The skill teaches agents when and how to use ghent — triggering conditions, pipe-mode commands, JSON output parsing, exit code branching, and complete review-fix-resolve workflows. See [`skill/SKILL.md`](skill/SKILL.md) for the full skill content.
+
 ## Development
 
 ```bash

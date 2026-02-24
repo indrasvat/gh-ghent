@@ -7,11 +7,11 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 6: Agent Optimization — COMPLETE |
-| **Current Task** | All 30 tasks DONE. Project feature-complete. |
+| **Current Phase** | Phase 7: Distribution & Ecosystem — COMPLETE |
+| **Current Task** | Task 7.1 DONE. Agent Skill created. |
 | **Blocker** | None |
-| **Last Action** | Phase 6 complete. --since, --group-by, --compact, batch resolve. 489 tests. |
-| **Last Updated** | 2026-02-23 |
+| **Last Action** | Agent Skill (skill/SKILL.md + 5 supporting files) verified against real CLI output. |
+| **Last Updated** | 2026-02-24 |
 
 ## How to Resume
 
@@ -73,11 +73,28 @@
 
 > **Milestone: Agent Optimization complete** — all agent-facing features implemented, 489 tests passing
 
+### Phase 7: Distribution & Ecosystem
+- [x] Task 7.1: Agent Skill → `docs/tasks/030-agent-skill.md`
+
+> **Milestone: Distribution complete** — Agent Skill installable via `npx skills add indrasvat/gh-ghent`
+
 ## Blockers
 
 (None currently)
 
 ## Session Log
+
+### 2026-02-24 (Phase 7: Distribution — Task 7.1 Agent Skill)
+- **Task 7.1 (Agent Skill):** Created `skill/` directory with 6 files (1,088 total lines):
+  - `SKILL.md` (161 lines) — main skill file with YAML frontmatter, triggering conditions, quick start, agent mode, core workflow, exit codes summary, --since/--compact/--group-by coverage, links to supporting files
+  - `references/command-reference.md` (347 lines) — all 5 commands with flags, types, defaults, JSON output schemas, key fields for agents
+  - `references/agent-workflows.md` (192 lines) — 5 opinionated workflows: fix comments, monitor CI, full review cycle, incremental delta, selective resolve
+  - `references/exit-codes.md` (87 lines) — per-command exit code table, bash conditional patterns
+  - `examples/review-cycle.md` (152 lines) — annotated walkthrough against indrasvat/tbgs PR #1 with real JSON output
+  - `examples/ci-monitor.md` (149 lines) — CI monitoring walkthrough against indrasvat/peek-it PR #2 and indrasvat/visarga PR #1
+- **Verification:** All commands, flags, exit codes, and JSON schemas verified by running `gh ghent` against 7 real repos (tbgs, peek-it, doot, visarga, querylastic, context-lens, openclaw/openclaw). Tested --group-by, --since, --compact, --logs, --dry-run, --file, --author, all 3 output formats, error cases (nonexistent repo/PR). Every field name and exit code in the skill matches actual implementation.
+- Updated README.md with "For AI Agents" section and skill installation instructions.
+- **Phase 7 complete.** Installable via `npx skills add indrasvat/gh-ghent`.
 
 ### 2026-02-23 (Phase 6: Agent Optimization — all 4 tasks parallel)
 - **Tasks 3.2, 3.4 (error handling, README):** Already code-complete from prior sessions but task files still showed TODO. Created L4 visual tests (`test_ghent_errors.py` 6/6 PASS, `test_ghent_help.py` 8/8 PASS, `test_ghent_agent.py` 8/8 PASS) to satisfy pre-task-done-gate hook, added Visual Test Results sections, marked DONE.
