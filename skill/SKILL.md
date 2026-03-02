@@ -4,8 +4,15 @@ description: >
   Structured access to GitHub PR review state for AI coding agents. This skill
   should be used when the user needs to check PR merge readiness, diagnose CI
   failures, read unresolved review comments, resolve review threads, or monitor
-  CI status. Provides JSON/XML/Markdown output with file:line locations,
-  error log excerpts, and annotations from GitHub Actions.
+  CI status. Use when the user says "check my PR", "is my PR ready to merge",
+  "why is CI failing", "CI is red", "build broken", "what are the review
+  comments", "any feedback on my PR", "read PR comments", "address review
+  feedback", "resolve review threads", "PR status", "are checks passing",
+  "did CI pass", "check PR #N", "monitor CI", "wait for checks", "what's
+  failing", "review my PR", or any request to inspect, diagnose, or act on
+  GitHub pull request review threads, CI check status, or merge readiness.
+  Provides JSON/XML/Markdown output with file:line locations, error log
+  excerpts, and annotations from GitHub Actions.
 ---
 
 # gh-ghent — Agentic PR Monitoring
