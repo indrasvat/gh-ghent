@@ -206,7 +206,7 @@ Follow these steps for every feature. Each step has a gate — don't skip ahead.
 5. **Docs** — update README.md, `skill/SKILL.md`, `skill/references/command-reference.md` as needed
 6. **Commit** — logical splits (impl, docs), `git push` (lefthook pre-push runs `make ci`)
 7. **PR** — `gh pr create` → wait for Codex :eyes: → :thumbsup: or review comments
-8. **Address review** — `gh ghent comments` to read → fix → `gh ghent reply` → `gh ghent resolve --all` → push
+8. **Address review** — read (`gh ghent comments --pr N`), fix code, reply (`gh ghent reply --pr N --thread PRRT_... --body "Fixed"`), resolve (`gh ghent resolve --pr N --all`), push
 9. **Merge** — `gh pr merge --squash --delete-branch` → `git checkout main && git pull` → wait for CI green
 10. **Tag** — `git tag -a vX.Y.Z -m "message"` → `git push origin vX.Y.Z` → wait for release workflow
 11. **Upgrade** — `gh extension upgrade gh-ghent` → verify `gh ghent --version` → `npx skills upgrade --global`
