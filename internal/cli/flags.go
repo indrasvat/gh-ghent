@@ -9,6 +9,7 @@ type GlobalFlags struct {
 	Verbose bool
 	NoTUI   bool
 	Debug   bool
+	Solo    bool // relaxes approval requirement for single-maintainer repos
 	IsTTY   bool // resolved at runtime in PersistentPreRunE
 	PR      int
 	Since   time.Time // parsed from --since flag; zero means no filter

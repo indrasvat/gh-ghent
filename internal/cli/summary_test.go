@@ -39,6 +39,7 @@ func TestIsMergeReady(t *testing.T) {
 		threads *domain.CommentsResult
 		checks  *domain.ChecksResult
 		reviews []domain.Review
+		solo    bool
 		want    bool
 	}{
 		{
@@ -139,13 +140,78 @@ func TestIsMergeReady(t *testing.T) {
 			reviews: reviewsChangesRequested,
 			want:    false,
 		},
+		// Solo mode tests.
+		{
+			name:    "solo: empty reviews is merge-ready",
+			threads: threadsClean,
+			checks:  checksPass,
+			reviews: reviewsEmpty,
+			solo:    true,
+			want:    true,
+		},
+		{
+			name:    "solo: no approvals only comments is merge-ready",
+			threads: threadsClean,
+			checks:  checksPass,
+			reviews: reviewsCommentedOnly,
+			solo:    true,
+			want:    true,
+		},
+		{
+			name:    "solo: changes requested still blocks",
+			threads: threadsClean,
+			checks:  checksPass,
+			reviews: reviewsChangesRequested,
+			solo:    true,
+			want:    false,
+		},
+		{
+			name:    "solo: mixed approval and changes requested still blocks",
+			threads: threadsClean,
+			checks:  checksPass,
+			reviews: reviewsMixed,
+			solo:    true,
+			want:    false,
+		},
+		{
+			name:    "solo: unresolved threads still blocks",
+			threads: threadsDirty,
+			checks:  checksPass,
+			reviews: reviewsEmpty,
+			solo:    true,
+			want:    false,
+		},
+		{
+			name:    "solo: failing checks still blocks",
+			threads: threadsClean,
+			checks:  checksFail,
+			reviews: reviewsEmpty,
+			solo:    true,
+			want:    false,
+		},
+		{
+			name:    "solo: nil reviews still passes",
+			threads: threadsClean,
+			checks:  checksPass,
+			reviews: nil,
+			solo:    true,
+			want:    true,
+		},
+		{
+			name:    "solo: approved review still works",
+			threads: threadsClean,
+			checks:  checksPass,
+			reviews: reviewsApproved,
+			solo:    true,
+			want:    true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := IsMergeReady(tt.threads, tt.checks, tt.reviews)
+			got := IsMergeReady(tt.threads, tt.checks, tt.reviews, tt.solo)
 			if got != tt.want {
-				t.Errorf("IsMergeReady() = %v, want %v", got, tt.want)
+				t.Errorf("IsMergeReady(solo=%v) = %v, want %v", tt.solo, got, tt.want)
 			}
 		})
 	}

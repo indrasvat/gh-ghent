@@ -115,6 +115,37 @@ func TestSummaryMergeReady(t *testing.T) {
 			},
 			expected: true,
 		},
+		// Solo mode tests.
+		{
+			name: "solo: empty reviews is merge-ready",
+			model: summaryModel{
+				comments: &domain.CommentsResult{UnresolvedCount: 0},
+				checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass},
+				reviews:  []domain.Review{},
+				solo:     true,
+			},
+			expected: true,
+		},
+		{
+			name: "solo: commented-only reviews is merge-ready",
+			model: summaryModel{
+				comments: &domain.CommentsResult{UnresolvedCount: 0},
+				checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass},
+				reviews:  []domain.Review{{State: domain.ReviewCommented}},
+				solo:     true,
+			},
+			expected: true,
+		},
+		{
+			name: "solo: changes requested still blocks",
+			model: summaryModel{
+				comments: &domain.CommentsResult{UnresolvedCount: 0},
+				checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass},
+				reviews:  []domain.Review{{State: domain.ReviewChangesRequested}},
+				solo:     true,
+			},
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -466,6 +497,77 @@ func TestSummaryApprovalsSmallList(t *testing.T) {
 	}
 	if !strings.Contains(view, "@bob") {
 		t.Error("missing @bob")
+	}
+}
+
+func TestSummarySoloApprovalsSection(t *testing.T) {
+	// Solo mode with no reviews should show solo message.
+	m := summaryModel{solo: true}
+	m.setSize(120, 30)
+	view := m.View()
+
+	if !strings.Contains(view, "Solo mode") {
+		t.Error("missing 'Solo mode' text in solo approvals section")
+	}
+	if !strings.Contains(view, "approval not required") {
+		t.Error("missing 'approval not required' text in solo approvals section")
+	}
+	// Should NOT show "No reviews yet".
+	if strings.Contains(view, "No reviews yet") {
+		t.Error("should show solo message, not 'No reviews yet'")
+	}
+}
+
+func TestSummarySoloApprovalsWithReviews(t *testing.T) {
+	// Solo mode with existing reviews should still render them normally.
+	m := summaryModel{
+		solo: true,
+		reviews: []domain.Review{
+			{Author: "alice", State: domain.ReviewCommented},
+		},
+	}
+	m.setSize(120, 30)
+	view := m.View()
+
+	if !strings.Contains(view, "@alice") {
+		t.Error("missing @alice in solo mode with reviews")
+	}
+	// Should not show solo message when reviews exist.
+	if strings.Contains(view, "Solo mode") {
+		t.Error("should not show solo message when reviews exist")
+	}
+}
+
+func TestSummarySoloKPICard(t *testing.T) {
+	// Solo mode with no approvals should show "—" not "0".
+	m := summaryModel{
+		solo:     true,
+		comments: &domain.CommentsResult{UnresolvedCount: 0},
+		checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass, PassCount: 3},
+	}
+	m.setSize(120, 30)
+	view := m.View()
+
+	if !strings.Contains(view, "—") {
+		t.Error("solo mode with no approvals should show '—' in KPI card")
+	}
+}
+
+func TestSummarySoloBadge(t *testing.T) {
+	// Solo + clean checks + no threads + no reviews = READY.
+	app := NewApp("owner/repo", 42, ViewSummary)
+	app.SetSolo(true)
+	app.SetComments(&domain.CommentsResult{UnresolvedCount: 0})
+	app.SetChecks(&domain.ChecksResult{OverallStatus: domain.StatusPass, PassCount: 3})
+	app.SetReviews([]domain.Review{})
+	app = sendWindowSize(app, 120, 30)
+
+	view := app.View()
+	if strings.Contains(view, "NOT READY") {
+		t.Error("solo mode should show READY, not NOT READY")
+	}
+	if !strings.Contains(view, "READY") {
+		t.Error("missing READY badge in solo mode")
 	}
 }
 

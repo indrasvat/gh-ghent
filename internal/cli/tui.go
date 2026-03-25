@@ -20,6 +20,9 @@ func launchTUI(startView tui.View, opts ...tuiOption) error {
 	}
 
 	app := tui.NewApp(cfg.repo, cfg.pr, startView)
+	if cfg.solo {
+		app.SetSolo(true)
+	}
 	if cfg.comments != nil {
 		app.SetComments(cfg.comments)
 	}
@@ -57,6 +60,7 @@ func launchTUI(startView tui.View, opts ...tuiOption) error {
 type tuiConfig struct {
 	repo          string
 	pr            int
+	solo          bool
 	comments      *domain.CommentsResult
 	checks        *domain.ChecksResult
 	resolveFunc   func(threadID string) error
@@ -77,6 +81,10 @@ func withRepo(repo string) tuiOption {
 
 func withPR(pr int) tuiOption {
 	return func(c *tuiConfig) { c.pr = pr }
+}
+
+func withSolo(solo bool) tuiOption {
+	return func(c *tuiConfig) { c.solo = solo }
 }
 
 func withComments(r *domain.CommentsResult) tuiOption {
