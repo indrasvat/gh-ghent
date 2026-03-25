@@ -14,6 +14,7 @@ golangci-lint v2.9.0 | lefthook 2.1.1 | gh-extension-precompile v2
 - PRD: `docs/PRD.md`
 - Progress: `docs/PROGRESS.md`
 - Tasks: `docs/tasks/NNN-*.md`
+- Learnings: `docs/LEARNINGS.md`
 - TUI Mockups: `docs/tui-mockups.html` (authoritative visual spec)
 - Research: `docs/*.md` (6 research documents)
 - Testing Strategy: `docs/testing-strategy.md`
@@ -194,28 +195,25 @@ These bugs were discovered in yukti/vivecaka. Apply preventively:
 - Rate limits: 5000 REST/hour, 5000 GraphQL points/hour
 - Dual field lists for pagination (see `docs/vivecaka-large-pr-patterns-research.md` §1)
 
+## Feature Lifecycle
+
+Follow these steps for every feature. Each step has a gate — don't skip ahead.
+
+1. **Branch** — `git checkout -b feat/NNN-description` (or `fix/`, `docs/`)
+2. **Implement** — code + unit tests → `make ci-fast` green
+3. **L3 smoke test** — `make install` → run `gh ghent` against real test repos (see matrix above)
+4. **L4 visual test** — write/update `test_ghent_*.py` → `uv run`, verify screenshots
+5. **Docs** — update README.md, `skill/SKILL.md`, `skill/references/command-reference.md` as needed
+6. **Commit** — logical splits (impl, docs), `git push` (lefthook pre-push runs `make ci`)
+7. **PR** — `gh pr create` → wait for Codex :eyes: → :thumbsup: or review comments
+8. **Address review** — read (`gh ghent comments --pr N`), fix code, reply (`gh ghent reply --pr N --thread PRRT_... --body "Fixed"`), resolve (`gh ghent resolve --pr N --all`), push
+9. **Merge** — `gh pr merge --squash --delete-branch` → `git checkout main && git pull` → wait for CI green
+10. **Tag** — `git tag -a vX.Y.Z -m "message"` → `git push origin vX.Y.Z` → wait for release workflow
+11. **Upgrade** — `gh extension upgrade gh-ghent` → verify `gh ghent --version` → `npx skills upgrade --global`
+
+> Steps 7–8 use ghent itself (dogfooding). Use `--solo` for personal repos.
+> Steps 10–11 only apply to feature/fix releases, not docs-only changes.
+
 ## Learnings
 
-> **STRICT RULE:** Update this section at the end of every coding session.
-> Format: `- **YYYY-MM-DD (task NNN):** [concrete, actionable insight]`
-
-- **2026-02-22 (task 000):** goimports requires blank line between external (`github.com/spf13/cobra`) and internal (`github.com/indrasvat/gh-ghent/...`) imports — golangci-lint v2 enforces this via the `local-prefixes` setting
-- **2026-02-22 (task 000):** go-gh v2.13.0 pins lipgloss to a pre-release commit (`v1.1.1-0.20250319...`), not `@latest` — always let go-gh's version win for lipgloss
-- **2026-02-22 (tasks 005/007/008):** `make install` symlinks bin/gh-ghent into gh extensions dir — always use `gh ghent` (not `./bin/gh-ghent`) for L3 testing to match real user experience
-- **2026-02-22 (task 007):** `FetchThreads` only returns unresolved threads — any feature needing resolved threads must use `FetchResolvedThreads` (e.g., `--all --unresolve`)
-- **2026-02-22 (tasks 005/007/008):** When running parallel agents in worktrees that modify shared files (client.go, formatter.go), agents may step on each other's changes — verify the integrated result builds and passes lint after merging
-- **2026-02-23 (task 006):** go-gh REST `DoWithContext` expects JSON responses — use `RequestWithContext` for plain-text endpoints like job logs (`/actions/jobs/{id}/logs`)
-- **2026-02-23 (task 006):** Not all check run IDs map to GitHub Actions job IDs — external CI checks (e.g., third-party integrations) return 404 on the logs endpoint. Graceful degradation (skip failed log fetch) is essential.
-- **2026-02-23 (task 009):** `gh` extension wrapper may duplicate output to stderr on non-zero exit codes — this is a gh CLI artifact, not a binary bug. Always test with `./bin/gh-ghent` directly to verify
-- **2026-02-23 (task 009):** Test repos without real PR approvals will have `is_merge_ready=false` even with clean threads and passing checks — the IsMergeReady logic correctly requires at least 1 APPROVED review
-- **2026-02-22 (task 014):** `go get github.com/charmbracelet/bubbletea@latest` can downgrade go-gh from v2.13.0 to v2.11.2 — always re-pin go-gh after adding charmbracelet dependencies: `go get github.com/cli/go-gh/v2@v2.13.0`
-- **2026-02-22 (task 016):** golangci-lint `unused` linter catches methods on unexported types — remove unused methods (like `isTopLevel`) rather than keeping them "for later"; re-add when actually needed
-- **2026-02-22 (task 017):** L4 iterm2-driver tests may fail to find JSON markers if output is very long and scrolls off screen — check for multiple possible markers including end-of-output fields
-- **2026-02-23 (task 023):** When a TUI view has separate `dur` and `status` columns concatenated on the right side, avoid setting the same label in both for a given state — causes duplicate text (e.g., `running... running...`). Only live testing against real in-progress CI caught this; 419 unit tests missed it entirely. Always trigger real CI runs and iterm2-driver test against live data for watch/polling features.
-- **2026-02-23 (phase 6):** When running 4 parallel agents in worktrees that all modify `domain/types.go` and `domain/ports.go`, merge one at a time and run `make ci-fast` after each — sequential merge prevents conflicts from compounding. Test count progression (419→443→465→470→489) provides confidence each merge is clean.
-- **2026-02-23 (phase 6):** `path.Match` in Go stdlib only matches single path segments — for nested globs like `internal/*/*.go`, it works because `*` doesn't match `/`. For recursive `**` patterns, use `filepath.Match` or a dedicated glob library instead.
-- **2026-02-24 (task 031):** Cobra renders `--help`/`--version` templates before `PersistentPreRunE` runs — TTY detection for template funcs must use `term.FromEnv().IsTerminalOutput()` lazily inside the func, not rely on `Flags.IsTTY` which isn't set yet.
-- **2026-02-24 (task 031):** Set `cmd.Version` to the raw version string (e.g., `version.Version`), not `version.String()` — custom version templates compose their own layout from `.Version` + helper funcs, so a pre-formatted string causes duplication.
-- **2026-02-24 (task 033):** Help bar declarations in `helpbar.go` don't auto-wire handlers — each key advertised in the help bar must have an explicit `key.Matches()` case in the corresponding view's `Update()` method or in `app.handleKey()`. Always verify keybindings with L4 tests after adding them.
-- **2026-02-24 (task 033):** For actions that don't visually change the TUI screen (clipboard copy, browser open, async API calls), L4 tests need alternative verification: `pbpaste` for clipboard, `verify_tui_responsive()` for fire-and-forget commands, process spawn checks for browser opens.
-- **2026-02-24 (task 034):** When adding `--watch` to a command that already has pipe-mode output, stream watch status to **stderr** and final output to **stdout** — this lets users pipe stdout to `jq` while seeing progress on stderr. Pattern: `WatchChecks(ctx, os.Stderr, f, ...)` then fall through to normal output on `os.Stdout`.
+Moved to `docs/LEARNINGS.md`. Update that file at the end of every coding session.
