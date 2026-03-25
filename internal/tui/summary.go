@@ -207,7 +207,7 @@ func (m summaryModel) renderKPICards() string {
 		}
 	}
 	approvalColor := lipgloss.Color(string(styles.Yellow))
-	if approvalCount > 0 || (m.solo && !m.hasChangesRequested()) {
+	if approvalCount > 0 || (m.solo && !m.hasErrors && !m.hasChangesRequested()) {
 		approvalColor = lipgloss.Color(string(styles.Green))
 	}
 	if m.solo && approvalCount == 0 {
@@ -439,7 +439,7 @@ func (m summaryModel) renderApprovalsSection() string {
 			approvedCount++
 		}
 	}
-	if approvedCount > 0 || (m.solo && !m.hasChangesRequested()) {
+	if approvedCount > 0 || (m.solo && !m.hasErrors && !m.hasChangesRequested()) {
 		headerDot = greenStyle.Render("●")
 	}
 

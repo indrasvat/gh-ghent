@@ -553,6 +553,23 @@ func TestSummarySoloKPICard(t *testing.T) {
 	}
 }
 
+func TestSummarySoloWithErrorsNotGreen(t *testing.T) {
+	// Solo + hasErrors (review fetch failed) should NOT show green approvals.
+	m := summaryModel{
+		solo:      true,
+		hasErrors: true,
+		comments:  &domain.CommentsResult{UnresolvedCount: 0},
+		checks:    &domain.ChecksResult{OverallStatus: domain.StatusPass, PassCount: 3},
+	}
+	if m.isMergeReady() {
+		t.Error("solo + hasErrors should NOT be merge-ready")
+	}
+	badge, _ := m.mergeReadyBadge()
+	if badge != "NOT READY" {
+		t.Errorf("badge = %q, want NOT READY when hasErrors", badge)
+	}
+}
+
 func TestSummarySoloBadge(t *testing.T) {
 	// Solo + clean checks + no threads + no reviews = READY.
 	app := NewApp("owner/repo", 42, ViewSummary)

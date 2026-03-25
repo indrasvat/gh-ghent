@@ -80,8 +80,8 @@ for AI agents. Works wherever gh is authenticated — zero config.
 			if err != nil {
 				return err
 			}
-			// GH_GHENT_SOLO env var as fallback for --solo flag.
-			if !Flags.Solo && os.Getenv("GH_GHENT_SOLO") != "" {
+			// GH_GHENT_SOLO env var as fallback — only when --solo was not explicitly set.
+			if !f.Changed("solo") && os.Getenv("GH_GHENT_SOLO") != "" {
 				Flags.Solo = true
 			}
 
