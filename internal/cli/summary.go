@@ -37,6 +37,7 @@ Use --watch to poll until all checks complete, then output full summary.
 Use --quiet for silent exit on merge-ready (exit 0), full output on not-ready (exit 1).
 
 Merge-ready when: no unresolved threads + all checks pass + approved.
+With --solo, the approval requirement is skipped (for single-maintainer repos).
 
 Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 		Example: `  # Interactive dashboard
@@ -78,7 +79,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 						return client.FetchChecks(ctx, owner, repo, Flags.PR)
 					}
 					return launchTUI(tui.ViewWatch,
-						withRepo(repoStr), withPR(Flags.PR),
+						withRepo(repoStr), withPR(Flags.PR), withSolo(Flags.Solo),
 						withWatchFetch(fetchFn, ghub.DefaultPollInterval),
 					)
 				}
@@ -106,7 +107,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 				repoStr := owner + "/" + repo
 				sinceFilter := Flags.Since // capture for closures
 				return launchTUI(tui.ViewSummary,
-					withRepo(repoStr), withPR(Flags.PR),
+					withRepo(repoStr), withPR(Flags.PR), withSolo(Flags.Solo),
 					withAsyncFetch(
 						func() (*domain.CommentsResult, error) {
 							result, err := client.FetchThreads(ctx, owner, repo, Flags.PR)
@@ -195,7 +196,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			}
 
 			// Merge readiness logic. If review fetch failed, not merge-ready.
-			mergeReady := !reviewFetchFailed && IsMergeReady(threads, checks, reviews)
+			mergeReady := !reviewFetchFailed && IsMergeReady(threads, checks, reviews, Flags.Solo)
 
 			// --quiet: silent exit on merge-ready, full output on not-ready.
 			if quiet && mergeReady {
@@ -255,7 +256,8 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 //  3. At least 1 approval and no CHANGES_REQUESTED reviews
 //
 // If reviews is nil (fetch failed), the approval requirement is skipped.
-func IsMergeReady(threads *domain.CommentsResult, checks *domain.ChecksResult, reviews []domain.Review) bool {
+// If solo is true, the approval requirement is skipped but CHANGES_REQUESTED still blocks.
+func IsMergeReady(threads *domain.CommentsResult, checks *domain.ChecksResult, reviews []domain.Review, solo bool) bool {
 	// Condition 1: No unresolved threads.
 	if threads != nil && threads.UnresolvedCount > 0 {
 		return false
@@ -268,18 +270,23 @@ func IsMergeReady(threads *domain.CommentsResult, checks *domain.ChecksResult, r
 
 	// Condition 3: At least 1 approval and no changes_requested.
 	// If reviews fetch failed (nil), don't block on approvals.
+	// If solo mode, skip approval requirement but still block on changes_requested.
 	if reviews != nil {
-		hasApproval := false
 		for _, r := range reviews {
-			if r.State == domain.ReviewApproved {
-				hasApproval = true
-			}
 			if r.State == domain.ReviewChangesRequested {
 				return false
 			}
 		}
-		if !hasApproval {
-			return false
+		if !solo {
+			hasApproval := false
+			for _, r := range reviews {
+				if r.State == domain.ReviewApproved {
+					hasApproval = true
+				}
+			}
+			if !hasApproval {
+				return false
+			}
 		}
 	}
 

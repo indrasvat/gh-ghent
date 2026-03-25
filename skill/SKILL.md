@@ -44,6 +44,37 @@ gh ghent <command> --pr <N> --format json --no-tui
 - `--format xml` returns tagged XML with semantic attributes
 - `--format md` returns readable Markdown
 
+## Solo Mode — Auto-Detect for Personal Repos
+
+`--solo` skips the approval requirement in merge-readiness checks. Without it, `is_merge_ready`
+is always `false` on repos with no reviewers — common for personal projects.
+
+**When to add `--solo` automatically:** Run this check before your first `gh ghent` call:
+
+```bash
+# Check if authenticated user owns the repo and it's a personal (non-org) account
+OWNER_TYPE=$(gh api repos/{owner}/{repo} --jq '.owner.type' 2>/dev/null)
+OWNER_LOGIN=$(gh api repos/{owner}/{repo} --jq '.owner.login' 2>/dev/null)
+MY_LOGIN=$(gh api user --jq '.login' 2>/dev/null)
+
+if [ "$OWNER_TYPE" = "User" ] && [ "$OWNER_LOGIN" = "$MY_LOGIN" ]; then
+  SOLO_FLAG="--solo"
+fi
+```
+
+**Heuristics (cheapest → most definitive):**
+
+| Check | API Cost | Confidence | When to Use |
+|-------|----------|------------|-------------|
+| `owner.type == "User"` AND `owner.login == gh_user` | 0 extra (repo metadata already fetched) | High | Default — covers most personal repos |
+| Collaborator count == 1 (`gh api repos/.../collaborators --jq 'length'`) | 1 call | Definitive | When owner check isn't enough (e.g., fork of org repo) |
+| PR has 0 APPROVED/CHANGES_REQUESTED reviews in summary output | 0 extra (post-hoc) | Medium | Fallback: if `is_merge_ready=false` and only the approval condition failed, suggest `--solo` |
+
+**Rules:**
+- For org repos (`owner.type == "Organization"`), never auto-add `--solo`
+- `--solo` still blocks on `CHANGES_REQUESTED` — it only relaxes the "needs approval" requirement
+- Prefer `GH_GHENT_SOLO=1` env var for persistent config (set in shell profile)
+
 ## Recommended: Start with Summary
 
 For most agent tasks, start with `gh ghent summary --pr N --logs --format json --no-tui`.
@@ -69,7 +100,8 @@ Pipe-friendly: `gh ghent summary --pr 42 --watch --format json 2>/dev/null | jq`
 
 ### 3. Quick merge-readiness gate
 ```bash
-gh ghent summary --pr 42 --quiet
+gh ghent summary --pr 42 --quiet               # Requires approval
+gh ghent summary --pr 42 --quiet --solo         # Personal repo (no approval needed)
 ```
 Silent exit 0 if merge-ready, full output + exit 1 if not ready.
 
@@ -85,7 +117,7 @@ gh ghent reply --pr 42 --thread PRRT_... --body "Fixed" # Reply to thread
 
 | Command | Purpose | Key Flags |
 |---------|---------|-----------|
-| `summary` | Full PR status + failure diagnostics | `--logs`, `--watch`, `--quiet`, `--compact` |
+| `summary` | Full PR status + failure diagnostics | `--logs`, `--watch`, `--quiet`, `--compact`, `--solo` |
 | `comments` | Unresolved review threads | `--group-by file\|author\|status` |
 | `checks` | CI status + annotations | `--logs`, `--watch` |
 | `resolve` | Resolve/unresolve threads | `--thread`, `--all`, `--file`, `--author`, `--dry-run`, `--unresolve` |
@@ -103,6 +135,7 @@ For complete flag reference, see [references/command-reference.md](references/co
 | `--no-tui` | | `false` | Force pipe mode (for agents in pseudo-TTY) |
 | `--since` | | | Filter by time: ISO 8601 or relative (`1h`, `30m`, `2d`, `1w`) |
 | `--verbose` | | `false` | Include additional context |
+| `--solo` | | `false` | Skip approval requirement (or `GH_GHENT_SOLO=1`) |
 | `--debug` | | `false` | Debug logging to stderr |
 
 **Troubleshooting:** If output seems incomplete (e.g., empty `log_excerpt`, missing checks),

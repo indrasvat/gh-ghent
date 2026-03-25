@@ -23,6 +23,7 @@ type summaryModel struct {
 	maxScroll    int  // cached max scroll offset, updated on data/size change
 	loading      bool // true while async data is being fetched
 	hasErrors    bool // true if any core fetch failed — blocks merge readiness
+	solo         bool // skip approval requirement (single-maintainer repos)
 }
 
 func (m *summaryModel) setSize(width, height int) {
@@ -90,17 +91,21 @@ func (m summaryModel) isMergeReady() bool {
 		return false
 	}
 	if m.reviews != nil {
-		hasApproval := false
 		for _, r := range m.reviews {
-			if r.State == domain.ReviewApproved {
-				hasApproval = true
-			}
 			if r.State == domain.ReviewChangesRequested {
 				return false
 			}
 		}
-		if !hasApproval {
-			return false
+		if !m.solo {
+			hasApproval := false
+			for _, r := range m.reviews {
+				if r.State == domain.ReviewApproved {
+					hasApproval = true
+				}
+			}
+			if !hasApproval {
+				return false
+			}
 		}
 	}
 	return true
@@ -202,10 +207,14 @@ func (m summaryModel) renderKPICards() string {
 		}
 	}
 	approvalColor := lipgloss.Color(string(styles.Yellow))
-	if approvalCount > 0 {
+	if approvalCount > 0 || (m.solo && !m.hasErrors && !m.hasChangesRequested()) {
 		approvalColor = lipgloss.Color(string(styles.Green))
 	}
-	cards = append(cards, m.renderCard(approvalCount, "Approvals", approvalColor))
+	if m.solo && approvalCount == 0 {
+		cards = append(cards, m.renderCardText("—", "Approvals", approvalColor))
+	} else {
+		cards = append(cards, m.renderCard(approvalCount, "Approvals", approvalColor))
+	}
 
 	// Layout: distribute cards across width.
 	cardWidth := max((m.width-4*3)/4, 10) // 3 gaps between 4 cards
@@ -231,6 +240,24 @@ func (m summaryModel) renderCard(count int, label string, color lipgloss.Color) 
 		Render(fmt.Sprintf("%d", count))
 	labelStr := dimStyle.Render(strings.ToUpper(label))
 	return countStr + "\n" + labelStr
+}
+
+func (m summaryModel) renderCardText(text, label string, color lipgloss.Color) string {
+	textStr := lipgloss.NewStyle().
+		Foreground(color).
+		Bold(true).
+		Render(text)
+	labelStr := dimStyle.Render(strings.ToUpper(label))
+	return textStr + "\n" + labelStr
+}
+
+func (m summaryModel) hasChangesRequested() bool {
+	for _, r := range m.reviews {
+		if r.State == domain.ReviewChangesRequested {
+			return true
+		}
+	}
+	return false
 }
 
 // cardColorForCount returns green if count is 0, red otherwise.
@@ -412,17 +439,22 @@ func (m summaryModel) renderApprovalsSection() string {
 			approvedCount++
 		}
 	}
-	if approvedCount > 0 {
+	if approvedCount > 0 || (m.solo && !m.hasErrors && !m.hasChangesRequested()) {
 		headerDot = greenStyle.Render("●")
 	}
 
 	if len(m.reviews) > 0 {
 		rightInfo = dimStyle.Render(fmt.Sprintf("%d reviews", len(m.reviews)))
+	} else if m.solo {
+		rightInfo = dimStyle.Render("solo mode")
 	}
 
 	header := m.renderSectionHeader(headerDot, title, rightInfo)
 
 	if len(m.reviews) == 0 {
+		if m.solo {
+			return header + "\n" + dimStyle.Render("   Solo mode — approval not required")
+		}
 		return header + "\n" + dimStyle.Render("   No reviews yet")
 	}
 

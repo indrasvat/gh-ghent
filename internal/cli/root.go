@@ -76,6 +76,14 @@ for AI agents. Works wherever gh is authenticated — zero config.
 			if err != nil {
 				return err
 			}
+			Flags.Solo, err = f.GetBool("solo")
+			if err != nil {
+				return err
+			}
+			// GH_GHENT_SOLO env var as fallback — only when --solo was not explicitly set.
+			if !f.Changed("solo") && os.Getenv("GH_GHENT_SOLO") != "" {
+				Flags.Solo = true
+			}
 
 			sinceStr, err := f.GetString("since")
 			if err != nil {
@@ -120,6 +128,7 @@ for AI agents. Works wherever gh is authenticated — zero config.
 	cmd.PersistentFlags().Bool("verbose", false, "show additional context (diff hunks, debug info)")
 	cmd.PersistentFlags().Bool("no-tui", false, "force pipe mode even in TTY (for agents)")
 	cmd.PersistentFlags().Bool("debug", false, "enable debug logging to stderr")
+	cmd.PersistentFlags().Bool("solo", false, "skip approval requirement for single-maintainer repos (or set GH_GHENT_SOLO=1)")
 	cmd.PersistentFlags().Int("pr", 0, "pull request number (required by subcommands)")
 	cmd.PersistentFlags().String("since", "", "filter by timestamp (ISO 8601 or relative: 1h, 30m, 2d)")
 

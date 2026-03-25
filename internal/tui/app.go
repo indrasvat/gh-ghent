@@ -652,6 +652,11 @@ func (a *App) SetReviews(r []domain.Review) {
 	a.summary.reviews = r
 }
 
+// SetSolo enables solo mode — skips approval requirement for merge readiness.
+func (a *App) SetSolo(solo bool) {
+	a.summary.solo = solo
+}
+
 // SetAsyncFetch configures async data fetching — TUI launches immediately,
 // data loads progressively via Init() commands.
 func (a *App) SetAsyncFetch(comments FetchCommentsFunc, checks FetchChecksFunc, reviews FetchReviewsFunc) {
