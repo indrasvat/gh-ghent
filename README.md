@@ -122,6 +122,7 @@ gh ghent summary --pr 42                     # Interactive dashboard
 gh ghent summary --pr 42 --logs --format json  # Full status with failure diagnostics
 gh ghent summary --pr 42 --watch --format json # Wait for CI, then full report
 gh ghent summary --pr 42 --quiet               # Silent merge-readiness gate
+gh ghent summary --pr 42 --solo                # Skip approval check (personal repos)
 ```
 
 | Flag | Description |
@@ -131,8 +132,10 @@ gh ghent summary --pr 42 --quiet               # Silent merge-readiness gate
 | `--watch` | Poll until CI completes, then output full summary |
 | `--quiet` | Silent on merge-ready (exit 0), full output on not-ready (exit 1) |
 | `--compact` | One-line-per-thread compact digest for agents |
+| `--solo` | Skip approval requirement for single-maintainer repos |
 
 Merge-ready when: no unresolved threads + all checks pass + at least one approval.
+With `--solo`, the approval requirement is skipped (but `CHANGES_REQUESTED` still blocks).
 
 Exit codes: `0` = merge-ready, `1` = not merge-ready.
 
@@ -147,6 +150,7 @@ These flags work with all commands:
 | `--no-tui` | | Force pipe mode even in TTY | `false` |
 | `--verbose` | | Show additional context | `false` |
 | `--debug` | | Debug logging to stderr | `false` |
+| `--solo` | | Skip approval requirement (`GH_GHENT_SOLO=1`) | `false` |
 | `--pr` | | Pull request number | |
 
 ## Agent Integration

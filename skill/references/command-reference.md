@@ -277,6 +277,7 @@ Combined PR status dashboard with merge-readiness assessment.
 | `--logs` | bool | Include failing job log excerpts and annotations in output |
 | `--watch` | bool | Poll until all checks complete, then output full summary |
 | `--quiet` | bool | Silent on merge-ready (exit 0), full output on not-ready (exit 1) |
+| `--solo` | bool | Skip approval requirement for single-maintainer repos |
 
 ### Exit Codes
 
@@ -289,6 +290,9 @@ Combined PR status dashboard with merge-readiness assessment.
 1. No unresolved threads (`unresolved_count == 0`)
 2. All checks pass (`overall_status == "pass"`)
 3. At least one APPROVED review with no CHANGES_REQUESTED
+
+With `--solo` (or `GH_GHENT_SOLO=1`), condition 3 is relaxed: no approval is required,
+but `CHANGES_REQUESTED` still blocks. Useful for personal repos with no collaborators.
 
 ### Watch Mode (--watch)
 
