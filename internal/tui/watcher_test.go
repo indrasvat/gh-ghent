@@ -367,6 +367,96 @@ func TestWatcherTransitionToAwaitingReview(t *testing.T) {
 	if m.initialHeadSHA != "abc123" {
 		t.Errorf("initialHeadSHA = %q, want abc123", m.initialHeadSHA)
 	}
+	// No baseline → activityCount should be 0 (no pre-CI comparison).
+	if m.activityCount != 0 {
+		t.Errorf("activityCount = %d, want 0 (no baseline set)", m.activityCount)
+	}
+}
+
+func TestWatcherBaselineDetectsActivityDuringCI(t *testing.T) {
+	// Scenario: bot reviewed during CI. Baseline (before CI) had no threads.
+	// When CI completes and review phase starts, snapshot has threads → activity detected.
+	emptySnap := &domain.ActivitySnapshot{HeadSHA: "abc123"}
+	snapWithThreads := &domain.ActivitySnapshot{
+		HeadSHA:     "abc123",
+		ThreadCount: 2,
+		ThreadIDs:   []string{"t1", "t2"},
+	}
+
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.awaitReview = true
+	m.reviewTimeout = 5 * time.Minute
+	m.baselineHash = ghub.Fingerprint(emptySnap) // baseline: no threads
+	m.reviewFetchFn = func() (*domain.ActivitySnapshot, error) {
+		return snapWithThreads, nil // current: has threads (bot reviewed during CI)
+	}
+
+	checks := makeChecksResult([]domain.CheckRun{
+		{ID: 1, Name: "ci", Status: "completed", Conclusion: "success"},
+	}, domain.StatusPass)
+	checks.HeadSHA = "abc123"
+
+	m, _ = m.handlePollResult(watchResultMsg{checks: checks})
+
+	if m.state != watchStateAwaitingReview {
+		t.Fatalf("state = %d, want watchStateAwaitingReview", m.state)
+	}
+	// Baseline comparison should have detected activity during CI.
+	if m.activityCount != 1 {
+		t.Errorf("activityCount = %d, want 1 (baseline diff = activity during CI)", m.activityCount)
+	}
+}
+
+func TestWatcherBaselineSameNoFalseActivity(t *testing.T) {
+	// Scenario: no new activity during CI. Baseline and current snapshot are the same.
+	snap := &domain.ActivitySnapshot{HeadSHA: "abc123"}
+
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.awaitReview = true
+	m.reviewTimeout = 5 * time.Minute
+	m.baselineHash = ghub.Fingerprint(snap)
+	m.reviewFetchFn = func() (*domain.ActivitySnapshot, error) {
+		return snap, nil // same as baseline
+	}
+
+	checks := makeChecksResult([]domain.CheckRun{
+		{ID: 1, Name: "ci", Status: "completed", Conclusion: "success"},
+	}, domain.StatusPass)
+	checks.HeadSHA = "abc123"
+
+	m, _ = m.handlePollResult(watchResultMsg{checks: checks})
+
+	if m.activityCount != 0 {
+		t.Errorf("activityCount = %d, want 0 (baseline same = no false activity)", m.activityCount)
+	}
+}
+
+func TestWatcherBaselineActivityArmsDebounce(t *testing.T) {
+	// When baseline detected activity (activityCount=1 at start), the debounce
+	// should fire after 30s of idle — not wait for the full timeout.
+	snapWithThreads := &domain.ActivitySnapshot{
+		HeadSHA:     "abc123",
+		ThreadCount: 2,
+		ThreadIDs:   []string{"t1", "t2"},
+	}
+
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.state = watchStateAwaitingReview
+	m.reviewStartAt = time.Now().Add(-1 * time.Minute)
+	m.lastActivityAt = time.Now().Add(-35 * time.Second) // 35s idle
+	m.reviewTimeout = 5 * time.Minute
+	m.initialHeadSHA = "abc123"
+	m.activityCount = 1 // baseline detected activity → debounce armed
+	m.prevHash = ghub.Fingerprint(snapWithThreads)
+
+	m, _ = m.handleReviewPollResult(reviewPollResultMsg{snapshot: snapWithThreads})
+
+	if m.state != watchStateDone {
+		t.Errorf("state = %d, want watchStateDone (baseline activity + 35s idle → should settle)", m.state)
+	}
 }
 
 func TestWatcherCIFailSkipsReviewAwait(t *testing.T) {
