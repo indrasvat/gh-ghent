@@ -93,6 +93,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 				if Flags.IsTTY {
 					repoStr := owner + "/" + repo
 					sinceFilter := Flags.Since
+					botsOnlyFilter := botsOnly
 					fetchFn := func() (*domain.ChecksResult, error) {
 						return client.FetchChecks(ctx, owner, repo, Flags.PR)
 					}
@@ -105,6 +106,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 								result, err := client.FetchThreads(ctx, owner, repo, Flags.PR)
 								if err == nil {
 									FilterThreadsBySince(result, sinceFilter)
+									FilterThreadsByBot(result, botsOnlyFilter, false)
 								}
 								return result, err
 							},
@@ -211,6 +213,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			if !watch && Flags.IsTTY {
 				repoStr := owner + "/" + repo
 				sinceFilter := Flags.Since // capture for closures
+				botsOnlyFilter := botsOnly // capture for closure
 				return launchTUI(tui.ViewSummary,
 					withRepo(repoStr), withPR(Flags.PR), withSolo(Flags.Solo),
 					withAsyncFetch(
@@ -218,6 +221,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 							result, err := client.FetchThreads(ctx, owner, repo, Flags.PR)
 							if err == nil {
 								FilterThreadsBySince(result, sinceFilter)
+								FilterThreadsByBot(result, botsOnlyFilter, false)
 							}
 							return result, err
 						},

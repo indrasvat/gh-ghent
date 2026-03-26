@@ -8,7 +8,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/indrasvat/gh-ghent/internal/domain"
 	"github.com/indrasvat/gh-ghent/internal/formatter"
 )
 
@@ -76,31 +75,23 @@ Exit codes: 0 = success, 1 = thread not found, 2 = error, 4 = reply posted but r
 			}
 
 			// If --resolve, attempt to resolve the thread after successful reply.
+			// GitHub's resolveReviewThread mutation is idempotent — it succeeds
+			// on already-resolved threads, so no special "already resolved" handling needed.
 			resolve, _ := cmd.Flags().GetBool("resolve")
 			if resolve {
 				resolveResult, resolveErr := client.ResolveThread(ctx, threadID)
 				if resolveErr != nil {
-					// "Already resolved" = desired state achieved, treat as success.
-					if strings.Contains(resolveErr.Error(), "already") {
-						result.Resolved = &domain.ResolveResult{
-							ThreadID:   threadID,
-							IsResolved: true,
-							Action:     "already_resolved",
-						}
-					} else {
-						// Partial success: reply posted, resolve failed.
-						result.ResolveError = resolveErr.Error()
-						f, fmtErr := formatter.New(Flags.Format)
-						if fmtErr != nil {
-							return fmtErr
-						}
-						_ = f.FormatReply(os.Stdout, result)
-						fmt.Fprintf(os.Stderr, "Warning: reply posted but resolve failed: %s\n", resolveErr)
-						os.Exit(4)
+					// Partial success: reply posted, resolve failed.
+					result.ResolveError = resolveErr.Error()
+					f, fmtErr := formatter.New(Flags.Format)
+					if fmtErr != nil {
+						return fmtErr
 					}
-				} else {
-					result.Resolved = resolveResult
+					_ = f.FormatReply(os.Stdout, result)
+					fmt.Fprintf(os.Stderr, "Warning: reply posted but resolve failed: %s\n", resolveErr)
+					os.Exit(4)
 				}
+				result.Resolved = resolveResult
 			}
 
 			f, err := formatter.New(Flags.Format)
