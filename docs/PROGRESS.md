@@ -7,11 +7,11 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 10: Summary Enhancement |
-| **Current Task** | Task 034 DONE. Summary --logs, --watch, --quiet. |
+| **Current Phase** | Phase 11: Review Await |
+| **Current Task** | --await-review DONE. Released v0.6.0. |
 | **Blocker** | None |
-| **Last Action** | 3 new flags, enriched all formatters, 11 new tests (549→560), all docs updated. |
-| **Last Updated** | 2026-02-24 |
+| **Last Action** | --await-review flag, activity probe, baseline fingerprint, TUI summary transition, 616 tests. |
+| **Last Updated** | 2026-03-25 |
 
 ## How to Resume
 

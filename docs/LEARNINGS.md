@@ -18,6 +18,10 @@
 - **2026-02-23 (task 006):** go-gh REST `DoWithContext` expects JSON responses — use `RequestWithContext` for plain-text endpoints like job logs (`/actions/jobs/{id}/logs`)
 - **2026-02-23 (task 006):** Not all check run IDs map to GitHub Actions job IDs — external CI checks (e.g., third-party integrations) return 404 on the logs endpoint. Graceful degradation (skip failed log fetch) is essential.
 - **2026-02-22 (task 007):** `FetchThreads` only returns unresolved threads — any feature needing resolved threads must use `FetchResolvedThreads` (e.g., `--all --unresolve`)
+- **2026-03-25 (await-review):** `PullRequestReviewThread` in GitHub GraphQL does NOT have `updatedAt` — use `comments(last: 1) { nodes { updatedAt } }` on the comment instead to detect edits
+- **2026-03-25 (await-review):** Debounce on zero activity is wrong for review-await — a bot may take 2-4 min before posting its first comment (Codex shows 👀 during this time). Only debounce after at least one fingerprint change; use hard timeout as the safety valve for zero-activity cases
+- **2026-03-25 (await-review):** When sorting parallel slices (IDs + metadata), sort as struct entries — `sort.Strings(ids)` alone mis-pairs the metadata slices. Codex P1 caught this.
+- **2026-03-25 (await-review):** Take a baseline activity fingerprint BEFORE CI watch starts, not after — activity that happens during CI (fast bot reviews) is invisible if the initial probe is taken post-CI. Compare baseline vs post-CI to detect it.
 
 ## Cobra CLI
 
