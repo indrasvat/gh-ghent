@@ -123,7 +123,13 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 						probeFn := func() (*domain.ActivitySnapshot, error) {
 							return client.ProbeActivity(ctx, owner, repo, Flags.PR)
 						}
-						opts = append(opts, withAwaitReview(probeFn, reviewTimeout))
+						// Take baseline before CI starts.
+						var tuiBaseline string
+						baseSnap, probeErr := client.ProbeActivity(ctx, owner, repo, Flags.PR)
+						if probeErr == nil {
+							tuiBaseline = ghub.Fingerprint(baseSnap)
+						}
+						opts = append(opts, withAwaitReview(probeFn, reviewTimeout, tuiBaseline))
 					}
 					return launchTUI(tui.ViewWatch, opts...)
 				}
@@ -132,6 +138,17 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 				f, fErr := formatter.New(Flags.Format)
 				if fErr != nil {
 					return fErr
+				}
+
+				// Take baseline activity probe before CI watch starts.
+				// This lets the review phase detect activity that happened during CI.
+				var baselineHash string
+				if awaitReview {
+					baselineSnap, probeErr := client.ProbeActivity(ctx, owner, repo, Flags.PR)
+					if probeErr == nil {
+						baselineHash = ghub.Fingerprint(baselineSnap)
+					}
+					// Non-fatal: if probe fails, proceed without baseline.
 				}
 
 				// CI watch → review watch loop (restarts if head SHA changes).
@@ -165,13 +182,19 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 						result, reviewErr := client.WatchReviews(
 							ctx, os.Stderr, f,
 							owner, repo, Flags.PR,
-							currentChecks.HeadSHA, cfg, nil,
+							currentChecks.HeadSHA, baselineHash,
+							cfg, nil,
 						)
 						if reviewErr != nil {
 							return fmt.Errorf("watch reviews: %w", reviewErr)
 						}
 						if result.HeadChanged {
 							// Head SHA changed — restart CI watch.
+							// Take fresh baseline for the new cycle.
+							freshSnap, probeErr := client.ProbeActivity(ctx, owner, repo, Flags.PR)
+							if probeErr == nil {
+								baselineHash = ghub.Fingerprint(freshSnap)
+							}
 							fmt.Fprintf(os.Stderr, "New push detected, restarting CI watch...\n")
 							continue
 						}

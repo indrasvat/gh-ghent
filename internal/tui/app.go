@@ -685,10 +685,13 @@ func (a *App) SetWatchFetch(fn watchFetchFunc, interval time.Duration) {
 }
 
 // SetReviewWatch configures the review-await phase on the watcher.
-func (a *App) SetReviewWatch(fn ReviewPollFunc, timeout time.Duration) {
+// baselineHash is a fingerprint taken before CI watch started; if the
+// review-phase snapshot differs, activity happened during CI.
+func (a *App) SetReviewWatch(fn ReviewPollFunc, timeout time.Duration, baselineHash string) {
 	a.watcher.awaitReview = true
 	a.watcher.reviewFetchFn = fn
 	a.watcher.reviewTimeout = timeout
+	a.watcher.baselineHash = baselineHash
 }
 
 // SetSummaryTransition enables automatic transition from watch → summary view

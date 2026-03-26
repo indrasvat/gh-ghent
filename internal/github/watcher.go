@@ -118,6 +118,11 @@ type WatchReviewResult struct {
 // It uses a lightweight activity probe and fingerprint-based change detection.
 // If the PR head SHA changes (new push), it returns immediately with HeadChanged=true
 // so the caller can restart the CI watch phase.
+//
+// baselineHash is an optional fingerprint taken before CI watch started. If the
+// initial review-phase snapshot differs from the baseline, that means activity
+// happened during CI — the debounce is armed immediately instead of waiting for
+// the hard timeout. Pass "" to skip baseline comparison.
 func (c *Client) WatchReviews(
 	ctx context.Context,
 	w io.Writer,
@@ -125,6 +130,7 @@ func (c *Client) WatchReviews(
 	owner, repo string,
 	pr int,
 	initialHeadSHA string,
+	baselineHash string,
 	cfg ReviewWatchConfig,
 	clock func() time.Time,
 ) (*WatchReviewResult, error) {
@@ -154,12 +160,43 @@ func (c *Client) WatchReviews(
 	}
 	prevHash := Fingerprint(snap)
 
+	// Compare against baseline (taken before CI watch started).
+	// If different, activity happened during CI — arm the debounce immediately.
+	if baselineHash != "" && prevHash != baselineHash {
+		activityCount++
+		slog.Debug("review activity detected during CI watch",
+			"baseline_hash", baselineHash[:12],
+			"current_hash", prevHash[:12])
+	}
+
 	for {
+		// Cap poll interval to remaining timeout so we don't oversleep.
+		remaining := cfg.HardTimeout - clock().Sub(startAt)
+		if remaining <= 0 {
+			// Already past timeout — emit and return immediately.
+			now := clock()
+			status := &domain.WatchStatus{
+				Timestamp:     now,
+				OverallStatus: domain.StatusPass,
+				ReviewPhase:   domain.ReviewPhaseTimeout,
+				Final:         true,
+			}
+			_ = f.FormatWatchStatus(w, status)
+			return &WatchReviewResult{
+				Settlement: domain.ReviewSettlement{
+					Phase:         domain.ReviewPhaseTimeout,
+					ActivityCount: activityCount,
+					WaitSeconds:   int(cfg.HardTimeout.Seconds()),
+				},
+			}, nil
+		}
+		sleepDur := min(currentInterval, remaining)
+
 		// Wait for next poll or context cancellation.
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-time.After(currentInterval):
+		case <-time.After(sleepDur):
 		}
 
 		now := clock()

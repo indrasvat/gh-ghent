@@ -105,6 +105,7 @@ type watcherModel struct {
 	reviewStartAt  time.Time
 	lastActivityAt time.Time
 	prevHash       string
+	baselineHash   string // fingerprint from before CI started
 	activityCount  int
 	initialHeadSHA string
 
@@ -205,12 +206,27 @@ func (m watcherModel) handlePollResult(msg watchResultMsg) (watcherModel, tea.Cm
 			m.reviewStartAt = time.Now()
 			m.lastActivityAt = time.Now()
 			m.initialHeadSHA = msg.checks.HeadSHA
+
+			// Take initial probe and compare against baseline from before CI.
+			// If different, review activity happened during CI — arm debounce.
+			if snap, err := m.reviewFetchFn(); err == nil {
+				m.prevHash = ghub.Fingerprint(snap)
+				if m.baselineHash != "" && m.prevHash != m.baselineHash {
+					m.activityCount++
+					m.events = append(m.events, watchEvent{
+						timestamp: time.Now(),
+						icon:      yellowStyle.Render("●"),
+						name:      "Review activity detected during CI",
+					})
+				}
+			}
+
 			m.events = append(m.events, watchEvent{
 				timestamp: time.Now(),
 				icon:      yellowStyle.Render("◎"),
 				name:      "CI passed — awaiting reviews",
 			})
-			return m, m.reviewPollCmd()
+			return m, m.scheduleNextReviewPoll()
 		}
 		m.state = watchStateDone
 		m.events = append(m.events, watchEvent{

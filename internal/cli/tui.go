@@ -39,7 +39,7 @@ func launchTUI(startView tui.View, opts ...tuiOption) error {
 		app.SetAsyncFetch(cfg.asyncComments, cfg.asyncChecks, cfg.asyncReviews)
 	}
 	if cfg.reviewFetchFn != nil {
-		app.SetReviewWatch(cfg.reviewFetchFn, cfg.reviewTimeout)
+		app.SetReviewWatch(cfg.reviewFetchFn, cfg.reviewTimeout, cfg.reviewBaselineHash)
 	}
 	if cfg.summaryTransition {
 		app.SetSummaryTransition(true)
@@ -79,9 +79,10 @@ type tuiConfig struct {
 	asyncReviews  tui.FetchReviewsFunc
 
 	// Review-await mode.
-	reviewFetchFn     tui.ReviewPollFunc
-	reviewTimeout     time.Duration
-	summaryTransition bool
+	reviewFetchFn      tui.ReviewPollFunc
+	reviewTimeout      time.Duration
+	reviewBaselineHash string
+	summaryTransition  bool
 }
 
 type tuiOption func(*tuiConfig)
@@ -125,10 +126,11 @@ func withAsyncFetch(comments tui.FetchCommentsFunc, checks tui.FetchChecksFunc, 
 	}
 }
 
-func withAwaitReview(fn tui.ReviewPollFunc, timeout time.Duration) tuiOption {
+func withAwaitReview(fn tui.ReviewPollFunc, timeout time.Duration, baselineHash string) tuiOption {
 	return func(c *tuiConfig) {
 		c.reviewFetchFn = fn
 		c.reviewTimeout = timeout
+		c.reviewBaselineHash = baselineHash
 	}
 }
 
