@@ -306,12 +306,23 @@ In TTY mode, launches the interactive watch TUI.
 ### Review Await Mode (--await-review)
 
 After CI checks complete, continues polling for review activity (comments, reviews) to settle.
-Uses fingerprint-based change detection — any new thread, edited thread, resolved thread,
-new review, or review state change resets the debounce timer.
+Uses a lightweight GraphQL activity probe with fingerprint-based change detection — any new
+thread, edited thread (via `updatedAt`), resolved thread, new review, or review state change
+resets the debounce timer.
 
-**Debounce:** Settles after 30s of no new review activity.
-**Hard timeout:** Configurable via `--review-timeout` (default 5m).
-**Head SHA change:** If a new push is detected during review wait, restarts CI watch automatically.
+**Baseline comparison:** A fingerprint is taken *before* CI watch starts. When the review
+phase begins, the current snapshot is compared against this baseline. If different (e.g., a
+bot reviewed during CI), activity is detected immediately and the debounce is armed — no
+wasted timeout waiting for activity that already happened.
+
+**Debounce:** Settles after 30s of no new review activity. Only fires after at least one
+activity change has been detected — prevents premature settlement while a bot is still working.
+
+**Hard timeout:** Configurable via `--review-timeout` (default 5m). Safety valve when no
+activity is ever detected (e.g., no bot configured, or bot gave silent approval via emoji).
+
+**Head SHA change:** If a new push is detected during review wait, restarts CI watch automatically
+(max 3 restarts).
 
 In non-TTY mode, review watch status streams to stderr alongside CI watch status.
 The final summary includes a `review_settled` field:
@@ -325,6 +336,8 @@ The final summary includes a `review_settled` field:
   }
 }
 ```
+
+Phase is `"settled"` (debounce) or `"timeout"` (hard timeout reached).
 
 In TTY mode, the watcher shows "awaiting reviews" with idle/timeout counters,
 then transitions to the summary dashboard when reviews settle.
