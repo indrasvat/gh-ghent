@@ -22,6 +22,7 @@ func newSummaryCmd() *cobra.Command {
 		watch         bool
 		awaitReview   bool
 		reviewTimeout time.Duration
+		botsOnly      bool
 	)
 
 	cmd := &cobra.Command{
@@ -281,6 +282,9 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			FilterThreadsBySince(threads, Flags.Since)
 			FilterChecksBySince(checks, Flags.Since)
 
+			// Apply --bots-only filter to threads section.
+			FilterThreadsByBot(threads, botsOnly, false)
+
 			// Fetch logs for failing checks when --logs is set (or implied by --watch).
 			// Use cmdCtx (not ctx) because errgroup's derived context is cancelled
 			// after g.Wait() returns. IsFailConclusion covers all failure-classified
@@ -351,6 +355,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 	cmd.Flags().BoolVar(&watch, "watch", false, "poll until all checks complete, then output full summary")
 	cmd.Flags().BoolVar(&awaitReview, "await-review", false, "after CI completes, wait for review activity to settle (implies --watch)")
 	cmd.Flags().DurationVar(&reviewTimeout, "review-timeout", 5*time.Minute, "hard timeout for --await-review")
+	cmd.Flags().BoolVar(&botsOnly, "bots-only", false, "show only bot-originated threads in comments section")
 
 	return cmd
 }

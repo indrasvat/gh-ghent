@@ -22,9 +22,15 @@ Show unresolved review threads for a pull request.
 
 ### Flags
 
-| Flag | Type | Description |
-|------|------|-------------|
-| `--group-by` | string | Group threads by: `file`, `author`, `status` |
+| Flag | Short | Type | Description |
+|------|-------|------|-------------|
+| `--group-by` | | string | Group threads by: `file`, `author`, `status` |
+| `--bots-only` | `-b` | bool | Show only bot-originated threads |
+| `--humans-only` | `-H` | bool | Show only human-originated threads |
+| `--unanswered` | `-a` | bool | Show only threads with no replies |
+
+`--bots-only` and `--humans-only` are mutually exclusive.
+`--unanswered` is composable: `--bots-only --unanswered` gives unanswered bot threads.
 
 ### Exit Codes
 
@@ -53,6 +59,7 @@ Show unresolved review threads for a pull request.
           "id": "PRRC_kwDO...",
           "database_id": 12345678,
           "author": "reviewer-login",
+          "is_bot": false,
           "body": "Comment body (markdown)",
           "created_at": "2026-02-23T01:32:00Z",
           "url": "https://github.com/owner/repo/pull/1#discussion_r12345678",
@@ -65,6 +72,8 @@ Show unresolved review threads for a pull request.
   "total_count": 2,
   "resolved_count": 0,
   "unresolved_count": 2,
+  "bot_thread_count": 1,
+  "unanswered_count": 0,
   "since": "2026-01-23T00:00:00Z"
 }
 ```
@@ -233,17 +242,20 @@ Reply to a review thread. Designed primarily for AI agent use.
 | `--thread` | string | Thread ID to reply to (PRRT_... node ID, required) |
 | `--body` | string | Reply body text (supports markdown) |
 | `--body-file` | string | Read reply body from file (use `-` for stdin) |
+| `--resolve` | bool | Resolve the thread after posting the reply |
 
 ### Flag Constraints
 
 - `--body` and `--body-file` are mutually exclusive; at least one required
 - `--thread` is required
+- `--resolve` can be combined with any body flag
 
 ### Exit Codes
 
-- `0` — reply posted
+- `0` — reply posted (and resolved if `--resolve`)
 - `1` — thread not found
 - `2` — other error
+- `4` — reply posted but resolve failed (partial success)
 
 ### JSON Output Schema
 
@@ -253,7 +265,14 @@ Reply to a review thread. Designed primarily for AI agent use.
   "comment_id": 12345678,
   "url": "https://github.com/owner/repo/pull/1#discussion_r12345678",
   "body": "Fixed in latest commit",
-  "created_at": "2026-02-23T12:00:00Z"
+  "created_at": "2026-02-23T12:00:00Z",
+  "resolved": {
+    "thread_id": "PRRT_kwDO...",
+    "path": "internal/foo/bar.go",
+    "line": 42,
+    "is_resolved": true,
+    "action": "resolved"
+  }
 }
 ```
 

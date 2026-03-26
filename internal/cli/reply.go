@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/indrasvat/gh-ghent/internal/domain"
 	"github.com/indrasvat/gh-ghent/internal/formatter"
 )
 
@@ -21,9 +22,15 @@ Post a comment in an existing review thread. Designed primarily for
 AI agent use — accepts body text inline or from a file/stdin.
 Supports markdown in the reply body.
 
-Exit codes: 0 = reply posted, 1 = thread not found, 2 = error.`,
+With --resolve, also resolves the thread after posting the reply.
+If the thread is already resolved, this is treated as success.
+
+Exit codes: 0 = success, 1 = thread not found, 2 = error, 4 = reply posted but resolve failed.`,
 		Example: `  # Reply inline
   gh ghent reply --pr 42 --thread PRRT_abc123 --body "Fixed in latest commit"
+
+  # Reply and resolve in one step (doom loop workflow)
+  gh ghent reply --pr 42 --thread PRRT_abc123 --body "Fixed" --resolve
 
   # Reply from file
   gh ghent reply --pr 42 --thread PRRT_abc123 --body-file response.md
@@ -68,6 +75,34 @@ Exit codes: 0 = reply posted, 1 = thread not found, 2 = error.`,
 				os.Exit(2)
 			}
 
+			// If --resolve, attempt to resolve the thread after successful reply.
+			resolve, _ := cmd.Flags().GetBool("resolve")
+			if resolve {
+				resolveResult, resolveErr := client.ResolveThread(ctx, threadID)
+				if resolveErr != nil {
+					// "Already resolved" = desired state achieved, treat as success.
+					if strings.Contains(resolveErr.Error(), "already") {
+						result.Resolved = &domain.ResolveResult{
+							ThreadID:   threadID,
+							IsResolved: true,
+							Action:     "already_resolved",
+						}
+					} else {
+						// Partial success: reply posted, resolve failed.
+						result.ResolveError = resolveErr.Error()
+						f, fmtErr := formatter.New(Flags.Format)
+						if fmtErr != nil {
+							return fmtErr
+						}
+						_ = f.FormatReply(os.Stdout, result)
+						fmt.Fprintf(os.Stderr, "Warning: reply posted but resolve failed: %s\n", resolveErr)
+						os.Exit(4)
+					}
+				} else {
+					result.Resolved = resolveResult
+				}
+			}
+
 			f, err := formatter.New(Flags.Format)
 			if err != nil {
 				return err
@@ -84,6 +119,7 @@ Exit codes: 0 = reply posted, 1 = thread not found, 2 = error.`,
 	cmd.Flags().String("thread", "", "thread ID to reply to (PRRT_... node ID)")
 	cmd.Flags().String("body", "", "reply body text (supports markdown)")
 	cmd.Flags().String("body-file", "", "read reply body from file (use '-' for stdin)")
+	cmd.Flags().Bool("resolve", false, "resolve the thread after posting the reply")
 	_ = cmd.MarkFlagRequired("thread")
 
 	return cmd

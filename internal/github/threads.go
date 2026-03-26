@@ -31,7 +31,7 @@ query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
               id
               databaseId
               body
-              author { login }
+              author { __typename login }
               path
               diffHunk
               createdAt
@@ -84,7 +84,8 @@ type commentNode struct {
 	DatabaseID int64  `json:"databaseId"`
 	Body       string `json:"body"`
 	Author     struct {
-		Login string `json:"login"`
+		TypeName string `json:"__typename"`
+		Login    string `json:"login"`
 	} `json:"author"`
 	Path      string `json:"path"`
 	DiffHunk  string `json:"diffHunk"`
@@ -245,12 +246,24 @@ func mapThreadsWithFilter(pr, totalCount int, nodes []threadNode, keepResolved b
 		})
 	}
 
+	var botCount, unansweredCount int
+	for _, t := range threads {
+		if t.IsBotOriginated() {
+			botCount++
+		}
+		if t.IsUnanswered() {
+			unansweredCount++
+		}
+	}
+
 	return &domain.CommentsResult{
 		PRNumber:        pr,
 		Threads:         threads,
 		TotalCount:      totalCount,
 		ResolvedCount:   resolved,
 		UnresolvedCount: unresolved,
+		BotThreadCount:  botCount,
+		UnansweredCount: unansweredCount,
 	}, nil
 }
 
@@ -265,6 +278,7 @@ func mapComments(nodes []commentNode) ([]domain.Comment, error) {
 			ID:         cn.ID,
 			DatabaseID: cn.DatabaseID,
 			Author:     cn.Author.Login,
+			IsBot:      domain.IsBot(cn.Author.TypeName, cn.Author.Login),
 			Body:       cn.Body,
 			CreatedAt:  t,
 			URL:        cn.URL,

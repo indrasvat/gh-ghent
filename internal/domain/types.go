@@ -22,11 +22,22 @@ type Comment struct {
 	ID         string    `json:"id"`
 	DatabaseID int64     `json:"database_id"` // needed by REST reply endpoint
 	Author     string    `json:"author"`
+	IsBot      bool      `json:"is_bot"`
 	Body       string    `json:"body"`
 	CreatedAt  time.Time `json:"created_at"`
 	URL        string    `json:"url"`
 	DiffHunk   string    `json:"diff_hunk,omitempty"`
 	Path       string    `json:"path,omitempty"`
+}
+
+// IsBotOriginated reports whether the thread was started by a bot.
+func (t ReviewThread) IsBotOriginated() bool {
+	return len(t.Comments) > 0 && t.Comments[0].IsBot
+}
+
+// IsUnanswered reports whether the thread has no replies (only the initial comment).
+func (t ReviewThread) IsUnanswered() bool {
+	return len(t.Comments) <= 1
 }
 
 // CommentsResult wraps the result of fetching review threads.
@@ -36,6 +47,8 @@ type CommentsResult struct {
 	TotalCount      int            `json:"total_count"`
 	ResolvedCount   int            `json:"resolved_count"`
 	UnresolvedCount int            `json:"unresolved_count"`
+	BotThreadCount  int            `json:"bot_thread_count"`
+	UnansweredCount int            `json:"unanswered_count"`
 	Since           string         `json:"since,omitempty"`
 }
 
@@ -147,11 +160,13 @@ type Review struct {
 
 // ReplyResult represents the result of posting a reply to a thread.
 type ReplyResult struct {
-	ThreadID  string    `json:"thread_id"`
-	CommentID int64     `json:"comment_id"`
-	URL       string    `json:"url"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"created_at"`
+	ThreadID     string         `json:"thread_id"`
+	CommentID    int64          `json:"comment_id"`
+	URL          string         `json:"url"`
+	Body         string         `json:"body"`
+	CreatedAt    time.Time      `json:"created_at"`
+	Resolved     *ResolveResult `json:"resolved,omitempty"`
+	ResolveError string         `json:"resolve_error,omitempty"`
 }
 
 // ResolveResult represents the result of resolving/unresolving a single thread.

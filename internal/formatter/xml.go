@@ -17,6 +17,8 @@ func (f *XMLFormatter) FormatComments(w io.Writer, result *domain.CommentsResult
 		TotalCount:      result.TotalCount,
 		ResolvedCount:   result.ResolvedCount,
 		UnresolvedCount: result.UnresolvedCount,
+		BotThreadCount:  result.BotThreadCount,
+		UnansweredCount: result.UnansweredCount,
 		Since:           result.Since,
 	}
 	for _, t := range result.Threads {
@@ -31,6 +33,7 @@ func (f *XMLFormatter) FormatComments(w io.Writer, result *domain.CommentsResult
 			xt.Comments = append(xt.Comments, xmlComment{
 				ID:        c.ID,
 				Author:    c.Author,
+				IsBot:     c.IsBot,
 				Body:      c.Body,
 				CreatedAt: c.CreatedAt.Format(time.RFC3339),
 				URL:       c.URL,
@@ -416,6 +419,8 @@ type xmlComments struct {
 	TotalCount      int         `xml:"total_count,attr"`
 	ResolvedCount   int         `xml:"resolved_count,attr"`
 	UnresolvedCount int         `xml:"unresolved_count,attr"`
+	BotThreadCount  int         `xml:"bot_thread_count,attr"`
+	UnansweredCount int         `xml:"unanswered_count,attr"`
 	Since           string      `xml:"since,attr,omitempty"`
 	Threads         []xmlThread `xml:"thread"`
 }
@@ -432,6 +437,7 @@ type xmlThread struct {
 type xmlComment struct {
 	ID        string `xml:"id,attr"`
 	Author    string `xml:"author,attr"`
+	IsBot     bool   `xml:"is_bot,attr"`
 	CreatedAt string `xml:"created_at,attr"`
 	URL       string `xml:"url,attr"`
 	Body      string `xml:"body"`

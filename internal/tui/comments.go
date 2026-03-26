@@ -332,7 +332,11 @@ func (m commentsListModel) renderThreadRow(item listItem, isCursor bool) string 
 	// Author.
 	author := ""
 	if len(t.Comments) > 0 {
-		author = styles.Author.Render("@" + t.Comments[0].Author)
+		authorLabel := "@" + t.Comments[0].Author
+		if t.Comments[0].IsBot {
+			authorLabel += " [bot]"
+		}
+		author = styles.Author.Render(authorLabel)
 	}
 
 	// Time ago.
@@ -557,7 +561,11 @@ func (m commentsExpandedModel) renderComment(c domain.Comment, isReply bool) []s
 	var lines []string
 
 	// Author styling: orange for reviewers (default).
-	authorStr := styles.Author.Render("@" + c.Author)
+	authorLabel := "@" + c.Author
+	if c.IsBot {
+		authorLabel += " [bot]"
+	}
+	authorStr := styles.Author.Render(authorLabel)
 
 	// Time ago.
 	timeStr := ""
