@@ -233,7 +233,11 @@ func (c *Client) WatchReviews(
 		}
 
 		// Check debounce: settled when idle for the debounce window.
-		if idleDuration >= cfg.DebounceWindow {
+		// Only debounce after at least one activity change — don't settle on
+		// nothing, because the reviewer may still be working (e.g., Codex
+		// shows 👀 for 2-4 min before posting comments). If no activity is
+		// ever detected, the hard timeout below is the safety valve.
+		if activityCount > 0 && idleDuration >= cfg.DebounceWindow {
 			status.ReviewPhase = domain.ReviewPhaseSettled
 			status.Final = true
 			_ = f.FormatWatchStatus(w, status)

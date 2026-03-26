@@ -394,6 +394,7 @@ func TestWatcherReviewSettled(t *testing.T) {
 	m.lastActivityAt = time.Now().Add(-35 * time.Second) // 35s idle > 30s debounce
 	m.reviewTimeout = 5 * time.Minute
 	m.initialHeadSHA = "abc123"
+	m.activityCount = 1 // must have seen at least one activity for debounce to fire
 
 	// Set prevHash to match what an empty snapshot would produce,
 	// so the fingerprint doesn't change (which would reset lastActivityAt).
@@ -415,6 +416,30 @@ func TestWatcherReviewSettled(t *testing.T) {
 	}
 	if !found {
 		t.Error("missing 'Reviews settled' event")
+	}
+}
+
+func TestWatcherReviewNoActivityWaitsForTimeout(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.state = watchStateAwaitingReview
+	m.reviewStartAt = time.Now()
+	m.lastActivityAt = time.Now().Add(-35 * time.Second) // 35s idle but...
+	m.reviewTimeout = 5 * time.Minute
+	m.initialHeadSHA = "abc123"
+	m.activityCount = 0 // zero activity — debounce must NOT fire
+
+	snap := &domain.ActivitySnapshot{HeadSHA: "abc123"}
+	m.prevHash = ghub.Fingerprint(snap)
+
+	m, cmd := m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
+
+	// Should NOT settle — must keep waiting because no activity seen yet.
+	if m.state != watchStateAwaitingReview {
+		t.Errorf("state = %d, want watchStateAwaitingReview (zero activity = keep waiting)", m.state)
+	}
+	if cmd == nil {
+		t.Error("expected schedule next review poll cmd")
 	}
 }
 

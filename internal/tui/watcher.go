@@ -352,9 +352,11 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 
 	m.logOffset = max(len(m.events)-m.eventLogHeight(), 0)
 
-	// Check debounce: settled when idle for 30s.
+	// Check debounce: settled when idle for 30s after at least one activity.
+	// Don't settle on zero activity — the reviewer may still be working
+	// (e.g., Codex shows 👀 for 2-4 min before posting comments).
 	idleDuration := now.Sub(m.lastActivityAt)
-	if idleDuration >= 30*time.Second {
+	if m.activityCount > 0 && idleDuration >= 30*time.Second {
 		return m.finishReviewWait(domain.ReviewPhaseSettled, now)
 	}
 
