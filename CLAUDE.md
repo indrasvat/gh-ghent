@@ -203,7 +203,7 @@ Follow these steps for every feature. Each step has a gate — don't skip ahead.
 2. **Implement** — code + unit tests → `make ci-fast` green
 3. **L3 smoke test** — `make install` → run `gh ghent` against real test repos (see matrix above)
 4. **L4 visual test** — write/update `test_ghent_*.py` → `uv run`, verify screenshots
-5. **Docs** — update README.md, `skill/SKILL.md`, `skill/references/command-reference.md` as needed
+5. **Docs** — update README.md, `skill/SKILL.md`, `skill/references/command-reference.md`, `docs/PROGRESS.md`, `docs/LEARNINGS.md` as needed
 6. **Commit** — logical splits (impl, docs), `git push` (lefthook pre-push runs `make ci`)
 7. **PR** — `gh pr create` → wait for Codex :eyes: → :thumbsup: or review comments
 8. **Address review** — read (`gh ghent comments --pr N`), fix code, reply (`gh ghent reply --pr N --thread PRRT_... --body "Fixed"`), resolve (`gh ghent resolve --pr N --all`), push
@@ -214,6 +214,11 @@ Follow these steps for every feature. Each step has a gate — don't skip ahead.
 > Steps 7–8 use ghent itself (dogfooding). Use `--solo` for personal repos.
 > Steps 10–11 only apply to feature/fix releases, not docs-only changes.
 
+## Git Rules
+
+- **NEVER push directly to main.** All changes go through feature branches and PRs — no exceptions, including docs-only changes.
+- `docs/PROGRESS.md` and `docs/LEARNINGS.md` are updated as part of the feature branch, not as a separate post-merge commit.
+
 ## Learnings
 
-Moved to `docs/LEARNINGS.md`. Update that file at the end of every coding session.
+Moved to `docs/LEARNINGS.md`. Update that file as part of the feature branch (step 5 above).
