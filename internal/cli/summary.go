@@ -282,9 +282,6 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			FilterThreadsBySince(threads, Flags.Since)
 			FilterChecksBySince(checks, Flags.Since)
 
-			// Apply --bots-only filter to threads section.
-			FilterThreadsByBot(threads, botsOnly, false)
-
 			// Fetch logs for failing checks when --logs is set (or implied by --watch).
 			// Use cmdCtx (not ctx) because errgroup's derived context is cancelled
 			// after g.Wait() returns. IsFailConclusion covers all failure-classified
@@ -303,8 +300,12 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 				}
 			}
 
-			// Merge readiness logic. If review fetch failed, not merge-ready.
+			// Merge readiness MUST be computed BEFORE --bots-only filter,
+			// otherwise filtering out human threads hides unresolved counts.
 			mergeReady := !reviewFetchFailed && IsMergeReady(threads, checks, reviews, Flags.Solo)
+
+			// Apply --bots-only filter to threads section (display only).
+			FilterThreadsByBot(threads, botsOnly, false)
 
 			// --quiet: silent exit on merge-ready, full output on not-ready.
 			if quiet && mergeReady {

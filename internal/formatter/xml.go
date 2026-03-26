@@ -76,6 +76,7 @@ func (f *XMLFormatter) FormatGroupedComments(w io.Writer, result *domain.Grouped
 				xt.Comments = append(xt.Comments, xmlComment{
 					ID:        c.ID,
 					Author:    c.Author,
+					IsBot:     c.IsBot,
 					Body:      c.Body,
 					CreatedAt: c.CreatedAt.Format(time.RFC3339),
 					URL:       c.URL,
@@ -221,6 +222,7 @@ func (f *XMLFormatter) FormatSummary(w io.Writer, result *domain.SummaryResult) 
 			xt.Comments = append(xt.Comments, xmlComment{
 				ID:        c.ID,
 				Author:    c.Author,
+				IsBot:     c.IsBot,
 				Body:      c.Body,
 				CreatedAt: c.CreatedAt.Format(time.RFC3339),
 				URL:       c.URL,
