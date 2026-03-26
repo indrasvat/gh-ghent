@@ -31,6 +31,11 @@ type ReviewFetcher interface {
 	FetchReviews(ctx context.Context, owner, repo string, pr int) ([]Review, error)
 }
 
+// ActivityProber probes lightweight review activity for settlement detection.
+type ActivityProber interface {
+	ProbeActivity(ctx context.Context, owner, repo string, pr int) (*ActivitySnapshot, error)
+}
+
 // Formatter formats output for pipe mode.
 type Formatter interface {
 	FormatComments(w io.Writer, result *CommentsResult) error

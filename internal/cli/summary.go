@@ -16,10 +16,12 @@ import (
 
 func newSummaryCmd() *cobra.Command {
 	var (
-		compact  bool
-		withLogs bool
-		quiet    bool
-		watch    bool
+		compact       bool
+		withLogs      bool
+		quiet         bool
+		watch         bool
+		awaitReview   bool
+		reviewTimeout time.Duration
 	)
 
 	cmd := &cobra.Command{
@@ -34,6 +36,7 @@ sections in a single structured response.
 
 Use --logs to include failing job log excerpts in output.
 Use --watch to poll until all checks complete, then output full summary.
+Use --await-review to additionally wait for review activity to settle after CI.
 Use --quiet for silent exit on merge-ready (exit 0), full output on not-ready (exit 1).
 
 Merge-ready when: no unresolved threads + all checks pass + approved.
@@ -56,7 +59,13 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
   gh ghent summary --pr 42 --quiet
 
   # Compact one-line-per-thread digest
-  gh ghent summary --pr 42 --compact --format json`,
+  gh ghent summary --pr 42 --compact --format json
+
+  # Wait for CI + bot reviews to settle
+  gh ghent summary --pr 42 --await-review --format json
+
+  # Custom review timeout
+  gh ghent summary --pr 42 --await-review --review-timeout 3m`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if Flags.PR == 0 {
 				return fmt.Errorf("--pr flag is required")
@@ -70,18 +79,53 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			ctx := cmd.Context()
 			client := GitHubClient()
 
+			// --await-review implies --watch.
+			if awaitReview {
+				watch = true
+			}
+
+			var reviewSettlement *domain.ReviewSettlement
+
 			// Watch mode: poll until CI terminal status, then output full summary.
 			if watch {
-				// TTY → launch watch TUI (same as checks --watch).
+				// TTY → launch watch TUI with optional review-await and summary transition.
 				if Flags.IsTTY {
 					repoStr := owner + "/" + repo
+					sinceFilter := Flags.Since
 					fetchFn := func() (*domain.ChecksResult, error) {
 						return client.FetchChecks(ctx, owner, repo, Flags.PR)
 					}
-					return launchTUI(tui.ViewWatch,
+					opts := []tuiOption{
 						withRepo(repoStr), withPR(Flags.PR), withSolo(Flags.Solo),
 						withWatchFetch(fetchFn, ghub.DefaultPollInterval),
-					)
+						withSummaryTransition(true),
+						withAsyncFetch(
+							func() (*domain.CommentsResult, error) {
+								result, err := client.FetchThreads(ctx, owner, repo, Flags.PR)
+								if err == nil {
+									FilterThreadsBySince(result, sinceFilter)
+								}
+								return result, err
+							},
+							func() (*domain.ChecksResult, error) {
+								result, err := client.FetchChecks(ctx, owner, repo, Flags.PR)
+								if err == nil {
+									FilterChecksBySince(result, sinceFilter)
+								}
+								return result, err
+							},
+							func() ([]domain.Review, error) {
+								return client.FetchReviews(ctx, owner, repo, Flags.PR)
+							},
+						),
+					}
+					if awaitReview {
+						probeFn := func() (*domain.ActivitySnapshot, error) {
+							return client.ProbeActivity(ctx, owner, repo, Flags.PR)
+						}
+						opts = append(opts, withAwaitReview(probeFn, reviewTimeout))
+					}
+					return launchTUI(tui.ViewWatch, opts...)
 				}
 
 				// Non-TTY: watch status → stderr, final summary → stdout.
@@ -90,15 +134,52 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 					return fErr
 				}
 
-				_, watchErr := client.WatchChecks(
-					ctx, os.Stderr, f,
-					owner, repo, Flags.PR,
-					ghub.DefaultPollInterval, nil,
-					true, // waitAll: wait for every check to complete
-				)
-				if watchErr != nil {
-					return fmt.Errorf("watch checks: %w", watchErr)
+				// CI watch → review watch loop (restarts if head SHA changes).
+				const maxRestarts = 3
+				for restart := 0; restart <= maxRestarts; restart++ {
+					overallStatus, watchErr := client.WatchChecks(
+						ctx, os.Stderr, f,
+						owner, repo, Flags.PR,
+						ghub.DefaultPollInterval, nil,
+						true, // waitAll: wait for every check to complete
+					)
+					if watchErr != nil {
+						return fmt.Errorf("watch checks: %w", watchErr)
+					}
+
+					// If CI failed, skip review phase.
+					if overallStatus == domain.StatusFail {
+						break
+					}
+
+					// Review-await phase (if --await-review).
+					if awaitReview {
+						// Get current head SHA from a fresh check fetch.
+						currentChecks, checkErr := client.FetchChecks(ctx, owner, repo, Flags.PR)
+						if checkErr != nil {
+							return fmt.Errorf("fetch head sha: %w", checkErr)
+						}
+
+						cfg := ghub.DefaultReviewWatchConfig()
+						cfg.HardTimeout = reviewTimeout
+						result, reviewErr := client.WatchReviews(
+							ctx, os.Stderr, f,
+							owner, repo, Flags.PR,
+							currentChecks.HeadSHA, cfg, nil,
+						)
+						if reviewErr != nil {
+							return fmt.Errorf("watch reviews: %w", reviewErr)
+						}
+						if result.HeadChanged {
+							// Head SHA changed — restart CI watch.
+							fmt.Fprintf(os.Stderr, "New push detected, restarting CI watch...\n")
+							continue
+						}
+						reviewSettlement = &result.Settlement
+					}
+					break
 				}
+
 				// Fall through to fetch full summary data below.
 			}
 
@@ -206,14 +287,15 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			now := time.Now()
 
 			result := &domain.SummaryResult{
-				PRNumber:     Flags.PR,
-				Comments:     *threads,
-				Checks:       *checks,
-				Reviews:      reviews,
-				IsMergeReady: mergeReady,
-				PRAge:        computePRAge(threads, reviews, now),
-				LastUpdate:   computeLastUpdate(threads, reviews, now),
-				ReviewCycles: computeReviewCycles(reviews),
+				PRNumber:      Flags.PR,
+				Comments:      *threads,
+				Checks:        *checks,
+				Reviews:       reviews,
+				IsMergeReady:  mergeReady,
+				PRAge:         computePRAge(threads, reviews, now),
+				LastUpdate:    computeLastUpdate(threads, reviews, now),
+				ReviewCycles:  computeReviewCycles(reviews),
+				ReviewSettled: reviewSettlement,
 			}
 
 			f, err := formatter.New(Flags.Format)
@@ -244,6 +326,8 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 	cmd.Flags().BoolVar(&withLogs, "logs", false, "include failing job log excerpts in output")
 	cmd.Flags().BoolVar(&quiet, "quiet", false, "silent on merge-ready (exit 0), full output on not-ready (exit 1)")
 	cmd.Flags().BoolVar(&watch, "watch", false, "poll until all checks complete, then output full summary")
+	cmd.Flags().BoolVar(&awaitReview, "await-review", false, "after CI completes, wait for review activity to settle (implies --watch)")
+	cmd.Flags().DurationVar(&reviewTimeout, "review-timeout", 5*time.Minute, "hard timeout for --await-review")
 
 	return cmd
 }

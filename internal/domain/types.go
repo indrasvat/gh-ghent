@@ -179,6 +179,38 @@ type ResolveResults struct {
 	DryRun       bool            `json:"dry_run,omitempty"`
 }
 
+// ReviewWatchPhase represents the current phase of the review-await watch mode.
+type ReviewWatchPhase string
+
+const (
+	ReviewPhaseNone    ReviewWatchPhase = ""
+	ReviewPhaseWaiting ReviewWatchPhase = "awaiting"
+	ReviewPhaseSettled ReviewWatchPhase = "settled"
+	ReviewPhaseTimeout ReviewWatchPhase = "timeout"
+)
+
+// ReviewSettlement carries the result of the review-await phase.
+// Durations stored as integer seconds; formatters handle human-readable display.
+type ReviewSettlement struct {
+	Phase         ReviewWatchPhase `json:"phase"`
+	ActivityCount int              `json:"activity_count"`
+	WaitSeconds   int              `json:"wait_seconds"`
+}
+
+// ActivitySnapshot captures lightweight review activity metadata for settlement fingerprinting.
+// A single GraphQL query populates this; changes in any field produce a different fingerprint hash.
+type ActivitySnapshot struct {
+	HeadSHA      string      `json:"head_sha"`
+	ThreadCount  int         `json:"thread_count"`
+	ReviewCount  int         `json:"review_count"`
+	ThreadIDs    []string    `json:"thread_ids"`
+	ThreadStates []bool      `json:"thread_states"` // isResolved per thread
+	ThreadEdits  []time.Time `json:"thread_edits"`  // updatedAt per thread
+	ReviewIDs    []string    `json:"review_ids"`
+	ReviewStates []string    `json:"review_states"` // state per review
+	ReviewTimes  []time.Time `json:"review_times"`  // submittedAt per review
+}
+
 // WatchEvent represents a single check status change during watch mode.
 type WatchEvent struct {
 	Name       string    `json:"name"`
@@ -198,16 +230,22 @@ type WatchStatus struct {
 	PendingCount  int           `json:"pending_count"`
 	Events        []WatchEvent  `json:"events,omitempty"`
 	Final         bool          `json:"final"`
+
+	// Review-await phase fields (populated only during --await-review).
+	ReviewPhase     ReviewWatchPhase `json:"review_phase,omitempty"`
+	ReviewIdleSecs  int              `json:"review_idle_secs,omitempty"`
+	ReviewTimeoutIn int              `json:"review_timeout_in,omitempty"`
 }
 
 // SummaryResult combines all PR data for the summary command.
 type SummaryResult struct {
-	PRNumber     int            `json:"pr_number"`
-	Comments     CommentsResult `json:"comments"`
-	Checks       ChecksResult   `json:"checks"`
-	Reviews      []Review       `json:"reviews"`
-	IsMergeReady bool           `json:"is_merge_ready"`
-	PRAge        string         `json:"pr_age,omitempty"`
-	LastUpdate   string         `json:"last_update,omitempty"`
-	ReviewCycles int            `json:"review_cycles,omitempty"`
+	PRNumber      int               `json:"pr_number"`
+	Comments      CommentsResult    `json:"comments"`
+	Checks        ChecksResult      `json:"checks"`
+	Reviews       []Review          `json:"reviews"`
+	IsMergeReady  bool              `json:"is_merge_ready"`
+	PRAge         string            `json:"pr_age,omitempty"`
+	LastUpdate    string            `json:"last_update,omitempty"`
+	ReviewCycles  int               `json:"review_cycles,omitempty"`
+	ReviewSettled *ReviewSettlement `json:"review_settled,omitempty"`
 }

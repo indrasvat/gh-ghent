@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/indrasvat/gh-ghent/internal/domain"
+	ghub "github.com/indrasvat/gh-ghent/internal/github"
 )
 
 func makeChecksResult(checks []domain.CheckRun, overall domain.OverallStatus) *domain.ChecksResult {
@@ -337,6 +338,236 @@ func TestWatcherAppIntegration(t *testing.T) {
 	}
 
 	_ = fetchCalled // fetchFn is passed but poll is driven by messages
+}
+
+// ── Review-await state machine tests ────────────────────────────
+
+func TestWatcherTransitionToAwaitingReview(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.awaitReview = true
+	m.reviewTimeout = 5 * time.Minute
+	m.reviewFetchFn = func() (*domain.ActivitySnapshot, error) {
+		return &domain.ActivitySnapshot{HeadSHA: "abc123"}, nil
+	}
+
+	checks := makeChecksResult([]domain.CheckRun{
+		{ID: 1, Name: "lint", Status: "completed", Conclusion: "success"},
+	}, domain.StatusPass)
+	checks.HeadSHA = "abc123"
+
+	m, cmd := m.handlePollResult(watchResultMsg{checks: checks})
+
+	if m.state != watchStateAwaitingReview {
+		t.Errorf("state = %d, want watchStateAwaitingReview", m.state)
+	}
+	if cmd == nil {
+		t.Error("expected review poll cmd")
+	}
+	if m.initialHeadSHA != "abc123" {
+		t.Errorf("initialHeadSHA = %q, want abc123", m.initialHeadSHA)
+	}
+}
+
+func TestWatcherCIFailSkipsReviewAwait(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.awaitReview = true
+	m.reviewTimeout = 5 * time.Minute
+
+	checks := makeChecksResult([]domain.CheckRun{
+		{ID: 1, Name: "lint", Status: "completed", Conclusion: "failure"},
+	}, domain.StatusFail)
+
+	m, _ = m.handlePollResult(watchResultMsg{checks: checks})
+
+	if m.state != watchStateFailed {
+		t.Errorf("state = %d, want watchStateFailed (CI fail should skip review)", m.state)
+	}
+}
+
+func TestWatcherReviewSettled(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.state = watchStateAwaitingReview
+	m.reviewStartAt = time.Now().Add(-2 * time.Minute)
+	m.lastActivityAt = time.Now().Add(-35 * time.Second) // 35s idle > 30s debounce
+	m.reviewTimeout = 5 * time.Minute
+	m.initialHeadSHA = "abc123"
+
+	// Set prevHash to match what an empty snapshot would produce,
+	// so the fingerprint doesn't change (which would reset lastActivityAt).
+	snap := &domain.ActivitySnapshot{HeadSHA: "abc123"}
+	m.prevHash = ghub.Fingerprint(snap) // same hash → no activity reset
+
+	m, _ = m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
+
+	if m.state != watchStateDone {
+		t.Errorf("state = %d, want watchStateDone (review settled)", m.state)
+	}
+
+	// Check that a settlement event was logged.
+	found := false
+	for _, e := range m.events {
+		if strings.Contains(e.name, "Reviews settled") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("missing 'Reviews settled' event")
+	}
+}
+
+func TestWatcherReviewHeadSHAChange(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.state = watchStateAwaitingReview
+	m.reviewStartAt = time.Now()
+	m.lastActivityAt = time.Now()
+	m.reviewTimeout = 5 * time.Minute
+	m.initialHeadSHA = "abc123"
+	m.prevHash = "somehash"
+	m.seen = make(map[int64]string)
+	m.fetchFn = func() (*domain.ChecksResult, error) {
+		return makeChecksResult(nil, domain.StatusPending), nil
+	}
+
+	// New push: head SHA changed.
+	snap := &domain.ActivitySnapshot{HeadSHA: "def456"}
+	m, cmd := m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
+
+	if m.state != watchStatePolling {
+		t.Errorf("state = %d, want watchStatePolling (should restart CI watch)", m.state)
+	}
+	if cmd == nil {
+		t.Error("expected poll cmd to restart CI watch")
+	}
+}
+
+func TestWatcherReviewTimeout(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.state = watchStateAwaitingReview
+	m.reviewStartAt = time.Now().Add(-6 * time.Minute) // 6 min > 5 min timeout
+	m.lastActivityAt = time.Now()                      // still active (not debounced)
+	m.reviewTimeout = 5 * time.Minute
+	m.initialHeadSHA = "abc123"
+	m.prevHash = "somehash"
+
+	snap := &domain.ActivitySnapshot{HeadSHA: "abc123"}
+	m, _ = m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
+
+	if m.state != watchStateDone {
+		t.Errorf("state = %d, want watchStateDone (timeout should finish)", m.state)
+	}
+
+	found := false
+	for _, e := range m.events {
+		if strings.Contains(e.name, "Review timeout") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("missing 'Review timeout' event")
+	}
+}
+
+func TestWatcherReviewNewActivity(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.state = watchStateAwaitingReview
+	m.reviewStartAt = time.Now()
+	m.lastActivityAt = time.Now()
+	m.reviewTimeout = 5 * time.Minute
+	m.initialHeadSHA = "abc123"
+	m.prevHash = "oldhash"
+
+	// New activity: different snapshot produces different hash.
+	snap := &domain.ActivitySnapshot{
+		HeadSHA:     "abc123",
+		ThreadCount: 1,
+		ThreadIDs:   []string{"t1"},
+	}
+	m, cmd := m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
+
+	if m.state != watchStateAwaitingReview {
+		t.Errorf("state = %d, want watchStateAwaitingReview (still active)", m.state)
+	}
+	if m.activityCount != 1 {
+		t.Errorf("activityCount = %d, want 1", m.activityCount)
+	}
+	if cmd == nil {
+		t.Error("expected schedule next review poll cmd")
+	}
+}
+
+func TestWatcherReviewPollError(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.state = watchStateAwaitingReview
+	m.reviewStartAt = time.Now()
+	m.lastActivityAt = time.Now()
+	m.reviewTimeout = 5 * time.Minute
+	m.initialHeadSHA = "abc123"
+
+	m, cmd := m.handleReviewPollResult(reviewPollResultMsg{err: errors.New("network error")})
+
+	if m.state != watchStateAwaitingReview {
+		t.Error("should stay in awaiting review after poll error")
+	}
+	if cmd == nil {
+		t.Error("expected schedule next review poll cmd")
+	}
+}
+
+func TestWatcherAwaitingReviewView(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.state = watchStateAwaitingReview
+	m.reviewStartAt = time.Now()
+	m.lastActivityAt = time.Now()
+	m.reviewTimeout = 5 * time.Minute
+
+	view := m.View()
+	if !strings.Contains(view, "awaiting reviews") {
+		t.Error("missing 'awaiting reviews' in view")
+	}
+	if !strings.Contains(view, "idle:") {
+		t.Error("missing 'idle:' in review-await view")
+	}
+	if !strings.Contains(view, "timeout:") {
+		t.Error("missing 'timeout:' in review-await view")
+	}
+}
+
+func TestWatcherReviewTickIgnoredWhenNotAwaiting(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.state = watchStateDone
+
+	m, cmd := m.Update(reviewTickMsg(time.Now()))
+	if cmd != nil {
+		t.Error("review tick should be ignored when not awaiting")
+	}
+}
+
+func TestWatcherSummaryTransitionOnPass(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.summaryTransition = true
+	// No awaitReview — should go straight to done with watchDoneMsg.
+
+	checks := makeChecksResult([]domain.CheckRun{
+		{ID: 1, Name: "lint", Status: "completed", Conclusion: "success"},
+	}, domain.StatusPass)
+
+	m, cmd := m.handlePollResult(watchResultMsg{checks: checks})
+
+	if m.state != watchStateDone {
+		t.Errorf("state = %d, want watchStateDone", m.state)
+	}
+	if cmd == nil {
+		t.Error("expected watchDoneMsg cmd for summary transition")
+	}
 }
 
 func TestWatcherStatusBar(t *testing.T) {
