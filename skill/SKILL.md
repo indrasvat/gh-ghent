@@ -9,8 +9,10 @@ description: >
   comments", "any feedback on my PR", "read PR comments", "address review
   feedback", "resolve review threads", "PR status", "are checks passing",
   "did CI pass", "check PR #N", "monitor CI", "wait for checks", "what's
-  failing", "review my PR", or any request to inspect, diagnose, or act on
-  GitHub pull request review threads, CI check status, or merge readiness.
+  failing", "review my PR", "wait for bot review", "wait for Codex",
+  "wait for CodeRabbit", "has the bot reviewed yet", "is the review done",
+  or any request to inspect, diagnose, or act on GitHub pull request
+  review threads, CI check status, or merge readiness.
   Provides JSON/XML/Markdown output with file:line locations, error log
   excerpts, and annotations from GitHub Actions.
 ---
@@ -30,6 +32,7 @@ state: unresolved threads, CI check status, annotations, logs, and merge readine
 - Resolve review threads after fixing the requested changes
 - Reply to review threads to acknowledge feedback
 - Monitor CI in a polling loop until checks complete
+- Wait for bot reviewers (Codex, CodeRabbit, Copilot) to finish reviewing
 
 ## Agent Mode
 
@@ -98,6 +101,20 @@ gh ghent summary --pr 42 --watch --format json --no-tui
 Polls CI until terminal status (stderr), then outputs full summary (stdout).
 Pipe-friendly: `gh ghent summary --pr 42 --watch --format json 2>/dev/null | jq`
 
+### 2b. Wait for CI + bot review, then get full report
+```bash
+gh ghent summary --pr 42 --await-review --format json --no-tui
+```
+After CI passes, continues watching for review activity to settle. Use this when
+a bot reviewer (Codex, CodeRabbit, Copilot) is configured on the repo. Settles
+after 30s of no new comments/reviews, or times out after 5m (configurable via
+`--review-timeout`). The output includes a `review_settled` field showing
+settlement phase and activity count.
+
+**When to use `--await-review` vs `--watch`:**
+- `--watch` — only wait for CI. Use when you don't expect bot reviews, or will poll for comments separately.
+- `--await-review` — wait for CI + review activity. Use after creating a PR when you know a bot reviewer will post comments. Implies `--watch`.
+
 ### 3. Quick merge-readiness gate
 ```bash
 gh ghent summary --pr 42 --quiet               # Requires approval
@@ -117,7 +134,7 @@ gh ghent reply --pr 42 --thread PRRT_... --body "Fixed" # Reply to thread
 
 | Command | Purpose | Key Flags |
 |---------|---------|-----------|
-| `summary` | Full PR status + failure diagnostics | `--logs`, `--watch`, `--quiet`, `--compact`, `--solo` |
+| `summary` | Full PR status + failure diagnostics | `--logs`, `--watch`, `--await-review`, `--review-timeout`, `--quiet`, `--compact`, `--solo` |
 | `comments` | Unresolved review threads | `--group-by file\|author\|status` |
 | `checks` | CI status + annotations | `--logs`, `--watch` |
 | `resolve` | Resolve/unresolve threads | `--thread`, `--all`, `--file`, `--author`, `--dry-run`, `--unresolve` |
@@ -145,8 +162,8 @@ rate limits, and context cancellations without changing stdout.
 ## Core Workflow
 
 ```bash
-# 1. Get everything in one call
-SUMMARY=$(gh ghent summary --pr 42 --logs --format json --no-tui)
+# 1. After creating a PR, wait for CI + bot review in a single call
+SUMMARY=$(gh ghent summary --pr 42 --await-review --logs --format json --no-tui)
 
 # 2. Check merge readiness
 echo "$SUMMARY" | jq '.is_merge_ready'
@@ -157,10 +174,16 @@ echo "$SUMMARY" | jq '.checks.checks[] | select(.log_excerpt) | {name, conclusio
 # 4. If threads need fixing, read them
 echo "$SUMMARY" | jq '.comments.threads[] | {path, line, body: .comments[0].body}'
 
-# 5. Fix code, then resolve + reply
+# 5. Fix code, push, then resolve + reply
 # Thread IDs are in comments output at .threads[].id (e.g., PRRT_kwDO...)
 gh ghent resolve --pr 42 --all
+
+# 6. Re-check after fixes (--await-review waits for re-review if bot re-triggers)
+gh ghent summary --pr 42 --await-review --logs --format json --no-tui
 ```
+
+> **Tip:** If the repo has no bot reviewer configured, use `--watch` instead of
+> `--await-review` to avoid waiting for a timeout that will never be useful.
 
 ## Exit Codes
 
