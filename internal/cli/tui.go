@@ -38,6 +38,12 @@ func launchTUI(startView tui.View, opts ...tuiOption) error {
 	if cfg.asyncComments != nil || cfg.asyncChecks != nil || cfg.asyncReviews != nil {
 		app.SetAsyncFetch(cfg.asyncComments, cfg.asyncChecks, cfg.asyncReviews)
 	}
+	if cfg.reviewFetchFn != nil {
+		app.SetReviewWatch(cfg.reviewFetchFn, cfg.reviewTimeout, cfg.reviewBaselineHash)
+	}
+	if cfg.summaryTransition {
+		app.SetSummaryTransition(true)
+	}
 
 	// CRITICAL: Set terminal background BEFORE Bubble Tea starts (pitfall 7.1).
 	output := styles.SetAppBackground()
@@ -71,6 +77,12 @@ type tuiConfig struct {
 	asyncComments tui.FetchCommentsFunc
 	asyncChecks   tui.FetchChecksFunc
 	asyncReviews  tui.FetchReviewsFunc
+
+	// Review-await mode.
+	reviewFetchFn      tui.ReviewPollFunc
+	reviewTimeout      time.Duration
+	reviewBaselineHash string
+	summaryTransition  bool
 }
 
 type tuiOption func(*tuiConfig)
@@ -112,4 +124,16 @@ func withAsyncFetch(comments tui.FetchCommentsFunc, checks tui.FetchChecksFunc, 
 		c.asyncChecks = checks
 		c.asyncReviews = reviews
 	}
+}
+
+func withAwaitReview(fn tui.ReviewPollFunc, timeout time.Duration, baselineHash string) tuiOption {
+	return func(c *tuiConfig) {
+		c.reviewFetchFn = fn
+		c.reviewTimeout = timeout
+		c.reviewBaselineHash = baselineHash
+	}
+}
+
+func withSummaryTransition(enabled bool) tuiOption {
+	return func(c *tuiConfig) { c.summaryTransition = enabled }
 }

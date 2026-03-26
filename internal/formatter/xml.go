@@ -195,6 +195,13 @@ func (f *XMLFormatter) FormatSummary(w io.Writer, result *domain.SummaryResult) 
 			PendingCount:  result.Checks.PendingCount,
 		},
 	}
+	if result.ReviewSettled != nil {
+		out.ReviewSettled = &xmlReviewSettlement{
+			Phase:         string(result.ReviewSettled.Phase),
+			ActivityCount: result.ReviewSettled.ActivityCount,
+			WaitSeconds:   result.ReviewSettled.WaitSeconds,
+		}
+	}
 	// Add unresolved threads to comments section.
 	for _, t := range result.Comments.Threads {
 		if t.IsResolved {
@@ -333,14 +340,17 @@ func (f *XMLFormatter) FormatCompactSummary(w io.Writer, result *domain.SummaryR
 
 func (f *XMLFormatter) FormatWatchStatus(w io.Writer, status *domain.WatchStatus) error {
 	out := xmlWatchStatus{
-		Timestamp:     status.Timestamp.Format(time.RFC3339),
-		OverallStatus: string(status.OverallStatus),
-		Completed:     status.Completed,
-		Total:         status.Total,
-		PassCount:     status.PassCount,
-		FailCount:     status.FailCount,
-		PendingCount:  status.PendingCount,
-		Final:         status.Final,
+		Timestamp:       status.Timestamp.Format(time.RFC3339),
+		OverallStatus:   string(status.OverallStatus),
+		Completed:       status.Completed,
+		Total:           status.Total,
+		PassCount:       status.PassCount,
+		FailCount:       status.FailCount,
+		PendingCount:    status.PendingCount,
+		Final:           status.Final,
+		ReviewPhase:     string(status.ReviewPhase),
+		ReviewIdleSecs:  status.ReviewIdleSecs,
+		ReviewTimeoutIn: status.ReviewTimeoutIn,
 	}
 	for _, ev := range status.Events {
 		out.Events = append(out.Events, xmlWatchEvent{
@@ -363,16 +373,19 @@ func (f *XMLFormatter) FormatWatchStatus(w io.Writer, status *domain.WatchStatus
 }
 
 type xmlWatchStatus struct {
-	XMLName       xml.Name        `xml:"watch_status"`
-	Timestamp     string          `xml:"timestamp,attr"`
-	OverallStatus string          `xml:"overall_status,attr"`
-	Completed     int             `xml:"completed,attr"`
-	Total         int             `xml:"total,attr"`
-	PassCount     int             `xml:"pass_count,attr"`
-	FailCount     int             `xml:"fail_count,attr"`
-	PendingCount  int             `xml:"pending_count,attr"`
-	Final         bool            `xml:"final,attr"`
-	Events        []xmlWatchEvent `xml:"event,omitempty"`
+	XMLName         xml.Name        `xml:"watch_status"`
+	Timestamp       string          `xml:"timestamp,attr"`
+	OverallStatus   string          `xml:"overall_status,attr"`
+	Completed       int             `xml:"completed,attr"`
+	Total           int             `xml:"total,attr"`
+	PassCount       int             `xml:"pass_count,attr"`
+	FailCount       int             `xml:"fail_count,attr"`
+	PendingCount    int             `xml:"pending_count,attr"`
+	Final           bool            `xml:"final,attr"`
+	ReviewPhase     string          `xml:"review_phase,attr,omitempty"`
+	ReviewIdleSecs  int             `xml:"review_idle_secs,attr,omitempty"`
+	ReviewTimeoutIn int             `xml:"review_timeout_in,attr,omitempty"`
+	Events          []xmlWatchEvent `xml:"event,omitempty"`
 }
 
 type xmlWatchEvent struct {
@@ -478,12 +491,19 @@ type xmlResolveError struct {
 }
 
 type xmlSummary struct {
-	XMLName      xml.Name           `xml:"summary"`
-	PRNumber     int                `xml:"pr_number,attr"`
-	IsMergeReady bool               `xml:"is_merge_ready,attr"`
-	Comments     xmlSummaryComments `xml:"comments"`
-	Checks       xmlSummaryChecks   `xml:"checks"`
-	Reviews      []xmlReview        `xml:"review,omitempty"`
+	XMLName       xml.Name             `xml:"summary"`
+	PRNumber      int                  `xml:"pr_number,attr"`
+	IsMergeReady  bool                 `xml:"is_merge_ready,attr"`
+	Comments      xmlSummaryComments   `xml:"comments"`
+	Checks        xmlSummaryChecks     `xml:"checks"`
+	Reviews       []xmlReview          `xml:"review,omitempty"`
+	ReviewSettled *xmlReviewSettlement `xml:"review_settled,omitempty"`
+}
+
+type xmlReviewSettlement struct {
+	Phase         string `xml:"phase,attr"`
+	ActivityCount int    `xml:"activity_count,attr"`
+	WaitSeconds   int    `xml:"wait_seconds,attr"`
 }
 
 type xmlSummaryComments struct {

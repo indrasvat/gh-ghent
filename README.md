@@ -121,6 +121,7 @@ Combined PR status dashboard with merge-readiness assessment.
 gh ghent summary --pr 42                     # Interactive dashboard
 gh ghent summary --pr 42 --logs --format json  # Full status with failure diagnostics
 gh ghent summary --pr 42 --watch --format json # Wait for CI, then full report
+gh ghent summary --pr 42 --await-review        # Wait for CI + bot reviews to settle
 gh ghent summary --pr 42 --quiet               # Silent merge-readiness gate
 gh ghent summary --pr 42 --solo                # Skip approval check (personal repos)
 ```
@@ -130,6 +131,8 @@ gh ghent summary --pr 42 --solo                # Skip approval check (personal r
 | `--pr` | Pull request number (required) |
 | `--logs` | Include failing job log excerpts and annotations |
 | `--watch` | Poll until CI completes, then output full summary |
+| `--await-review` | After CI completes, wait for review activity to settle (implies `--watch`) |
+| `--review-timeout` | Hard timeout for `--await-review` (default: `5m`) |
 | `--quiet` | Silent on merge-ready (exit 0), full output on not-ready (exit 1) |
 | `--compact` | One-line-per-thread compact digest for agents |
 | `--solo` | Skip approval requirement for single-maintainer repos |
@@ -199,8 +202,8 @@ echo "$SUMMARY" | jq '.comments.threads[] | {path, line, body: .comments[0].body
 # 5. Fix code, then resolve + reply
 gh ghent resolve --pr 42 --all --format json
 
-# 6. Wait for CI, get fresh summary
-gh ghent summary --pr 42 --watch --logs --format json --no-tui
+# 6. Wait for CI + bot review, get fresh summary
+gh ghent summary --pr 42 --await-review --logs --format json --no-tui
 ```
 
 ### Output Formats

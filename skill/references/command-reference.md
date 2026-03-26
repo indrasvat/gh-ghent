@@ -271,13 +271,15 @@ Combined PR status dashboard with merge-readiness assessment.
 
 ### Flags
 
-| Flag | Type | Description |
-|------|------|-------------|
-| `--compact` | bool | One-line-per-thread compact digest (optimized for agents) |
-| `--logs` | bool | Include failing job log excerpts and annotations in output |
-| `--watch` | bool | Poll until all checks complete, then output full summary |
-| `--quiet` | bool | Silent on merge-ready (exit 0), full output on not-ready (exit 1) |
-| `--solo` | bool | Skip approval requirement for single-maintainer repos |
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--compact` | bool | `false` | One-line-per-thread compact digest (optimized for agents) |
+| `--logs` | bool | `false` | Include failing job log excerpts and annotations in output |
+| `--watch` | bool | `false` | Poll until all checks complete, then output full summary |
+| `--await-review` | bool | `false` | After CI completes, wait for review activity to settle (implies `--watch`) |
+| `--review-timeout` | duration | `5m` | Hard timeout for `--await-review` |
+| `--quiet` | bool | `false` | Silent on merge-ready (exit 0), full output on not-ready (exit 1) |
+| `--solo` | bool | `false` | Skip approval requirement for single-maintainer repos |
 
 ### Exit Codes
 
@@ -300,6 +302,48 @@ In non-TTY mode, watch status streams to **stderr** and the final summary to **s
 This lets you pipe the summary directly: `gh ghent summary --pr 42 --watch --format json 2>/dev/null | jq`
 
 In TTY mode, launches the interactive watch TUI.
+
+### Review Await Mode (--await-review)
+
+After CI checks complete, continues polling for review activity (comments, reviews) to settle.
+Uses a lightweight GraphQL activity probe with fingerprint-based change detection — any new
+thread, edited thread (via `updatedAt`), resolved thread, new review, or review state change
+resets the debounce timer.
+
+**Baseline comparison:** A fingerprint is taken *before* CI watch starts. When the review
+phase begins, the current snapshot is compared against this baseline. If different (e.g., a
+bot reviewed during CI), activity is detected immediately and the debounce is armed — no
+wasted timeout waiting for activity that already happened.
+
+**Debounce:** Settles after 30s of no new review activity. Only fires after at least one
+activity change has been detected — prevents premature settlement while a bot is still working.
+
+**Hard timeout:** Configurable via `--review-timeout` (default 5m). Safety valve when no
+activity is ever detected (e.g., no bot configured, or bot gave silent approval via emoji).
+
+**Head SHA change:** If a new push is detected during review wait, restarts CI watch automatically
+(max 3 restarts).
+
+In non-TTY mode, review watch status streams to stderr alongside CI watch status.
+The final summary includes a `review_settled` field:
+
+```json
+{
+  "review_settled": {
+    "phase": "settled",
+    "activity_count": 3,
+    "wait_seconds": 154
+  }
+}
+```
+
+Phase is `"settled"` (debounce) or `"timeout"` (hard timeout reached).
+
+In TTY mode, the watcher shows "awaiting reviews" with idle/timeout counters,
+then transitions to the summary dashboard when reviews settle.
+
+Works with any reviewer — Codex, CodeRabbit, Copilot, human reviewers, or any bot
+that leaves review comments.
 
 ### Quiet Mode (--quiet)
 

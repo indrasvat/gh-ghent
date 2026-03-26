@@ -186,6 +186,10 @@ func (f *MarkdownFormatter) FormatWatchStatus(w io.Writer, status *domain.WatchS
 	for _, ev := range status.Events {
 		fmt.Fprintf(w, " | %s→%s", ev.Name, ev.Conclusion)
 	}
+	if status.ReviewPhase != "" {
+		fmt.Fprintf(w, " review:%s idle:%ds timeout:%ds",
+			status.ReviewPhase, status.ReviewIdleSecs, status.ReviewTimeoutIn)
+	}
 	_, err := fmt.Fprintln(w)
 	return err
 }
@@ -238,6 +242,15 @@ func (f *MarkdownFormatter) FormatSummary(w io.Writer, result *domain.SummaryRes
 		fmt.Fprintln(w)
 	}
 
+	// Review settlement section (if --await-review was used).
+	if result.ReviewSettled != nil {
+		fmt.Fprintf(w, "## Review Settlement\n\n")
+		fmt.Fprintf(w, "**Phase:** %s | **Activity:** %d changes | **Wait:** %s\n\n",
+			result.ReviewSettled.Phase,
+			result.ReviewSettled.ActivityCount,
+			formatSettlementDuration(result.ReviewSettled.WaitSeconds))
+	}
+
 	// Reviews/Approvals section.
 	fmt.Fprintf(w, "## Approvals\n\n")
 	if len(result.Reviews) == 0 {
@@ -251,4 +264,17 @@ func (f *MarkdownFormatter) FormatSummary(w io.Writer, result *domain.SummaryRes
 	}
 
 	return nil
+}
+
+// formatSettlementDuration converts seconds to a human-readable duration string.
+func formatSettlementDuration(secs int) string {
+	if secs < 60 {
+		return fmt.Sprintf("%ds", secs)
+	}
+	m := secs / 60
+	s := secs % 60
+	if s == 0 {
+		return fmt.Sprintf("%dm", m)
+	}
+	return fmt.Sprintf("%dm%ds", m, s)
 }

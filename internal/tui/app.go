@@ -297,6 +297,44 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case rerunResultMsg:
 		// Re-run operation completed — consumed silently.
 		return a, nil
+
+	case watchDoneMsg:
+		// Watch phase complete — transition to summary view with fresh data.
+		a.activeView = ViewSummary
+		a.summary.loading = true
+		a.summary.recomputeMaxScroll()
+
+		// Fire async fetches for the final summary data.
+		var cmds []tea.Cmd
+		if a.fetchCommentsFn != nil {
+			fn := a.fetchCommentsFn
+			a.commentsLoading = true
+			cmds = append(cmds, func() tea.Msg {
+				result, err := fn()
+				return commentsLoadedMsg{result: result, err: err}
+			})
+		}
+		if a.fetchChecksFn != nil {
+			fn := a.fetchChecksFn
+			a.checksLoading = true
+			cmds = append(cmds, func() tea.Msg {
+				result, err := fn()
+				return checksLoadedMsg{result: result, err: err}
+			})
+		}
+		if a.fetchReviewsFn != nil {
+			fn := a.fetchReviewsFn
+			a.reviewsLoading = true
+			cmds = append(cmds, func() tea.Msg {
+				reviews, err := fn()
+				return reviewsLoadedMsg{reviews: reviews, err: err}
+			})
+		}
+		a.summary.loading = a.isLoading()
+		if len(cmds) > 0 {
+			return a, tea.Batch(cmds...)
+		}
+		return a, nil
 	}
 
 	// Forward other messages to the active view's sub-model.
@@ -644,6 +682,22 @@ func (a *App) SetResolver(fn func(threadID string) error) {
 func (a *App) SetWatchFetch(fn watchFetchFunc, interval time.Duration) {
 	a.watcher = newWatcherModel(interval)
 	a.watcher.fetchFn = fn
+}
+
+// SetReviewWatch configures the review-await phase on the watcher.
+// baselineHash is a fingerprint taken before CI watch started; if the
+// review-phase snapshot differs, activity happened during CI.
+func (a *App) SetReviewWatch(fn ReviewPollFunc, timeout time.Duration, baselineHash string) {
+	a.watcher.awaitReview = true
+	a.watcher.reviewFetchFn = fn
+	a.watcher.reviewTimeout = timeout
+	a.watcher.baselineHash = baselineHash
+}
+
+// SetSummaryTransition enables automatic transition from watch → summary view
+// when the watcher reaches a terminal state.
+func (a *App) SetSummaryTransition(enabled bool) {
+	a.watcher.summaryTransition = enabled
 }
 
 // SetReviews updates the shared reviews data.

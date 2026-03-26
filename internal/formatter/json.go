@@ -53,29 +53,31 @@ func (f *JSONFormatter) FormatCompactSummary(w io.Writer, result *domain.Summary
 		LogExcerpt  string              `json:"log_excerpt,omitempty"`
 	}
 	type compactSummary struct {
-		PRNumber     int                  `json:"pr_number"`
-		IsMergeReady bool                 `json:"is_merge_ready"`
-		PRAge        string               `json:"pr_age,omitempty"`
-		LastUpdate   string               `json:"last_update,omitempty"`
-		ReviewCycles int                  `json:"review_cycles,omitempty"`
-		Unresolved   int                  `json:"unresolved"`
-		CheckStatus  string               `json:"check_status"`
-		PassCount    int                  `json:"pass_count"`
-		FailCount    int                  `json:"fail_count"`
-		Threads      []compactThread      `json:"threads,omitempty"`
-		FailedChecks []compactFailedCheck `json:"failed_checks,omitempty"`
+		PRNumber      int                      `json:"pr_number"`
+		IsMergeReady  bool                     `json:"is_merge_ready"`
+		PRAge         string                   `json:"pr_age,omitempty"`
+		LastUpdate    string                   `json:"last_update,omitempty"`
+		ReviewCycles  int                      `json:"review_cycles,omitempty"`
+		Unresolved    int                      `json:"unresolved"`
+		CheckStatus   string                   `json:"check_status"`
+		PassCount     int                      `json:"pass_count"`
+		FailCount     int                      `json:"fail_count"`
+		Threads       []compactThread          `json:"threads,omitempty"`
+		FailedChecks  []compactFailedCheck     `json:"failed_checks,omitempty"`
+		ReviewSettled *domain.ReviewSettlement `json:"review_settled,omitempty"`
 	}
 
 	compact := compactSummary{
-		PRNumber:     result.PRNumber,
-		IsMergeReady: result.IsMergeReady,
-		PRAge:        result.PRAge,
-		LastUpdate:   result.LastUpdate,
-		ReviewCycles: result.ReviewCycles,
-		Unresolved:   result.Comments.UnresolvedCount,
-		CheckStatus:  string(result.Checks.OverallStatus),
-		PassCount:    result.Checks.PassCount,
-		FailCount:    result.Checks.FailCount,
+		PRNumber:      result.PRNumber,
+		IsMergeReady:  result.IsMergeReady,
+		PRAge:         result.PRAge,
+		LastUpdate:    result.LastUpdate,
+		ReviewCycles:  result.ReviewCycles,
+		Unresolved:    result.Comments.UnresolvedCount,
+		CheckStatus:   string(result.Checks.OverallStatus),
+		PassCount:     result.Checks.PassCount,
+		FailCount:     result.Checks.FailCount,
+		ReviewSettled: result.ReviewSettled,
 	}
 
 	for _, t := range result.Comments.Threads {
