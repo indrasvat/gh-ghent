@@ -43,7 +43,7 @@ type Formatter interface {
 	FormatChecks(w io.Writer, result *ChecksResult) error
 	FormatReply(w io.Writer, result *ReplyResult) error
 	FormatResolveResults(w io.Writer, result *ResolveResults) error
-	FormatSummary(w io.Writer, result *SummaryResult) error
-	FormatCompactSummary(w io.Writer, result *SummaryResult) error
+	FormatStatus(w io.Writer, result *StatusResult) error
+	FormatCompactStatus(w io.Writer, result *StatusResult) error
 	FormatWatchStatus(w io.Writer, status *WatchStatus) error
 }

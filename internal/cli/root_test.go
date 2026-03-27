@@ -10,7 +10,7 @@ import (
 func TestRootHasSubcommands(t *testing.T) {
 	cmd := NewRootCmd()
 
-	want := []string{"checks", "comments", "reply", "resolve", "summary"}
+	want := []string{"checks", "comments", "reply", "resolve", "status"}
 	var got []string
 	for _, sub := range cmd.Commands() {
 		got = append(got, sub.Name())
@@ -126,7 +126,7 @@ func TestSubcommandStubsReturnNotImplemented(t *testing.T) {
 		{name: "comments", args: []string{"comments"}},
 		{name: "checks", args: []string{"checks"}},
 		{name: "resolve", args: []string{"resolve"}},
-		{name: "summary", args: []string{"summary"}},
+		{name: "status", args: []string{"status"}},
 	}
 
 	for _, tt := range tests {

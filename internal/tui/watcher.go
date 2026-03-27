@@ -57,7 +57,7 @@ type reviewPollResultMsg struct {
 type reviewTickMsg time.Time
 
 // watchDoneMsg signals the watcher has reached a terminal state.
-// The App listens for this to transition to ViewSummary.
+// The App listens for this to transition to ViewStatus.
 type watchDoneMsg struct {
 	settlement *domain.ReviewSettlement // nil if no review-await was active
 }
@@ -110,7 +110,7 @@ type watcherModel struct {
 	initialHeadSHA string
 
 	// Summary transition: when true, emit watchDoneMsg on terminal state.
-	summaryTransition bool
+	statusTransition bool
 }
 
 func newWatcherModel(interval time.Duration) watcherModel {
@@ -234,7 +234,7 @@ func (m watcherModel) handlePollResult(msg watchResultMsg) (watcherModel, tea.Cm
 			icon:      greenStyle.Render("✓"),
 			name:      "All checks passed",
 		})
-		if m.summaryTransition {
+		if m.statusTransition {
 			return m, func() tea.Msg { return watchDoneMsg{} }
 		}
 		return m, nil
@@ -246,7 +246,7 @@ func (m watcherModel) handlePollResult(msg watchResultMsg) (watcherModel, tea.Cm
 			name:      "Check failure detected",
 			detail:    "fail-fast triggered",
 		})
-		if m.summaryTransition {
+		if m.statusTransition {
 			return m, func() tea.Msg { return watchDoneMsg{} }
 		}
 		return m, nil
@@ -410,7 +410,7 @@ func (m watcherModel) finishReviewWait(phase domain.ReviewWatchPhase, now time.T
 		WaitSeconds:   int(elapsed.Seconds()),
 	}
 
-	if m.summaryTransition {
+	if m.statusTransition {
 		return m, func() tea.Msg { return watchDoneMsg{settlement: settlement} }
 	}
 	return m, nil

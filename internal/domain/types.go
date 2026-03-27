@@ -252,8 +252,8 @@ type WatchStatus struct {
 	ReviewTimeoutIn int              `json:"review_timeout_in,omitempty"`
 }
 
-// SummaryResult combines all PR data for the summary command.
-type SummaryResult struct {
+// StatusResult combines all PR data for the status command.
+type StatusResult struct {
 	PRNumber      int               `json:"pr_number"`
 	Comments      CommentsResult    `json:"comments"`
 	Checks        ChecksResult      `json:"checks"`

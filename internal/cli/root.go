@@ -43,7 +43,7 @@ for AI agents. Works wherever gh is authenticated — zero config.
   gh ghent comments --pr 42 --format json --no-tui
 
   # Quick merge-readiness check
-  gh ghent summary --pr 42 --format json | jq '.is_merge_ready'
+  gh ghent status --pr 42 --format json | jq '.is_merge_ready'
 
   # Watch CI until done, fail-fast on failure
   gh ghent checks --pr 42 --watch`,
@@ -138,7 +138,7 @@ for AI agents. Works wherever gh is authenticated — zero config.
 		newChecksCmd(),
 		newResolveCmd(),
 		newReplyCmd(),
-		newSummaryCmd(),
+		newStatusCmd(),
 	)
 
 	// Styled help/version output (Tokyo Night theme, TTY-aware).

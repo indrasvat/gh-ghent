@@ -127,9 +127,9 @@ func TestWatchChecksNoChecksPR(t *testing.T) {
 	_ = client
 }
 
-func TestReviewSettlementInSummaryResult(t *testing.T) {
-	// Verify ReviewSettled is included in SummaryResult serialization.
-	result := &domain.SummaryResult{
+func TestReviewSettlementInStatusResult(t *testing.T) {
+	// Verify ReviewSettled is included in StatusResult serialization.
+	result := &domain.StatusResult{
 		PRNumber:     42,
 		IsMergeReady: false,
 		ReviewSettled: &domain.ReviewSettlement{
@@ -141,8 +141,8 @@ func TestReviewSettlementInSummaryResult(t *testing.T) {
 
 	var buf bytes.Buffer
 	f, _ := formatter.New("json")
-	if err := f.FormatSummary(&buf, result); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, result); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
 	output := buf.String()
@@ -155,15 +155,15 @@ func TestReviewSettlementInSummaryResult(t *testing.T) {
 }
 
 func TestReviewSettlementOmittedWhenNil(t *testing.T) {
-	result := &domain.SummaryResult{
+	result := &domain.StatusResult{
 		PRNumber:     42,
 		IsMergeReady: true,
 	}
 
 	var buf bytes.Buffer
 	f, _ := formatter.New("json")
-	if err := f.FormatSummary(&buf, result); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, result); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
 	output := buf.String()

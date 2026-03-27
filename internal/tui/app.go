@@ -28,7 +28,7 @@ const (
 	ViewChecksList                 // Top-level checks list
 	ViewChecksLog                  // Expanded single check log
 	ViewResolve                    // Multi-select resolve
-	ViewSummary                    // Summary dashboard
+	ViewStatus                     // Status dashboard
 	ViewWatch                      // Watch mode (spinner + progress)
 )
 
@@ -45,8 +45,8 @@ func (v View) String() string {
 		return "checks-log"
 	case ViewResolve:
 		return "resolve"
-	case ViewSummary:
-		return "summary"
+	case ViewStatus:
+		return "status"
 	case ViewWatch:
 		return "watch"
 	default:
@@ -104,7 +104,7 @@ type FetchReviewsFunc func() ([]domain.Review, error)
 type App struct {
 	// View state
 	activeView View
-	prevView   View // for Esc to return from summary/resolve
+	prevView   View // for Esc to return from status/resolve
 
 	// Terminal dimensions — propagated to ALL sub-models on WindowSizeMsg.
 	width  int
@@ -140,7 +140,7 @@ type App struct {
 	checksList       checksListModel
 	checksLog        checksLogModel
 	resolve          resolveModel
-	summary          summaryModel
+	status           statusModel
 	watcher          watcherModel
 }
 
@@ -207,7 +207,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.checksList.setSize(a.width, contentHeight)
 		a.checksLog.setSize(a.width, contentHeight)
 		a.resolve.setSize(a.width, contentHeight)
-		a.summary.setSize(a.width, contentHeight)
+		a.status.setSize(a.width, contentHeight)
 		a.watcher.setSize(a.width, contentHeight)
 		return a, nil
 
@@ -217,43 +217,43 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Async data loaded messages — progressive rendering.
 	case commentsLoadedMsg:
 		a.commentsLoading = false
-		a.summary.loading = a.isLoading()
+		a.status.loading = a.isLoading()
 		if typedMsg.err != nil {
 			a.loadErrors = append(a.loadErrors, fmt.Sprintf("threads: %v", typedMsg.err))
-			a.summary.hasErrors = true
+			a.status.hasErrors = true
 		} else {
 			a.SetComments(typedMsg.result)
 			contentHeight := max(a.height-2, 1)
 			a.commentsList.setSize(a.width, contentHeight)
 			a.resolve.setSize(a.width, contentHeight)
 		}
-		a.summary.recomputeMaxScroll()
+		a.status.recomputeMaxScroll()
 		return a, nil
 
 	case checksLoadedMsg:
 		a.checksLoading = false
-		a.summary.loading = a.isLoading()
+		a.status.loading = a.isLoading()
 		if typedMsg.err != nil {
 			a.loadErrors = append(a.loadErrors, fmt.Sprintf("checks: %v", typedMsg.err))
-			a.summary.hasErrors = true
+			a.status.hasErrors = true
 		} else {
 			a.SetChecks(typedMsg.result)
 			contentHeight := max(a.height-2, 1)
 			a.checksList.setSize(a.width, contentHeight)
 		}
-		a.summary.recomputeMaxScroll()
+		a.status.recomputeMaxScroll()
 		return a, nil
 
 	case reviewsLoadedMsg:
 		a.reviewsLoading = false
-		a.summary.loading = a.isLoading()
+		a.status.loading = a.isLoading()
 		if typedMsg.err != nil {
 			a.loadErrors = append(a.loadErrors, fmt.Sprintf("reviews: %v", typedMsg.err))
-			a.summary.hasErrors = true
+			a.status.hasErrors = true
 		} else {
 			a.SetReviews(typedMsg.reviews)
 		}
-		a.summary.recomputeMaxScroll()
+		a.status.recomputeMaxScroll()
 		return a, nil
 
 	// Messages from sub-models
@@ -299,12 +299,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case watchDoneMsg:
-		// Watch phase complete — transition to summary view with fresh data.
-		a.activeView = ViewSummary
-		a.summary.loading = true
-		a.summary.recomputeMaxScroll()
+		// Watch phase complete — transition to status view with fresh data.
+		a.activeView = ViewStatus
+		a.status.loading = true
+		a.status.recomputeMaxScroll()
 
-		// Fire async fetches for the final summary data.
+		// Fire async fetches for the final status data.
 		var cmds []tea.Cmd
 		if a.fetchCommentsFn != nil {
 			fn := a.fetchCommentsFn
@@ -330,7 +330,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return reviewsLoadedMsg{reviews: reviews, err: err}
 			})
 		}
-		a.summary.loading = a.isLoading()
+		a.status.loading = a.isLoading()
 		if len(cmds) > 0 {
 			return a, tea.Batch(cmds...)
 		}
@@ -368,7 +368,7 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if a.activeView == ViewResolve && a.resolve.state == resolveStateConfirming {
 			return a.forwardToActiveView(tea.Msg(msg))
 		}
-		// Return to previous view if set (covers summary→comments, summary→checks, etc.).
+		// Return to previous view if set (covers status→comments, status→checks, etc.).
 		if a.prevView != a.activeView {
 			a.activeView = a.prevView
 			return a, nil
@@ -415,19 +415,19 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Summary-specific shortcuts: c/k/r jump to views, o/R actions, j/↑/↓ scroll.
-	if a.activeView == ViewSummary {
+	// Status-specific shortcuts: c/k/r jump to views, o/R actions, j/↑/↓ scroll.
+	if a.activeView == ViewStatus {
 		switch {
 		case key.Matches(msg, a.keys.Comments):
-			a.prevView = ViewSummary
+			a.prevView = ViewStatus
 			a.activeView = ViewCommentsList
 			return a, nil
 		case key.Matches(msg, a.keys.Checks):
-			a.prevView = ViewSummary
+			a.prevView = ViewStatus
 			a.activeView = ViewChecksList
 			return a, nil
 		case key.Matches(msg, a.keys.Resolve):
-			a.prevView = ViewSummary
+			a.prevView = ViewStatus
 			a.activeView = ViewResolve
 			return a, nil
 		case key.Matches(msg, a.keys.OpenPR):
@@ -445,10 +445,10 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Scroll: j/↓ = down, ↑ = up (k is taken by checks shortcut).
 		switch msg.String() {
 		case "j", "down":
-			a.summary.scrollDown()
+			a.status.scrollDown()
 			return a, nil
 		case "up":
-			a.summary.scrollUp()
+			a.status.scrollUp()
 			return a, nil
 		}
 	}
@@ -572,8 +572,8 @@ func (a App) renderStatusBar() string {
 			data.Right = right
 		}
 
-	case ViewSummary:
-		badge, badgeColor := a.summary.mergeReadyBadge()
+	case ViewStatus:
+		badge, badgeColor := a.status.mergeReadyBadge()
 		data.RightBadge = badge
 		data.BadgeColor = badgeColor
 
@@ -615,8 +615,8 @@ func (a App) renderHelpBar() string {
 		bindings = components.ChecksWatchKeys()
 	case ViewResolve:
 		bindings = components.ResolveKeys()
-	case ViewSummary:
-		bindings = components.SummaryKeys()
+	case ViewStatus:
+		bindings = components.StatusKeys()
 	}
 	return components.RenderHelpBar(bindings, a.width)
 }
@@ -636,8 +636,8 @@ func (a App) renderActiveView(contentHeight int) string {
 		return a.checksLog.View()
 	case ViewResolve:
 		return a.resolve.View()
-	case ViewSummary:
-		return a.summary.View()
+	case ViewStatus:
+		return a.status.View()
 	case ViewWatch:
 		return a.watcher.View()
 	}
@@ -661,7 +661,7 @@ func (a *App) SetComments(c *domain.CommentsResult) {
 		a.commentsList = newCommentsListModel(c.Threads)
 		a.resolve = newResolveModel(c.Threads)
 	}
-	a.summary.comments = c
+	a.status.comments = c
 }
 
 // SetChecks updates the shared checks data and rebuilds the checks list.
@@ -670,7 +670,7 @@ func (a *App) SetChecks(c *domain.ChecksResult) {
 	if c != nil {
 		a.checksList = newChecksListModel(c.Checks)
 	}
-	a.summary.checks = c
+	a.status.checks = c
 }
 
 // SetResolver sets the callback function for resolving threads.
@@ -694,21 +694,21 @@ func (a *App) SetReviewWatch(fn ReviewPollFunc, timeout time.Duration, baselineH
 	a.watcher.baselineHash = baselineHash
 }
 
-// SetSummaryTransition enables automatic transition from watch → summary view
+// SetStatusTransition enables automatic transition from watch → status view
 // when the watcher reaches a terminal state.
-func (a *App) SetSummaryTransition(enabled bool) {
-	a.watcher.summaryTransition = enabled
+func (a *App) SetStatusTransition(enabled bool) {
+	a.watcher.statusTransition = enabled
 }
 
 // SetReviews updates the shared reviews data.
 func (a *App) SetReviews(r []domain.Review) {
 	a.reviews = r
-	a.summary.reviews = r
+	a.status.reviews = r
 }
 
 // SetSolo enables solo mode — skips approval requirement for merge readiness.
 func (a *App) SetSolo(solo bool) {
-	a.summary.solo = solo
+	a.status.solo = solo
 }
 
 // SetAsyncFetch configures async data fetching — TUI launches immediately,
@@ -726,7 +726,7 @@ func (a *App) SetAsyncFetch(comments FetchCommentsFunc, checks FetchChecksFunc, 
 		a.fetchReviewsFn = reviews
 		a.reviewsLoading = true
 	}
-	a.summary.loading = a.isLoading()
+	a.status.loading = a.isLoading()
 }
 
 // isLoading returns true if any data is still being fetched.

@@ -30,11 +30,11 @@ func (f *JSONFormatter) FormatResolveResults(w io.Writer, result *domain.Resolve
 	return encodeJSON(w, result)
 }
 
-func (f *JSONFormatter) FormatSummary(w io.Writer, result *domain.SummaryResult) error {
+func (f *JSONFormatter) FormatStatus(w io.Writer, result *domain.StatusResult) error {
 	return encodeJSON(w, result)
 }
 
-func (f *JSONFormatter) FormatCompactSummary(w io.Writer, result *domain.SummaryResult) error {
+func (f *JSONFormatter) FormatCompactStatus(w io.Writer, result *domain.StatusResult) error {
 	type compactThread struct {
 		File        string `json:"file"`
 		Line        int    `json:"line"`
@@ -52,7 +52,7 @@ func (f *JSONFormatter) FormatCompactSummary(w io.Writer, result *domain.Summary
 		Annotations []compactAnnotation `json:"annotations,omitempty"`
 		LogExcerpt  string              `json:"log_excerpt,omitempty"`
 	}
-	type compactSummary struct {
+	type compactStatus struct {
 		PRNumber      int                      `json:"pr_number"`
 		IsMergeReady  bool                     `json:"is_merge_ready"`
 		PRAge         string                   `json:"pr_age,omitempty"`
@@ -67,7 +67,7 @@ func (f *JSONFormatter) FormatCompactSummary(w io.Writer, result *domain.Summary
 		ReviewSettled *domain.ReviewSettlement `json:"review_settled,omitempty"`
 	}
 
-	compact := compactSummary{
+	compact := compactStatus{
 		PRNumber:      result.PRNumber,
 		IsMergeReady:  result.IsMergeReady,
 		PRAge:         result.PRAge,

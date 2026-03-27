@@ -49,7 +49,7 @@ func TestWindowSizeMsg(t *testing.T) {
 func TestWindowSizeMsgPropagatesAllSubModels(t *testing.T) {
 	// When sub-models are added, this test should verify propagation.
 	// For now, verify dimensions are stored on the root model from any view.
-	views := []View{ViewCommentsList, ViewChecksList, ViewResolve, ViewSummary}
+	views := []View{ViewCommentsList, ViewChecksList, ViewResolve, ViewStatus}
 	for _, v := range views {
 		app := NewApp("owner/repo", 42, v)
 		app = sendWindowSize(app, 80, 24)
@@ -162,7 +162,7 @@ func TestQuitSendsQuitCmd(t *testing.T) {
 	}
 }
 
-func TestSummaryShortcuts(t *testing.T) {
+func TestStatusShortcuts(t *testing.T) {
 	tests := []struct {
 		key      string
 		expected View
@@ -172,22 +172,22 @@ func TestSummaryShortcuts(t *testing.T) {
 		{"r", ViewResolve},
 	}
 	for _, tt := range tests {
-		app := NewApp("owner/repo", 42, ViewSummary)
+		app := NewApp("owner/repo", 42, ViewStatus)
 		app = sendKey(app, tt.key)
 		if app.ActiveView() != tt.expected {
-			t.Errorf("key %q from Summary: expected %v, got %v", tt.key, tt.expected, app.ActiveView())
+			t.Errorf("key %q from Status: expected %v, got %v", tt.key, tt.expected, app.ActiveView())
 		}
 	}
 }
 
-func TestEscFromSummaryReturnsToPrevView(t *testing.T) {
+func TestEscFromStatusReturnsToPrevView(t *testing.T) {
 	app := NewApp("owner/repo", 42, ViewCommentsList)
-	// Simulate navigating to summary via c from summary... instead, set directly
-	app.activeView = ViewSummary
+	// Simulate navigating to status via c from status... instead, set directly
+	app.activeView = ViewStatus
 	app.prevView = ViewCommentsList
 	app = sendSpecialKey(app, tea.KeyEscape)
 	if app.ActiveView() != ViewCommentsList {
-		t.Errorf("expected ViewCommentsList after Esc from Summary, got %v", app.ActiveView())
+		t.Errorf("expected ViewCommentsList after Esc from Status, got %v", app.ActiveView())
 	}
 }
 
@@ -307,7 +307,7 @@ func TestViewStringValues(t *testing.T) {
 		{ViewChecksList, "checks"},
 		{ViewChecksLog, "checks-log"},
 		{ViewResolve, "resolve"},
-		{ViewSummary, "summary"},
+		{ViewStatus, "status"},
 		{ViewWatch, "watch"},
 		{View(99), "unknown"},
 	}
@@ -338,8 +338,8 @@ func TestSetData(t *testing.T) {
 }
 
 func TestEnterFromNonListViewIsNoOp(t *testing.T) {
-	// Enter from summary/resolve should not change view.
-	for _, v := range []View{ViewSummary, ViewResolve, ViewWatch} {
+	// Enter from status/resolve should not change view.
+	for _, v := range []View{ViewStatus, ViewResolve, ViewWatch} {
 		app := NewApp("owner/repo", 42, v)
 		app = sendSpecialKey(app, tea.KeyEnter)
 		if app.ActiveView() != v {
@@ -359,47 +359,47 @@ func TestEscFromTopLevelIsNoOp(t *testing.T) {
 }
 
 func TestEscFromCommentsListReturnsToPrevView(t *testing.T) {
-	// Simulate: summary → 'c' → comments list → Esc → back to summary.
-	app := NewApp("owner/repo", 42, ViewSummary)
+	// Simulate: status → 'c' → comments list → Esc → back to status.
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app = sendKey(app, "c")
 	if app.ActiveView() != ViewCommentsList {
 		t.Fatalf("expected ViewCommentsList after 'c', got %v", app.ActiveView())
 	}
 	app = sendSpecialKey(app, tea.KeyEscape)
-	if app.ActiveView() != ViewSummary {
-		t.Errorf("Esc from comments list: expected ViewSummary, got %v", app.ActiveView())
+	if app.ActiveView() != ViewStatus {
+		t.Errorf("Esc from comments list: expected ViewStatus, got %v", app.ActiveView())
 	}
 }
 
 func TestEscFromChecksListReturnsToPrevView(t *testing.T) {
-	// Simulate: summary → 'k' → checks list → Esc → back to summary.
-	app := NewApp("owner/repo", 42, ViewSummary)
+	// Simulate: status → 'k' → checks list → Esc → back to status.
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app = sendKey(app, "k")
 	if app.ActiveView() != ViewChecksList {
 		t.Fatalf("expected ViewChecksList after 'k', got %v", app.ActiveView())
 	}
 	app = sendSpecialKey(app, tea.KeyEscape)
-	if app.ActiveView() != ViewSummary {
-		t.Errorf("Esc from checks list: expected ViewSummary, got %v", app.ActiveView())
+	if app.ActiveView() != ViewStatus {
+		t.Errorf("Esc from checks list: expected ViewStatus, got %v", app.ActiveView())
 	}
 }
 
-func TestEscRoundTripFromSummary(t *testing.T) {
-	// Full round-trip: summary → c → esc → summary → k → esc → summary.
-	app := NewApp("owner/repo", 42, ViewSummary)
+func TestEscRoundTripFromStatus(t *testing.T) {
+	// Full round-trip: status → c → esc → status → k → esc → status.
+	app := NewApp("owner/repo", 42, ViewStatus)
 
-	// summary → comments → back
+	// status → comments → back
 	app = sendKey(app, "c")
 	app = sendSpecialKey(app, tea.KeyEscape)
-	if app.ActiveView() != ViewSummary {
-		t.Fatalf("first round-trip: expected ViewSummary, got %v", app.ActiveView())
+	if app.ActiveView() != ViewStatus {
+		t.Fatalf("first round-trip: expected ViewStatus, got %v", app.ActiveView())
 	}
 
-	// summary → checks → back
+	// status → checks → back
 	app = sendKey(app, "k")
 	app = sendSpecialKey(app, tea.KeyEscape)
-	if app.ActiveView() != ViewSummary {
-		t.Errorf("second round-trip: expected ViewSummary, got %v", app.ActiveView())
+	if app.ActiveView() != ViewStatus {
+		t.Errorf("second round-trip: expected ViewStatus, got %v", app.ActiveView())
 	}
 }
 
@@ -521,8 +521,8 @@ func TestEscFromExpandedReturnsToList(t *testing.T) {
 }
 
 func TestEscFromResolveConfirmingCancelsNotSwitchesView(t *testing.T) {
-	// Enter resolve from summary (r key), so prevView = ViewSummary.
-	app := NewApp("owner/repo", 42, ViewSummary)
+	// Enter resolve from status (r key), so prevView = ViewStatus.
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app.SetComments(&domain.CommentsResult{
 		Threads: []domain.ReviewThread{
 			makeThread("PRRT_aaa", "main.go", 10, true),
@@ -531,7 +531,7 @@ func TestEscFromResolveConfirmingCancelsNotSwitchesView(t *testing.T) {
 	})
 	app = sendWindowSize(app, 100, 30)
 
-	// Navigate to resolve via 'r' from summary.
+	// Navigate to resolve via 'r' from status.
 	app = sendKey(app, "r")
 	if app.ActiveView() != ViewResolve {
 		t.Fatalf("expected ViewResolve after 'r', got %v", app.ActiveView())
@@ -554,15 +554,15 @@ func TestEscFromResolveConfirmingCancelsNotSwitchesView(t *testing.T) {
 		t.Errorf("Esc from confirming: expected browsing state, got %d", app.resolve.state)
 	}
 
-	// Esc again (from browsing) should switch back to summary.
+	// Esc again (from browsing) should switch back to status.
 	app = sendSpecialKey(app, tea.KeyEscape)
-	if app.ActiveView() != ViewSummary {
-		t.Errorf("Esc from browsing: expected ViewSummary, got %v", app.ActiveView())
+	if app.ActiveView() != ViewStatus {
+		t.Errorf("Esc from browsing: expected ViewStatus, got %v", app.ActiveView())
 	}
 }
 
 func TestSetAsyncFetchMarksLoading(t *testing.T) {
-	app := NewApp("owner/repo", 42, ViewSummary)
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app.SetAsyncFetch(
 		func() (*domain.CommentsResult, error) { return nil, nil },
 		func() (*domain.ChecksResult, error) { return nil, nil },
@@ -574,13 +574,13 @@ func TestSetAsyncFetchMarksLoading(t *testing.T) {
 	if !app.isLoading() {
 		t.Error("expected isLoading() to be true")
 	}
-	if !app.summary.loading {
-		t.Error("expected summary.loading to be true")
+	if !app.status.loading {
+		t.Error("expected status.loading to be true")
 	}
 }
 
 func TestAsyncInitReturnsCommands(t *testing.T) {
-	app := NewApp("owner/repo", 42, ViewSummary)
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app.SetAsyncFetch(
 		func() (*domain.CommentsResult, error) {
 			return &domain.CommentsResult{UnresolvedCount: 3}, nil
@@ -600,11 +600,11 @@ func TestAsyncInitReturnsCommands(t *testing.T) {
 }
 
 func TestAsyncLoadedMsgUpdatesData(t *testing.T) {
-	app := NewApp("owner/repo", 42, ViewSummary)
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app.commentsLoading = true
 	app.checksLoading = true
 	app.reviewsLoading = true
-	app.summary.loading = true
+	app.status.loading = true
 	app = sendWindowSize(app, 80, 24)
 
 	// Simulate commentsLoadedMsg.
@@ -645,15 +645,15 @@ func TestAsyncLoadedMsgUpdatesData(t *testing.T) {
 	if app.isLoading() {
 		t.Error("expected isLoading() to be false after all data loaded")
 	}
-	if app.summary.loading {
-		t.Error("expected summary.loading to be false after all data loaded")
+	if app.status.loading {
+		t.Error("expected status.loading to be false after all data loaded")
 	}
 }
 
 func TestAsyncLoadErrorIsRecorded(t *testing.T) {
-	app := NewApp("owner/repo", 42, ViewSummary)
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app.commentsLoading = true
-	app.summary.loading = true
+	app.status.loading = true
 
 	model, _ := app.Update(commentsLoadedMsg{
 		err: fmt.Errorf("network error"),
@@ -668,36 +668,36 @@ func TestAsyncLoadErrorIsRecorded(t *testing.T) {
 }
 
 func TestAsyncLoadErrorSetsHasErrors(t *testing.T) {
-	app := NewApp("owner/repo", 42, ViewSummary)
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app.commentsLoading = true
 	app.checksLoading = true
 	app.reviewsLoading = true
-	app.summary.loading = true
+	app.status.loading = true
 	app = sendWindowSize(app, 80, 24)
 
 	// Comments error → hasErrors.
 	model, _ := app.Update(commentsLoadedMsg{err: fmt.Errorf("fail")})
 	app = model.(App)
-	if !app.summary.hasErrors {
-		t.Error("summary.hasErrors should be true after comments load error")
+	if !app.status.hasErrors {
+		t.Error("status.hasErrors should be true after comments load error")
 	}
 
 	// Checks error → hasErrors stays true.
 	model, _ = app.Update(checksLoadedMsg{err: fmt.Errorf("fail")})
 	app = model.(App)
-	if !app.summary.hasErrors {
-		t.Error("summary.hasErrors should remain true after checks load error")
+	if !app.status.hasErrors {
+		t.Error("status.hasErrors should remain true after checks load error")
 	}
 
 	// Reviews error → hasErrors stays true.
 	model, _ = app.Update(reviewsLoadedMsg{err: fmt.Errorf("fail")})
 	app = model.(App)
-	if !app.summary.hasErrors {
-		t.Error("summary.hasErrors should remain true after reviews load error")
+	if !app.status.hasErrors {
+		t.Error("status.hasErrors should remain true after reviews load error")
 	}
 
 	// Merge readiness should be false despite no data blocking it otherwise.
-	if app.summary.isMergeReady() {
+	if app.status.isMergeReady() {
 		t.Error("isMergeReady() should return false when hasErrors is true")
 	}
 }
@@ -860,18 +860,18 @@ func TestExpandedRNotResolvableNoOp(t *testing.T) {
 	}
 }
 
-func TestSummaryOKeyOpensPR(t *testing.T) {
-	app := NewApp("owner/repo", 42, ViewSummary)
+func TestStatusOKeyOpensPR(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app = sendWindowSize(app, 80, 24)
 
 	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
 	if cmd == nil {
-		t.Fatal("expected a command from 'o' in summary, got nil")
+		t.Fatal("expected a command from 'o' in status, got nil")
 	}
 }
 
-func TestSummaryOKeyNoRepoNoOp(t *testing.T) {
-	app := NewApp("", 0, ViewSummary)
+func TestStatusOKeyNoRepoNoOp(t *testing.T) {
+	app := NewApp("", 0, ViewStatus)
 	app = sendWindowSize(app, 80, 24)
 
 	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
@@ -916,8 +916,8 @@ func TestChecksListRKeyNoFailsNoOp(t *testing.T) {
 	}
 }
 
-func TestSummaryRKeyRerunsFailed(t *testing.T) {
-	app := NewApp("owner/repo", 42, ViewSummary)
+func TestStatusRKeyRerunsFailed(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app.SetChecks(&domain.ChecksResult{
 		Checks: []domain.CheckRun{
 			{
@@ -931,12 +931,12 @@ func TestSummaryRKeyRerunsFailed(t *testing.T) {
 
 	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("R")})
 	if cmd == nil {
-		t.Fatal("expected a command from 'R' in summary, got nil")
+		t.Fatal("expected a command from 'R' in status, got nil")
 	}
 }
 
-func TestSummaryRKeyNoFailsNoOp(t *testing.T) {
-	app := NewApp("owner/repo", 42, ViewSummary)
+func TestStatusRKeyNoFailsNoOp(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app.SetChecks(&domain.ChecksResult{
 		PassCount: 3,
 		FailCount: 0,
@@ -945,7 +945,7 @@ func TestSummaryRKeyNoFailsNoOp(t *testing.T) {
 
 	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("R")})
 	if cmd != nil {
-		t.Error("expected nil command for 'R' with no failed checks in summary")
+		t.Error("expected nil command for 'R' with no failed checks in status")
 	}
 }
 

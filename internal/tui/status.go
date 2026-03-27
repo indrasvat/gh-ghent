@@ -11,9 +11,9 @@ import (
 	"github.com/indrasvat/gh-ghent/internal/tui/styles"
 )
 
-// summaryModel renders the dashboard overview with KPI cards, section
+// statusModel renders the dashboard overview with KPI cards, section
 // previews, and merge readiness badge.
-type summaryModel struct {
+type statusModel struct {
 	comments     *domain.CommentsResult
 	checks       *domain.ChecksResult
 	reviews      []domain.Review
@@ -26,21 +26,21 @@ type summaryModel struct {
 	solo         bool // skip approval requirement (single-maintainer repos)
 }
 
-func (m *summaryModel) setSize(width, height int) {
+func (m *statusModel) setSize(width, height int) {
 	m.width = width
 	m.height = height
 	m.recomputeMaxScroll()
 }
 
 // scrollDown moves the viewport down by one line, clamped to maxScroll.
-func (m *summaryModel) scrollDown() {
+func (m *statusModel) scrollDown() {
 	if m.scrollOffset < m.maxScroll {
 		m.scrollOffset++
 	}
 }
 
 // scrollUp moves the viewport up by one line.
-func (m *summaryModel) scrollUp() {
+func (m *statusModel) scrollUp() {
 	if m.scrollOffset > 0 {
 		m.scrollOffset--
 	}
@@ -49,7 +49,7 @@ func (m *summaryModel) scrollUp() {
 // recomputeMaxScroll recalculates the maximum scroll offset based on content
 // and viewport size. Called on data or size changes so scrollDown can clamp
 // on a pointer receiver (unlike View which uses a value receiver).
-func (m *summaryModel) recomputeMaxScroll() {
+func (m *statusModel) recomputeMaxScroll() {
 	if m.width == 0 || m.height == 0 {
 		m.maxScroll = 0
 		return
@@ -63,7 +63,7 @@ func (m *summaryModel) recomputeMaxScroll() {
 }
 
 // renderContent builds the full dashboard content string (used by both View and recomputeMaxScroll).
-func (m summaryModel) renderContent() string {
+func (m statusModel) renderContent() string {
 	if m.loading && m.comments == nil && m.checks == nil && m.reviews == nil {
 		return ""
 	}
@@ -80,7 +80,7 @@ func (m summaryModel) renderContent() string {
 }
 
 // isMergeReady mirrors the CLI's IsMergeReady logic.
-func (m summaryModel) isMergeReady() bool {
+func (m statusModel) isMergeReady() bool {
 	if m.hasErrors {
 		return false
 	}
@@ -111,8 +111,8 @@ func (m summaryModel) isMergeReady() bool {
 	return true
 }
 
-// View renders the summary dashboard.
-func (m summaryModel) View() string {
+// View renders the status dashboard.
+func (m statusModel) View() string {
 	if m.width == 0 {
 		return ""
 	}
@@ -159,7 +159,7 @@ func (m summaryModel) View() string {
 }
 
 // renderLoadingView shows a loading message while data is being fetched.
-func (m summaryModel) renderLoadingView() string {
+func (m statusModel) renderLoadingView() string {
 	loading := dimStyle.Render("  Loading PR data...")
 
 	// Pad to fill content area height.
@@ -173,7 +173,7 @@ func (m summaryModel) renderLoadingView() string {
 
 // ── KPI Cards ────────────────────────────────────────────────────
 
-func (m summaryModel) renderKPICards() string {
+func (m statusModel) renderKPICards() string {
 	var cards []string
 
 	// Unresolved threads card.
@@ -233,7 +233,7 @@ func (m summaryModel) renderKPICards() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, rendered...)
 }
 
-func (m summaryModel) renderCard(count int, label string, color lipgloss.Color) string {
+func (m statusModel) renderCard(count int, label string, color lipgloss.Color) string {
 	countStr := lipgloss.NewStyle().
 		Foreground(color).
 		Bold(true).
@@ -242,7 +242,7 @@ func (m summaryModel) renderCard(count int, label string, color lipgloss.Color) 
 	return countStr + "\n" + labelStr
 }
 
-func (m summaryModel) renderCardText(text, label string, color lipgloss.Color) string {
+func (m statusModel) renderCardText(text, label string, color lipgloss.Color) string {
 	textStr := lipgloss.NewStyle().
 		Foreground(color).
 		Bold(true).
@@ -251,7 +251,7 @@ func (m summaryModel) renderCardText(text, label string, color lipgloss.Color) s
 	return textStr + "\n" + labelStr
 }
 
-func (m summaryModel) hasChangesRequested() bool {
+func (m statusModel) hasChangesRequested() bool {
 	for _, r := range m.reviews {
 		if r.State == domain.ReviewChangesRequested {
 			return true
@@ -270,7 +270,7 @@ func cardColorForCount(count int, redIfNonZero bool) lipgloss.Color {
 
 // ── Section: Review Threads ──────────────────────────────────────
 
-func (m summaryModel) renderThreadsSection() string {
+func (m statusModel) renderThreadsSection() string {
 	headerDot := redStyle.Render("●")
 	title := "Review Threads"
 	rightInfo := ""
@@ -328,7 +328,7 @@ func (m summaryModel) renderThreadsSection() string {
 
 // ── Section: CI Checks ───────────────────────────────────────────
 
-func (m summaryModel) renderChecksSection() string {
+func (m statusModel) renderChecksSection() string {
 	headerDot := greenStyle.Render("●")
 	title := "CI Checks"
 	rightInfo := ""
@@ -424,10 +424,10 @@ func checkNames(checks []domain.CheckRun, failed bool) string {
 
 // ── Section: Approvals ───────────────────────────────────────────
 
-// maxReviewsShow is the maximum number of reviews displayed in the summary.
+// maxReviewsShow is the maximum number of reviews displayed in the status dashboard.
 const maxReviewsShow = 5
 
-func (m summaryModel) renderApprovalsSection() string {
+func (m statusModel) renderApprovalsSection() string {
 	headerDot := lipgloss.NewStyle().
 		Foreground(lipgloss.Color(string(styles.Yellow))).Render("●")
 	title := "Approvals"
@@ -523,7 +523,7 @@ func reviewIcon(state domain.ReviewState) (string, string) {
 
 // ── Section header helper ────────────────────────────────────────
 
-func (m summaryModel) renderSectionHeader(dot, title, rightInfo string) string {
+func (m statusModel) renderSectionHeader(dot, title, rightInfo string) string {
 	left := " " + dot + " " + lipgloss.NewStyle().Bold(true).Render(title)
 	if rightInfo == "" {
 		return left
@@ -532,7 +532,7 @@ func (m summaryModel) renderSectionHeader(dot, title, rightInfo string) string {
 }
 
 // mergeReadyBadge returns the badge text and color for the status bar.
-func (m summaryModel) mergeReadyBadge() (string, lipgloss.Color) {
+func (m statusModel) mergeReadyBadge() (string, lipgloss.Color) {
 	if m.isMergeReady() {
 		return "READY", lipgloss.Color(string(styles.Green))
 	}

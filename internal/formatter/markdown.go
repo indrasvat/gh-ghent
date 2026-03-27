@@ -144,13 +144,13 @@ func (f *MarkdownFormatter) FormatResolveResults(w io.Writer, result *domain.Res
 	return nil
 }
 
-func (f *MarkdownFormatter) FormatCompactSummary(w io.Writer, result *domain.SummaryResult) error {
+func (f *MarkdownFormatter) FormatCompactStatus(w io.Writer, result *domain.StatusResult) error {
 	mergeStatus := "NOT READY"
 	if result.IsMergeReady {
 		mergeStatus = "READY"
 	}
 
-	// One-line KPI summary.
+	// One-line KPI status.
 	fmt.Fprintf(w, "PR #%d [%s] — unresolved:%d checks:%s (pass:%d fail:%d)",
 		result.PRNumber, mergeStatus,
 		result.Comments.UnresolvedCount,
@@ -218,12 +218,12 @@ func (f *MarkdownFormatter) FormatWatchStatus(w io.Writer, status *domain.WatchS
 	return err
 }
 
-func (f *MarkdownFormatter) FormatSummary(w io.Writer, result *domain.SummaryResult) error {
+func (f *MarkdownFormatter) FormatStatus(w io.Writer, result *domain.StatusResult) error {
 	mergeStatus := "NOT READY"
 	if result.IsMergeReady {
 		mergeStatus = "READY"
 	}
-	fmt.Fprintf(w, "# PR #%d — Summary [%s]\n\n", result.PRNumber, mergeStatus)
+	fmt.Fprintf(w, "# PR #%d — Status [%s]\n\n", result.PRNumber, mergeStatus)
 
 	// Comments section.
 	fmt.Fprintf(w, "## Review Comments\n\n")

@@ -11,7 +11,7 @@ type AppKeyMap struct {
 	Esc      key.Binding
 	Quit     key.Binding
 
-	// Summary shortcuts — jump directly to a view.
+	// Status shortcuts — jump directly to a view.
 	Comments key.Binding
 	Checks   key.Binding
 	Resolve  key.Binding

@@ -96,12 +96,12 @@ func TestMarkdownResolveResultsNoANSI(t *testing.T) {
 	}
 }
 
-func TestMarkdownSummaryStructure(t *testing.T) {
+func TestMarkdownStatusStructure(t *testing.T) {
 	var buf bytes.Buffer
 	f := &MarkdownFormatter{}
 
-	if err := f.FormatSummary(&buf, sampleSummaryResult()); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, sampleStatusResult()); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
 	out := buf.String()
@@ -110,7 +110,7 @@ func TestMarkdownSummaryStructure(t *testing.T) {
 		name string
 		want string
 	}{
-		{"PR header with status", "# PR #42 — Summary [NOT READY]"},
+		{"PR header with status", "# PR #42 — Status [NOT READY]"},
 		{"comments section", "## Review Comments"},
 		{"unresolved count", "**Unresolved:** 2"},
 		{"resolved count", "**Resolved:** 1"},
@@ -133,46 +133,46 @@ func TestMarkdownSummaryStructure(t *testing.T) {
 	}
 }
 
-func TestMarkdownSummaryMergeReady(t *testing.T) {
+func TestMarkdownStatusMergeReady(t *testing.T) {
 	var buf bytes.Buffer
 	f := &MarkdownFormatter{}
 
-	result := sampleSummaryResult()
+	result := sampleStatusResult()
 	result.IsMergeReady = true
 
-	if err := f.FormatSummary(&buf, result); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, result); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
 	out := buf.String()
 	if !strings.Contains(out, "[READY]") {
-		t.Errorf("merge-ready summary missing [READY]\noutput:\n%s", out)
+		t.Errorf("merge-ready status missing [READY]\noutput:\n%s", out)
 	}
 }
 
-func TestMarkdownSummaryNoReviews(t *testing.T) {
+func TestMarkdownStatusNoReviews(t *testing.T) {
 	var buf bytes.Buffer
 	f := &MarkdownFormatter{}
 
-	result := sampleSummaryResult()
+	result := sampleStatusResult()
 	result.Reviews = nil
 
-	if err := f.FormatSummary(&buf, result); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, result); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
 	out := buf.String()
 	if !strings.Contains(out, "No reviews yet.") {
-		t.Errorf("no-reviews summary missing 'No reviews yet.'\noutput:\n%s", out)
+		t.Errorf("no-reviews status missing 'No reviews yet.'\noutput:\n%s", out)
 	}
 }
 
-func TestMarkdownSummaryWithFailedChecks(t *testing.T) {
+func TestMarkdownStatusWithFailedChecks(t *testing.T) {
 	var buf bytes.Buffer
 	f := &MarkdownFormatter{}
 
-	if err := f.FormatSummary(&buf, sampleSummaryWithFailures()); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, sampleStatusWithFailures()); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
 	out := buf.String()
@@ -199,26 +199,26 @@ func TestMarkdownSummaryWithFailedChecks(t *testing.T) {
 	}
 }
 
-func TestMarkdownSummaryNoFailedChecksWhenAllPass(t *testing.T) {
+func TestMarkdownStatusNoFailedChecksWhenAllPass(t *testing.T) {
 	var buf bytes.Buffer
 	f := &MarkdownFormatter{}
 
-	if err := f.FormatSummary(&buf, sampleSummaryResult()); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, sampleStatusResult()); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
 	out := buf.String()
 	if strings.Contains(out, "### FAIL:") {
-		t.Errorf("all-pass summary should not contain FAIL sections\noutput:\n%s", out)
+		t.Errorf("all-pass status should not contain FAIL sections\noutput:\n%s", out)
 	}
 }
 
-func TestMarkdownCompactSummaryWithFailedChecks(t *testing.T) {
+func TestMarkdownCompactStatusWithFailedChecks(t *testing.T) {
 	var buf bytes.Buffer
 	f := &MarkdownFormatter{}
 
-	if err := f.FormatCompactSummary(&buf, sampleSummaryWithFailures()); err != nil {
-		t.Fatalf("FormatCompactSummary: %v", err)
+	if err := f.FormatCompactStatus(&buf, sampleStatusWithFailures()); err != nil {
+		t.Fatalf("FormatCompactStatus: %v", err)
 	}
 
 	out := buf.String()

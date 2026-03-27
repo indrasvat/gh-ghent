@@ -118,29 +118,29 @@ func TestXMLResolveResultsFields(t *testing.T) {
 	}
 }
 
-func TestXMLSummaryWellFormed(t *testing.T) {
+func TestXMLStatusWellFormed(t *testing.T) {
 	var buf bytes.Buffer
 	f := &XMLFormatter{}
 
-	if err := f.FormatSummary(&buf, sampleSummaryResult()); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, sampleStatusResult()); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
-	var v xmlSummary
+	var v xmlStatus
 	if err := xml.Unmarshal(buf.Bytes(), &v); err != nil {
 		t.Fatalf("invalid XML: %v\noutput:\n%s", err, buf.String())
 	}
 }
 
-func TestXMLSummaryFields(t *testing.T) {
+func TestXMLStatusFields(t *testing.T) {
 	var buf bytes.Buffer
 	f := &XMLFormatter{}
 
-	if err := f.FormatSummary(&buf, sampleSummaryResult()); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, sampleStatusResult()); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
-	var v xmlSummary
+	var v xmlStatus
 	if err := xml.Unmarshal(buf.Bytes(), &v); err != nil {
 		t.Fatalf("invalid XML: %v", err)
 	}
@@ -174,15 +174,15 @@ func TestXMLSummaryFields(t *testing.T) {
 	}
 }
 
-func TestXMLSummaryWithFailedChecks(t *testing.T) {
+func TestXMLStatusWithFailedChecks(t *testing.T) {
 	var buf bytes.Buffer
 	f := &XMLFormatter{}
 
-	if err := f.FormatSummary(&buf, sampleSummaryWithFailures()); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, sampleStatusWithFailures()); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
-	var v xmlSummary
+	var v xmlStatus
 	if err := xml.Unmarshal(buf.Bytes(), &v); err != nil {
 		t.Fatalf("invalid XML: %v\noutput:\n%s", err, buf.String())
 	}
@@ -221,33 +221,33 @@ func TestXMLSummaryWithFailedChecks(t *testing.T) {
 	}
 }
 
-func TestXMLSummaryNoFailedChecksWhenAllPass(t *testing.T) {
+func TestXMLStatusNoFailedChecksWhenAllPass(t *testing.T) {
 	var buf bytes.Buffer
 	f := &XMLFormatter{}
 
-	if err := f.FormatSummary(&buf, sampleSummaryResult()); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, sampleStatusResult()); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
-	var v xmlSummary
+	var v xmlStatus
 	if err := xml.Unmarshal(buf.Bytes(), &v); err != nil {
 		t.Fatalf("invalid XML: %v", err)
 	}
 
 	if len(v.Checks.FailedChecks) != 0 {
-		t.Errorf("all-pass summary should have 0 FailedChecks, got %d", len(v.Checks.FailedChecks))
+		t.Errorf("all-pass status should have 0 FailedChecks, got %d", len(v.Checks.FailedChecks))
 	}
 }
 
-func TestXMLCompactSummaryWithFailedChecks(t *testing.T) {
+func TestXMLCompactStatusWithFailedChecks(t *testing.T) {
 	var buf bytes.Buffer
 	f := &XMLFormatter{}
 
-	if err := f.FormatCompactSummary(&buf, sampleSummaryWithFailures()); err != nil {
-		t.Fatalf("FormatCompactSummary: %v", err)
+	if err := f.FormatCompactStatus(&buf, sampleStatusWithFailures()); err != nil {
+		t.Fatalf("FormatCompactStatus: %v", err)
 	}
 
-	var v xmlCompactSummary
+	var v xmlCompactStatus
 	if err := xml.Unmarshal(buf.Bytes(), &v); err != nil {
 		t.Fatalf("invalid XML: %v\noutput:\n%s", err, buf.String())
 	}
@@ -263,16 +263,16 @@ func TestXMLCompactSummaryWithFailedChecks(t *testing.T) {
 	}
 }
 
-func TestXMLSummaryHasHeader(t *testing.T) {
+func TestXMLStatusHasHeader(t *testing.T) {
 	var buf bytes.Buffer
 	f := &XMLFormatter{}
 
-	if err := f.FormatSummary(&buf, sampleSummaryResult()); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, sampleStatusResult()); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
 	if !strings.HasPrefix(buf.String(), "<?xml") {
-		t.Error("XML summary output missing XML declaration header")
+		t.Error("XML status output missing XML declaration header")
 	}
 }
 

@@ -16,8 +16,8 @@ const DefaultPollInterval = 10 * time.Second
 // WatchChecks polls CI check runs until a terminal condition is reached.
 // When waitAll is false (default for checks --watch), it exits as soon as
 // overall status is pass or fail (fail-fast). When waitAll is true (used by
-// summary --watch), it waits until every check has status "completed",
-// ensuring the final summary includes all check results and log excerpts.
+// status --watch), it waits until every check has status "completed",
+// ensuring the final status includes all check results and log excerpts.
 // On each poll cycle it emits a WatchStatus via the formatter.
 // Returns the final OverallStatus or an error.
 func (c *Client) WatchChecks(

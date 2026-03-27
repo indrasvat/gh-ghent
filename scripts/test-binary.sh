@@ -35,7 +35,7 @@ check "$BINARY --help | grep -q comments" "help lists comments"
 check "$BINARY --help | grep -q checks" "help lists checks"
 check "$BINARY --help | grep -q resolve" "help lists resolve"
 check "$BINARY --help | grep -q reply" "help lists reply"
-check "$BINARY --help | grep -q summary" "help lists summary"
+check "$BINARY --help | grep -q status" "help lists status"
 
 echo "--- Subcommand help ---"
 COMMENTS_HELP=$("$BINARY" comments --help 2>&1)
