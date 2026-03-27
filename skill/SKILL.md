@@ -34,22 +34,15 @@ Get PR number: `gh pr view --json number -q .number`
 
 ```bash
 PR=$(gh pr view --json number -q .number)
-gh ghent summary --pr $PR --await-review --review-timeout 2m --logs --format json --no-tui
+gh ghent summary --pr $PR --await-review --solo --logs --format json --no-tui
 ```
 
-This single command handles all scenarios:
-- Waits for CI to complete (exits immediately on failure — no wasted time)
-- After CI passes, waits up to 2m for bot reviewers to post findings
-- If no bots exist, exits after 30s of silence (minimal overhead)
-- Returns threads, checks, reviews, and `is_merge_ready` in one response
+Waits for CI, then waits for bot reviewers to settle (5m timeout, exits early after 30s silence).
+Returns everything: threads with `is_bot`, checks with log excerpts, reviews, `is_merge_ready`.
 
-The agent does NOT need to know whether bots exist, whether the repo is personal or org,
-or whether humans will review — the response data tells it what happened.
-
-**Non-blocking alternative** (when you don't want to wait):
-```bash
-gh ghent summary --pr <N> --format json --no-tui
-```
+**Drop `--solo`** for org repos with required review policies.
+**Drop `--await-review`** if you know no bot reviewers are configured (saves 30s).
+**Drop `--logs`** on re-checks after fixing threads (only needed for CI failures).
 
 ## Response Shape (summary)
 
@@ -89,7 +82,7 @@ The summary already contains the full threads — no second call needed.
 1. Read threads from `comments.threads[]` where `comments[0].is_bot == true`
 2. Fix code → push
 3. Per thread: `gh ghent reply --pr <N> --thread PRRT_... --body "Fixed" --resolve`
-4. Re-check: `gh ghent summary --pr <N> --await-review --review-timeout 2m --format json --no-tui`
+4. Re-check: `gh ghent summary --pr <N> --await-review --solo --format json --no-tui`
 5. Repeat until `is_merge_ready == true`
 
 ## Solo Mode
