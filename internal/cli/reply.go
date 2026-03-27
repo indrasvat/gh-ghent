@@ -28,7 +28,7 @@ Exit codes: 0 = success, 1 = thread not found, 2 = error, 4 = reply posted but r
 		Example: `  # Reply inline
   gh ghent reply --pr 42 --thread PRRT_abc123 --body "Fixed in latest commit"
 
-  # Reply and resolve in one step (doom loop workflow)
+  # Reply and resolve in one step (bot sweep workflow)
   gh ghent reply --pr 42 --thread PRRT_abc123 --body "Fixed" --resolve
 
   # Reply from file

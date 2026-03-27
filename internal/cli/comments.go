@@ -29,7 +29,7 @@ Exit codes: 0 = no unresolved threads, 1 = has unresolved threads.`,
   # JSON for agents (thread IDs, file:line, bodies)
   gh ghent comments --pr 42 --format json --no-tui
 
-  # Only bot-originated threads (for doom loop resolver)
+  # Only bot-originated threads (for bot sweep workflow)
   gh ghent comments --pr 42 --bots-only --unanswered --format json
 
   # Only human review threads

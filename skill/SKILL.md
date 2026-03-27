@@ -2,15 +2,19 @@
 name: gh-ghent
 description: >
   Structured access to GitHub PR review state for AI coding agents. This skill
+  Structured access to GitHub PR review state for AI coding agents. This skill
   should be used when the user needs to check PR merge readiness, diagnose CI
-  failures, read unresolved review comments, resolve review threads, or monitor
-  CI status. Use when the user says "check my PR", "is my PR ready to merge",
-  "why is CI failing", "CI is red", "build broken", "what are the review
-  comments", "any feedback on my PR", "read PR comments", "address review
-  feedback", "resolve review threads", "PR status", "are checks passing",
-  "did CI pass", "check PR #N", "monitor CI", "wait for checks", "what's
-  failing", "review my PR", "wait for bot review", "wait for Codex",
+  failures, read unresolved review comments, resolve review threads, monitor
+  CI status, or triage bot reviewer findings (Codex, CodeRabbit, Copilot,
+  Cursor Bugbot). Use when the user says "check my PR", "is my PR ready to
+  merge", "why is CI failing", "CI is red", "build broken", "what are the
+  review comments", "any feedback on my PR", "read PR comments", "address
+  review feedback", "resolve review threads", "PR status", "are checks
+  passing", "did CI pass", "check PR #N", "monitor CI", "wait for checks",
+  "what's failing", "review my PR", "wait for bot review", "wait for Codex",
   "wait for CodeRabbit", "has the bot reviewed yet", "is the review done",
+  "sweep bot comments", "fix bot findings", "address bot reviews",
+  "what did the bots say", "any bot comments", "triage bot feedback",
   or any request to inspect, diagnose, or act on GitHub pull request
   review threads, CI check status, or merge readiness.
   Provides JSON/XML/Markdown output with file:line locations, error log
@@ -29,10 +33,11 @@ state: unresolved threads, CI check status, annotations, logs, and merge readine
 - Check PR merge readiness in a single call
 - Diagnose CI failures with error log excerpts and annotations
 - Read unresolved review comments with file:line locations
+- **Sweep bot findings** — filter to bot-only or human-only threads, triage, reply+resolve in one step
 - Resolve review threads after fixing the requested changes
 - Reply to review threads to acknowledge feedback
 - Monitor CI in a polling loop until checks complete
-- Wait for bot reviewers (Codex, CodeRabbit, Copilot) to finish reviewing
+- Wait for bot reviewers (Codex, CodeRabbit, Copilot, Cursor Bugbot) to finish reviewing
 
 ## Agent Mode
 
@@ -78,6 +83,43 @@ fi
 - `--solo` still blocks on `CHANGES_REQUESTED` — it only relaxes the "needs approval" requirement
 - Prefer `GH_GHENT_SOLO=1` env var for persistent config (set in shell profile)
 
+## Bot Sweep — Triage Bot Reviewer Findings
+
+When bot reviewers (Codex, CodeRabbit, Copilot, Cursor Bugbot) post findings on a PR,
+use the bot sweep workflow to triage everything in a tight loop:
+
+```bash
+# 1. Wait for CI + bot reviews to settle
+gh ghent summary --pr 42 --await-review --solo --format json --no-tui
+
+# 2. Fetch only unanswered bot findings
+gh ghent comments --pr 42 --bots-only --unanswered --format json --no-tui
+
+# 3. For each finding: evaluate → fix if true positive → reply+resolve in one step
+gh ghent reply --pr 42 --thread PRRT_... --body "Fixed in $(git rev-parse --short HEAD)" --resolve
+
+# 4. Verify clean state (should return 0 unanswered bot threads)
+gh ghent comments --pr 42 --bots-only --unanswered --format json --no-tui | jq '.unanswered_count'
+
+# 5. If bots re-trigger on your fix, repeat from step 1
+```
+
+**Bot detection** uses GitHub's GraphQL `__typename` field — any GitHub App bot is automatically
+identified, including custom enterprise bots. The `is_bot` field appears on every comment in
+JSON/XML/MD output, and a `[bot]` badge shows in the TUI.
+
+**Key flags:**
+
+| Flag | On | Purpose |
+|------|----|---------|
+| `--bots-only` / `-b` | `comments`, `summary` | Show only bot-originated threads |
+| `--humans-only` / `-H` | `comments` | Show only human-originated threads |
+| `--unanswered` / `-a` | `comments` | Show only threads with no replies |
+| `--resolve` | `reply` | Resolve the thread after posting the reply |
+
+`--bots-only` and `--unanswered` are composable: `--bots-only --unanswered` gives only
+unanswered bot threads — the exact set an agent needs to process.
+
 ## Recommended: Start with Summary
 
 For most agent tasks, start with `gh ghent summary --pr N --logs --format json --no-tui`.
@@ -122,12 +164,18 @@ gh ghent summary --pr 42 --quiet --solo         # Personal repo (no approval nee
 ```
 Silent exit 0 if merge-ready, full output + exit 1 if not ready.
 
-### 4. Drill down when needed
+### 4. Sweep bot findings
 ```bash
-gh ghent comments --pr 42 --format json --no-tui     # Detailed threads
+gh ghent comments --pr 42 --bots-only --unanswered --format json --no-tui  # Unanswered bot threads
+gh ghent reply --pr 42 --thread PRRT_... --body "Fixed" --resolve          # Reply + resolve in one step
+```
+
+### 5. Drill down when needed
+```bash
+gh ghent comments --pr 42 --format json --no-tui     # All unresolved threads
+gh ghent comments --pr 42 --humans-only --format json --no-tui  # Human feedback only
 gh ghent checks --pr 42 --logs --format json --no-tui # Detailed check runs
 gh ghent resolve --pr 42 --all                         # Batch resolve
-gh ghent reply --pr 42 --thread PRRT_... --body "Fixed" # Reply to thread
 ```
 
 ## Commands
@@ -135,10 +183,10 @@ gh ghent reply --pr 42 --thread PRRT_... --body "Fixed" # Reply to thread
 | Command | Purpose | Key Flags |
 |---------|---------|-----------|
 | `summary` | Full PR status + failure diagnostics | `--logs`, `--watch`, `--await-review`, `--review-timeout`, `--quiet`, `--compact`, `--solo` |
-| `comments` | Unresolved review threads | `--group-by file\|author\|status` |
+| `comments` | Unresolved review threads | `--group-by`, `--bots-only`, `--humans-only`, `--unanswered` |
 | `checks` | CI status + annotations | `--logs`, `--watch` |
 | `resolve` | Resolve/unresolve threads | `--thread`, `--all`, `--file`, `--author`, `--dry-run`, `--unresolve` |
-| `reply` | Reply to a thread | `--thread`, `--body`, `--body-file` |
+| `reply` | Reply to a thread | `--thread`, `--body`, `--body-file`, `--resolve` |
 
 For complete flag reference, see [references/command-reference.md](references/command-reference.md).
 
@@ -174,8 +222,11 @@ echo "$SUMMARY" | jq '.checks.checks[] | select(.log_excerpt) | {name, conclusio
 # 4. If threads need fixing, read them
 echo "$SUMMARY" | jq '.comments.threads[] | {path, line, body: .comments[0].body}'
 
-# 5. Fix code, push, then resolve + reply
+# 5. Fix code, push, then reply+resolve each thread
 # Thread IDs are in comments output at .threads[].id (e.g., PRRT_kwDO...)
+gh ghent reply --pr 42 --thread PRRT_... --body "Fixed in abc123" --resolve
+
+# Or batch-resolve all threads at once:
 gh ghent resolve --pr 42 --all
 
 # 6. Re-check after fixes (--await-review waits for re-review if bot re-triggers)
@@ -189,13 +240,13 @@ gh ghent summary --pr 42 --await-review --logs --format json --no-tui
 
 Exit codes let you branch logic without parsing output:
 
-| Command | 0 | 1 | 2 | 3 |
-|---------|---|---|---|---|
-| `summary` | merge-ready | not ready | error | — |
-| `comments` | no unresolved | has unresolved | error | — |
-| `checks` | all pass | failure | error | pending |
-| `resolve` | all success | partial failure | total failure | — |
-| `reply` | posted | thread not found | error | — |
+| Command | 0 | 1 | 2 | 3 | 4 |
+|---------|---|---|---|---|---|
+| `summary` | merge-ready | not ready | error | — | — |
+| `comments` | no unresolved | has unresolved | error | — | — |
+| `checks` | all pass | failure | error | pending | — |
+| `resolve` | all success | partial failure | total failure | — | — |
+| `reply` | posted | thread not found | error | — | reply ok, resolve failed |
 
 Error (exit 2): authentication failure, rate limit, or resource not found.
 
