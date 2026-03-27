@@ -149,7 +149,7 @@ func main() {
 	}, w))
 	fmt.Println()
 
-	fmt.Println("  Status Bar (summary view):")
+	fmt.Println("  Status Bar (status view):")
 	fmt.Println(components.RenderStatusBar(components.StatusBarData{
 		Repo:       "indrasvat/my-project",
 		PR:         42,

@@ -178,7 +178,7 @@ async def run_test(connection):
     capture_quartz_screenshot("ghent_phase6_groupby")
 
     # Test 4: --compact status
-    print("\n--- Test 4: --compact Summary ---")
+    print("\n--- Test 4: --compact Status ---")
     await session.async_send_text(
         f"{BINARY} status -R indrasvat/tbgs --pr 1 --compact --format json "
         "| python3 -c \"import sys,json; d=json.load(sys.stdin); "

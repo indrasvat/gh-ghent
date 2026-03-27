@@ -200,8 +200,8 @@ async def run_test(connection):
     await asyncio.sleep(1.0)
     capture_quartz_screenshot("ghent_agent_checks")
 
-    # Test 3: Summary JSON
-    print("\n--- Test 3: Summary JSON ---")
+    # Test 3: Status JSON
+    print("\n--- Test 3: Status JSON ---")
     await session.async_send_text(
         f"{BINARY} status -R indrasvat/tbgs --pr 1 --format json > /tmp/ghent_agent_status.txt 2>&1; "
         "echo SUMMARY_EXIT=$?\n"
@@ -214,9 +214,9 @@ async def run_test(connection):
     await asyncio.sleep(2.0)
 
     if await verify_screen_contains(session, "SJSON_VALID", "status json"):
-        log_result("Summary JSON valid", "PASS")
+        log_result("Status JSON valid", "PASS")
     else:
-        log_result("Summary JSON valid", "SKIP", "Could not validate")
+        log_result("Status JSON valid", "SKIP", "Could not validate")
 
     # Test 4: Error message is actionable
     print("\n--- Test 4: Actionable Error ---")

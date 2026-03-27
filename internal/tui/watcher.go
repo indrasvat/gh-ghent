@@ -109,7 +109,7 @@ type watcherModel struct {
 	activityCount  int
 	initialHeadSHA string
 
-	// Summary transition: when true, emit watchDoneMsg on terminal state.
+	// Status transition: when true, emit watchDoneMsg on terminal state.
 	statusTransition bool
 }
 
