@@ -171,14 +171,14 @@ var CheckboxOn = lipgloss.NewStyle().
 var CheckboxOff = lipgloss.NewStyle().
 	Foreground(lipgloss.Color(string(Dim)))
 
-// ── Summary ─────────────────────────────────────────────────────
+// ── Status ──────────────────────────────────────────────────────
 
-// SummaryCount is for large KPI numbers.
-var SummaryCount = lipgloss.NewStyle().
+// StatusCount is for large KPI numbers.
+var StatusCount = lipgloss.NewStyle().
 	Bold(true)
 
-// SummaryLabel is for labels under KPI numbers.
-var SummaryLabel = lipgloss.NewStyle().
+// StatusLabel is for labels under KPI numbers.
+var StatusLabel = lipgloss.NewStyle().
 	Foreground(lipgloss.Color(string(Dim)))
 
 // ── Terminal Background ─────────────────────────────────────────

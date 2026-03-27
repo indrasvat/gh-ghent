@@ -77,8 +77,8 @@ func TestStylesRenderWithoutPanic(t *testing.T) {
 			_ = DiffHeader.Render("@@ -44,8 +44,10 @@")
 			_ = CheckboxOn.Render("[✓]")
 			_ = CheckboxOff.Render("[ ]")
-			_ = SummaryCount.Render("5")
-			_ = SummaryLabel.Render("UNRESOLVED")
+			_ = StatusCount.Render("5")
+			_ = StatusLabel.Render("UNRESOLVED")
 		})
 	}
 }
