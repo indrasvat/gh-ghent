@@ -316,7 +316,7 @@ async def main(connection):
                        f"status rendered, READY in text={has_ready}", screenshot=screenshot)
         else:
             log_result("Ready Repo", "UNVERIFIED",
-                       f"status content not clearly visible", screenshot=screenshot)
+                       "status content not clearly visible", screenshot=screenshot)
             await dump_screen(session, "ready_repo")
 
         # Exit TUI

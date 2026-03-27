@@ -110,7 +110,7 @@ async def run_test(connection):
     session = tab.current_session
 
     print(f"\n{'='*60}")
-    print(f"ghent Status Enhancement Visual Tests")
+    print("ghent Status Enhancement Visual Tests")
     print(f"Started: {datetime.now().isoformat()}")
     print(f"{'='*60}\n")
 

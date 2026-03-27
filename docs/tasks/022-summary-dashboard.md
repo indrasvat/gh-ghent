@@ -25,9 +25,9 @@ The status dashboard is the TUI landing view: KPI cards (unresolved count, check
 
 ## Files to Create
 
-- `internal/tui/summary.go` — Status dashboard model
-- `internal/tui/summary_test.go` — KPI rendering, quick-nav tests
-- `.claude/automations/test_ghent_summary.py` — iterm2-driver L4 visual test (canonical template from `docs/testing-strategy.md` §5)
+- `internal/tui/status.go` — Status dashboard model
+- `internal/tui/status_test.go` — KPI rendering, quick-nav tests
+- `.claude/automations/test_ghent_status.py` — iterm2-driver L4 visual test (canonical template from `docs/testing-strategy.md` §5)
 
 ## Files to Modify
 
@@ -76,7 +76,7 @@ make test
 ### L4: Visual (iterm2-driver)
 Create `.claude/automations/test_ghent_summary.py` following canonical template in `docs/testing-strategy.md` §5:
 ```bash
-uv run .claude/automations/test_ghent_summary.py
+uv run .claude/automations/test_ghent_status.py
 ```
 Visual assertions:
 - Launch: `gh ghent status -R indrasvat/tbgs --pr 1` → TUI renders (NOT READY: 2 unresolved threads, checks pass)

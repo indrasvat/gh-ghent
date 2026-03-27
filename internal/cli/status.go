@@ -48,13 +48,13 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
   gh ghent status --pr 42
 
   # Agent: check merge readiness
-  gh ghent status --pr 42 --format json | jq '.is_merge_ready'
+  gh ghent status --pr 42 --format json --no-tui | jq '.is_merge_ready'
 
   # Full status with failure diagnostics
-  gh ghent status --pr 42 --logs --format json
+  gh ghent status --pr 42 --logs --format json --no-tui
 
   # Wait for CI, get full report
-  gh ghent status --pr 42 --watch --format json
+  gh ghent status --pr 42 --watch --format json --no-tui
 
   # Silent merge-readiness gate
   gh ghent status --pr 42 --quiet

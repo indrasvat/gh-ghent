@@ -221,7 +221,7 @@ async def run_test(connection):
 
     # ── Test 5: --solo TUI on doot PR #1 → READY badge ──
     print("\n--- Test 5: --solo TUI (doot PR #1, READY badge) ---")
-    await session.async_send_text(f"gh ghent status -R indrasvat/doot --pr 1 --solo 2>&1\n")
+    await session.async_send_text("gh ghent status -R indrasvat/doot --pr 1 --solo 2>&1\n")
     await asyncio.sleep(10.0)
 
     screen_text = await get_screen_text(session)
