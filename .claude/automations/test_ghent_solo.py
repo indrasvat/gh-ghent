@@ -133,7 +133,7 @@ async def run_test(connection):
     # ── Test 1: --solo --format json on doot PR #1 → is_merge_ready=true ──
     print("\n--- Test 1: --solo --format json (doot PR #1, merge-ready) ---")
     await session.async_send_text(
-        f"{BINARY} summary -R indrasvat/doot --pr 1 --solo --format json "
+        f"{BINARY} status -R indrasvat/doot --pr 1 --solo --format json "
         "| python3 -c \"import sys,json; d=json.load(sys.stdin); "
         "print(f'SOLO_JSON_OK ready={d.get(\\\"is_merge_ready\\\")}')\" 2>&1; "
         "echo SOLO_JSON_EXIT=$?\n"
@@ -156,7 +156,7 @@ async def run_test(connection):
     # ── Test 2: --solo --quiet on doot PR #1 → exit 0 ──
     print("\n--- Test 2: --solo --quiet (doot PR #1, exit 0) ---")
     await session.async_send_text(
-        f"{BINARY} summary -R indrasvat/doot --pr 1 --solo --quiet > /tmp/ghent_solo_quiet.txt 2>&1; "
+        f"{BINARY} status -R indrasvat/doot --pr 1 --solo --quiet > /tmp/ghent_solo_quiet.txt 2>&1; "
         "echo SOLO_QUIET_EXIT=$?\n"
     )
     await asyncio.sleep(12.0)
@@ -174,7 +174,7 @@ async def run_test(connection):
     # ── Test 3: Without --solo on doot PR #1 → is_merge_ready=false ──
     print("\n--- Test 3: Without --solo (doot PR #1, NOT merge-ready) ---")
     await session.async_send_text(
-        f"{BINARY} summary -R indrasvat/doot --pr 1 --format json "
+        f"{BINARY} status -R indrasvat/doot --pr 1 --format json "
         "| python3 -c \"import sys,json; d=json.load(sys.stdin); "
         "print(f'NOSOLO_JSON_OK ready={d.get(\\\"is_merge_ready\\\")}')\" 2>&1; "
         "echo NOSOLO_JSON_EXIT=$?\n"
@@ -196,7 +196,7 @@ async def run_test(connection):
     # ── Test 4: --solo on tbgs PR #1 → still NOT ready (unresolved threads) ──
     print("\n--- Test 4: --solo on tbgs PR #1 (still NOT ready, unresolved threads) ---")
     await session.async_send_text(
-        f"{BINARY} summary -R indrasvat/tbgs --pr 1 --solo --format json "
+        f"{BINARY} status -R indrasvat/tbgs --pr 1 --solo --format json "
         "| python3 -c \"import sys,json; d=json.load(sys.stdin); "
         "print(f'SOLO_TBGS_OK ready={d.get(\\\"is_merge_ready\\\")} unresolved={d[\\\"comments\\\"][\\\"unresolved_count\\\"]}')\" 2>&1; "
         "echo SOLO_TBGS_EXIT=$?\n"
@@ -221,7 +221,7 @@ async def run_test(connection):
 
     # ── Test 5: --solo TUI on doot PR #1 → READY badge ──
     print("\n--- Test 5: --solo TUI (doot PR #1, READY badge) ---")
-    await session.async_send_text(f"gh ghent summary -R indrasvat/doot --pr 1 --solo 2>&1\n")
+    await session.async_send_text(f"gh ghent status -R indrasvat/doot --pr 1 --solo 2>&1\n")
     await asyncio.sleep(10.0)
 
     screen_text = await get_screen_text(session)

@@ -11,7 +11,7 @@
 Final dogfood: exercise ghent TUI on PR #4 after Codex review cycle.
 
 Tests:
-    1. Summary: Verify 0 unresolved, 2 resolved, CI status
+    1. Status: Verify 0 unresolved, 2 resolved, CI status
     2. Checks: Verify new CI run visible
     3. Comments: Verify empty (all resolved) + keybinding help bar
     4. Watch: Brief watch mode check
@@ -124,20 +124,20 @@ async def main(connection):
     await asyncio.sleep(0.5)
 
     try:
-        # ── Test 1: Summary — verify resolved count ────────
+        # ── Test 1: Status — verify resolved count ────────
         print(f"\n{'='*60}")
-        print("TEST 1: Summary view — verify resolved threads")
+        print("TEST 1: Status view — verify resolved threads")
         print(f"{'='*60}")
 
-        await session.async_send_text(f"gh ghent summary -R {REPO} --pr {PR}\n")
+        await session.async_send_text(f"gh ghent status -R {REPO} --pr {PR}\n")
         if not await wait_tui(session, "ghent"):
-            await dump(session, "summary failed")
-            log_result("Summary launch", "FAIL", "TUI did not appear")
+            await dump(session, "status failed")
+            log_result("Status launch", "FAIL", "TUI did not appear")
             return 1
 
         await asyncio.sleep(3.0)
         text = await screen_text(session)
-        ss = capture("final_summary")
+        ss = capture("final_status")
 
         # Check KPI cards
         has_zero_unresolved = "0" in text and "UNRESOLVED" in text
@@ -150,22 +150,22 @@ async def main(connection):
         if has_resolved: indicators.append("resolved threads mentioned")
 
         if len(indicators) >= 2:
-            log_result("Summary post-review", "PASS", ", ".join(indicators))
+            log_result("Status post-review", "PASS", ", ".join(indicators))
         else:
-            await dump(session, "summary content")
-            log_result("Summary post-review", "FAIL", f"Only {len(indicators)} indicators")
+            await dump(session, "status content")
+            log_result("Status post-review", "FAIL", f"Only {len(indicators)} indicators")
 
         # Test 'o' key — open PR
         await session.async_send_text("o")
         await asyncio.sleep(1.5)
-        capture("final_summary_o")
-        log_result("Summary 'o' open PR", "PASS", "Key handled")
+        capture("final_status_o")
+        log_result("Status 'o' open PR", "PASS", "Key handled")
 
-        # Test 'R' key on summary
+        # Test 'R' key on status
         await session.async_send_text("R")
         await asyncio.sleep(1.5)
-        capture("final_summary_R")
-        log_result("Summary 'R' re-run", "PASS", "Key handled")
+        capture("final_status_R")
+        log_result("Status 'R' re-run", "PASS", "Key handled")
 
         await session.async_send_text("q")
         await asyncio.sleep(1.0)

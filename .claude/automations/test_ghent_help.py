@@ -16,7 +16,7 @@ Tests:
     3. Checks help: gh ghent checks --help
     4. Resolve help: gh ghent resolve --help
     5. Reply help: gh ghent reply --help
-    6. Summary help: gh ghent summary --help
+    6. Status help: gh ghent status --help
     7. Version: gh ghent --version shows version string
 
 Verification Strategy:
@@ -131,7 +131,7 @@ async def run_test(connection):
     await asyncio.sleep(3.0)
 
     screen_text = await get_screen_text(session)
-    subcommands_found = sum(1 for cmd in ["comments", "checks", "resolve", "reply", "summary"]
+    subcommands_found = sum(1 for cmd in ["comments", "checks", "resolve", "reply", "status"]
                            if cmd in screen_text)
     if subcommands_found >= 4:
         log_result("Root help lists subcommands", "PASS", f"{subcommands_found}/5 found")
@@ -163,7 +163,7 @@ async def run_test(connection):
         ("checks", "--watch"),
         ("resolve", "--thread"),
         ("reply", "--body"),
-        ("summary", "--format"),
+        ("status", "--format"),
     ]:
         print(f"\n--- Test: {cmd_name} Help ---")
         await session.async_send_text(f"gh ghent {cmd_name} --help 2>&1; echo {cmd_name.upper()}HELP_DONE\n")

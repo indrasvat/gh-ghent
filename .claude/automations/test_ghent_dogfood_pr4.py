@@ -14,7 +14,7 @@ Exercises all TUI views and the newly-implemented keybindings against the
 live PR, including waiting for and exercising review comments from Codex.
 
 Tests:
-    1. Summary view: Launch, verify KPI cards, press o to open PR
+    1. Status view: Launch, verify KPI cards, press o to open PR
     2. Checks view: Launch, verify CI status, wait for completion
     3. Comments view: Launch, check for review threads
     4. Comments keybindings: If threads exist, test f/y/o/r keys
@@ -173,22 +173,22 @@ async def main(connection):
     await asyncio.sleep(0.5)
 
     try:
-        # ── Test 1: Summary view ─────────────────────────────
+        # ── Test 1: Status view ─────────────────────────────
         print(f"\n{'='*60}")
-        print("TEST 1: Summary view")
+        print("TEST 1: Status view")
         print(f"{'='*60}")
 
-        await session.async_send_text(f"gh ghent summary -R {REPO} --pr {PR}\n")
+        await session.async_send_text(f"gh ghent status -R {REPO} --pr {PR}\n")
         if not await wait_for_tui(session, "ghent"):
-            await dump_screen(session, "summary launch failed")
-            log_result("Summary launch", "FAIL", "TUI did not appear")
+            await dump_screen(session, "status launch failed")
+            log_result("Status launch", "FAIL", "TUI did not appear")
             return print_summary()
 
         await asyncio.sleep(3.0)  # Wait for async data load
         text = await get_screen_text(session)
-        ss = capture_screenshot("dogfood_summary")
+        ss = capture_screenshot("dogfood_status")
 
-        # Verify summary content
+        # Verify status content
         has_pr = f"PR #{PR}" in text or f"#{PR}" in text or "gh-ghent" in text
         has_checks = "pass" in text.lower() or "fail" in text.lower() or "pending" in text.lower()
         has_comments = "unresolved" in text.lower() or "resolved" in text.lower() or "thread" in text.lower()
@@ -198,24 +198,24 @@ async def main(connection):
             if has_pr: detail_parts.append("PR identified")
             if has_checks: detail_parts.append("checks shown")
             if has_comments: detail_parts.append("comments shown")
-            log_result("Summary view renders", "PASS", ", ".join(detail_parts), ss)
+            log_result("Status view renders", "PASS", ", ".join(detail_parts), ss)
         else:
-            await dump_screen(session, "summary content")
-            log_result("Summary view renders", "FAIL", "No PR/checks/comments data visible", ss)
+            await dump_screen(session, "status content")
+            log_result("Status view renders", "FAIL", "No PR/checks/comments data visible", ss)
 
         # Test 'o' key — open PR in browser
         await session.async_send_text("o")
         await asyncio.sleep(2.0)
-        ss_o = capture_screenshot("dogfood_summary_o")
+        ss_o = capture_screenshot("dogfood_status_o")
         # TUI should still be responsive
         before = await get_screen_text(session)
         await session.async_send_text("j")
         await asyncio.sleep(0.3)
         after = await get_screen_text(session)
         if before != after:
-            log_result("Summary 'o' open PR", "PASS", "Browser triggered, TUI responsive", ss_o)
+            log_result("Status 'o' open PR", "PASS", "Browser triggered, TUI responsive", ss_o)
         else:
-            log_result("Summary 'o' open PR", "PASS", "Key handled, TUI alive", ss_o)
+            log_result("Status 'o' open PR", "PASS", "Key handled, TUI alive", ss_o)
 
         await session.async_send_text("q")
         await asyncio.sleep(1.0)

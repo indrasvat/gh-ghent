@@ -17,7 +17,7 @@ Tests:
     3. Pipe Mode: gh ghent comments --pr 1 --no-tui → JSON output
     4. Tab Switching: Tab cycles between comments and checks views
     5. Checks TUI: gh ghent checks --pr 1 → TUI with checks view
-    6. Summary TUI: gh ghent summary --pr 1 → TUI with summary view
+    6. Status TUI: gh ghent status --pr 1 → TUI with status view
 
 Screenshots:
     - ghent_tui_launch.png

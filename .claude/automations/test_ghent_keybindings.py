@@ -26,7 +26,7 @@ Tests:
     --- Checks List View ---
     8. R key: Re-run failed — verify action triggered, help bar advertises key
 
-    --- Summary View ---
+    --- Status View ---
     9. o key: Open PR — verify browser opens
     10. R key: Re-run failed — verify action triggered
 
@@ -566,69 +566,69 @@ async def main(connection):
             await asyncio.sleep(1.0)
 
         # ========================================
-        # PART 4: SUMMARY VIEW
+        # PART 4: STATUS VIEW
         # ========================================
         print("\n" + "=" * 60)
-        print("PART 4: SUMMARY VIEW")
+        print("PART 4: STATUS VIEW")
         print("=" * 60)
 
         # Test 9: 'o' — use tbgs PR #1 (has valid PR URL)
-        print("\n  TEST 9: Summary 'o' — open PR in browser")
-        await session.async_send_text("gh ghent summary -R indrasvat/tbgs --pr 1\n")
+        print("\n  TEST 9: Status 'o' — open PR in browser")
+        await session.async_send_text("gh ghent status -R indrasvat/tbgs --pr 1\n")
         if not await wait_for_tui(session, "ghent"):
-            log_result("Summary TUI Launch (o test)", "FAIL", "TUI did not appear")
+            log_result("Status TUI Launch (o test)", "FAIL", "TUI did not appear")
             await session.async_send_text("q")
             await asyncio.sleep(0.5)
         else:
-            await asyncio.sleep(3.0)  # Summary loads 3 data sources
-            screenshot_summary = capture_screenshot("kb_summary_initial")
+            await asyncio.sleep(3.0)  # Status loads 3 data sources
+            screenshot_status = capture_screenshot("kb_status_initial")
 
             await session.async_send_text("o")
             await asyncio.sleep(2.0)
 
-            screenshot_o_sum = capture_screenshot("kb_summary_o_after")
+            screenshot_o_sum = capture_screenshot("kb_status_o_after")
 
             # Verify TUI still responsive after browser open
             alive = await verify_tui_responsive(session)
             if alive:
-                log_result("Summary: 'o' open PR in browser", "PASS",
+                log_result("Status: 'o' open PR in browser", "PASS",
                            "Browser open triggered, TUI remains responsive", screenshot_o_sum)
             else:
-                log_result("Summary: 'o' open PR in browser", "PASS",
+                log_result("Status: 'o' open PR in browser", "PASS",
                            "Key handled (no crash)", screenshot_o_sum)
 
             await session.async_send_text("q")
             await asyncio.sleep(1.0)
 
         # Test 10: 'R' — use peek-it PR #2 (has failed checks)
-        print("\n  TEST 10: Summary 'R' — re-run failed checks")
-        await session.async_send_text("gh ghent summary -R indrasvat/peek-it --pr 2\n")
+        print("\n  TEST 10: Status 'R' — re-run failed checks")
+        await session.async_send_text("gh ghent status -R indrasvat/peek-it --pr 2\n")
         if not await wait_for_tui(session, "ghent"):
-            log_result("Summary TUI Launch (R test)", "FAIL", "TUI did not appear")
+            log_result("Status TUI Launch (R test)", "FAIL", "TUI did not appear")
             await session.async_send_text("q")
             await asyncio.sleep(0.5)
         else:
             await asyncio.sleep(3.0)
             before_sum_R = await get_full_screen_text(session)
-            screenshot_sum_R_before = capture_screenshot("kb_summary_R_before")
+            screenshot_sum_R_before = capture_screenshot("kb_status_R_before")
 
             await session.async_send_text("R")
             await asyncio.sleep(2.0)
 
             after_sum_R = await get_full_screen_text(session)
-            screenshot_sum_R = capture_screenshot("kb_summary_R_after")
+            screenshot_sum_R = capture_screenshot("kb_status_R_after")
 
             sum_R_changed = before_sum_R != after_sum_R
             if sum_R_changed:
-                log_result("Summary: 'R' re-run failed", "PASS",
+                log_result("Status: 'R' re-run failed", "PASS",
                            "Screen changed after 'R'", screenshot_sum_R)
             else:
                 alive = await verify_tui_responsive(session)
                 if alive:
-                    log_result("Summary: 'R' re-run failed", "PASS",
+                    log_result("Status: 'R' re-run failed", "PASS",
                                "Key handled (async rerun, TUI responsive)", screenshot_sum_R)
                 else:
-                    log_result("Summary: 'R' re-run failed", "FAIL",
+                    log_result("Status: 'R' re-run failed", "FAIL",
                                "DEAD KEY — no change, TUI unresponsive", screenshot_sum_R)
 
             await session.async_send_text("q")

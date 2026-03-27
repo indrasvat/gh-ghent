@@ -8,14 +8,14 @@
 # ///
 
 """
-ghent Summary Enhancement Visual Test: Verify --logs, --watch, --quiet, and enriched formatters.
+ghent Status Enhancement Visual Test: Verify --logs, --watch, --quiet, and enriched formatters.
 
 Tests:
     1. --logs --format json on peek-it PR #2: log_excerpt non-empty for failing check
     2. --logs --format md on peek-it PR #2: markdown includes FAIL header + code block
     3. --compact --logs --format json on peek-it PR #2: failed_checks array present
     4. --quiet on doot PR #1: verify exit code 0 (clean PR, no output)
-    5. --watch --format json on tbgs PR #1: verify stdout has summary JSON
+    5. --watch --format json on tbgs PR #1: verify stdout has status JSON
     6. Backward compat: --format json without --logs: no log_excerpt in output
     7. Stress test: --logs on openclaw/openclaw PR #25736: handles 30+ checks
 
@@ -25,16 +25,16 @@ Verification Strategy:
     - Capture screenshots at each stage
 
 Screenshots:
-    - ghent_summary_enhanced_logs_json.png
-    - ghent_summary_enhanced_logs_md.png
-    - ghent_summary_enhanced_compact.png
-    - ghent_summary_enhanced_quiet.png
-    - ghent_summary_enhanced_watch.png
-    - ghent_summary_enhanced_compat.png
-    - ghent_summary_enhanced_stress.png
+    - ghent_status_enhanced_logs_json.png
+    - ghent_status_enhanced_logs_md.png
+    - ghent_status_enhanced_compact.png
+    - ghent_status_enhanced_quiet.png
+    - ghent_status_enhanced_watch.png
+    - ghent_status_enhanced_compat.png
+    - ghent_status_enhanced_stress.png
 
 Usage:
-    uv run .claude/automations/test_ghent_summary_enhanced.py
+    uv run .claude/automations/test_ghent_status_enhanced.py
 """
 
 import iterm2
@@ -110,7 +110,7 @@ async def run_test(connection):
     session = tab.current_session
 
     print(f"\n{'='*60}")
-    print(f"ghent Summary Enhancement Visual Tests")
+    print(f"ghent Status Enhancement Visual Tests")
     print(f"Started: {datetime.now().isoformat()}")
     print(f"{'='*60}\n")
 
@@ -128,7 +128,7 @@ async def run_test(connection):
     # Test 1: --logs --format json on peek-it PR #2 (failing checks)
     print("\n--- Test 1: --logs --format json (peek-it, failing checks) ---")
     await session.async_send_text(
-        f"{BINARY} summary -R indrasvat/peek-it --pr 2 --logs --format json "
+        f"{BINARY} status -R indrasvat/peek-it --pr 2 --logs --format json "
         "| python3 -c \"import sys,json; d=json.load(sys.stdin); "
         "fails=[c for c in d['checks']['checks'] if c['conclusion']=='failure']; "
         "has_log=any(c.get('log_excerpt','') for c in fails); "
@@ -151,14 +151,14 @@ async def run_test(connection):
     else:
         log_result("--logs JSON", "FAIL", "Command did not produce expected output")
 
-    capture_quartz_screenshot("ghent_summary_enhanced_logs_json")
+    capture_quartz_screenshot("ghent_status_enhanced_logs_json")
 
     # Test 2: --logs --format md on peek-it PR #2
     print("\n--- Test 2: --logs --format md (peek-it, FAIL header + code block) ---")
     await session.async_send_text(
-        f"{BINARY} summary -R indrasvat/peek-it --pr 2 --logs --format md > /tmp/ghent_summary_md.txt 2>&1; "
+        f"{BINARY} status -R indrasvat/peek-it --pr 2 --logs --format md > /tmp/ghent_status_md.txt 2>&1; "
         "echo MD_EXIT=$?; "
-        "grep -c '### FAIL:' /tmp/ghent_summary_md.txt 2>/dev/null && echo FAIL_HEADER_FOUND || echo FAIL_HEADER_MISSING\n"
+        "grep -c '### FAIL:' /tmp/ghent_status_md.txt 2>/dev/null && echo FAIL_HEADER_FOUND || echo FAIL_HEADER_MISSING\n"
     )
     await asyncio.sleep(15.0)
 
@@ -167,14 +167,14 @@ async def run_test(connection):
     else:
         log_result("--logs MD FAIL header", "UNVERIFIED", "No FAIL header (check may not have failure conclusion)")
 
-    await session.async_send_text("head -40 /tmp/ghent_summary_md.txt\n")
+    await session.async_send_text("head -40 /tmp/ghent_status_md.txt\n")
     await asyncio.sleep(1.0)
-    capture_quartz_screenshot("ghent_summary_enhanced_logs_md")
+    capture_quartz_screenshot("ghent_status_enhanced_logs_md")
 
     # Test 3: --compact --logs --format json on peek-it PR #2
     print("\n--- Test 3: --compact --logs --format json (peek-it, failed_checks) ---")
     await session.async_send_text(
-        f"{BINARY} summary -R indrasvat/peek-it --pr 2 --compact --logs --format json "
+        f"{BINARY} status -R indrasvat/peek-it --pr 2 --compact --logs --format json "
         "| python3 -c \"import sys,json; d=json.load(sys.stdin); "
         "fc=d.get('failed_checks',[]); "
         "print(f'COMPACT_OK failed_checks={len(fc)} status={d.get(\\\"check_status\\\")}')\" 2>&1; "
@@ -191,12 +191,12 @@ async def run_test(connection):
     else:
         log_result("--compact --logs", "FAIL", "Command did not produce expected output")
 
-    capture_quartz_screenshot("ghent_summary_enhanced_compact")
+    capture_quartz_screenshot("ghent_status_enhanced_compact")
 
     # Test 4: --quiet on doot PR #1 (clean PR — should exit 0, no output)
     print("\n--- Test 4: --quiet (doot PR #1, exit code behavior) ---")
     await session.async_send_text(
-        f"{BINARY} summary -R indrasvat/doot --pr 1 --quiet > /tmp/ghent_quiet_out.txt 2>&1; "
+        f"{BINARY} status -R indrasvat/doot --pr 1 --quiet > /tmp/ghent_quiet_out.txt 2>&1; "
         "echo QUIET_EXIT=$?\n"
     )
     await asyncio.sleep(12.0)
@@ -209,33 +209,33 @@ async def run_test(connection):
     else:
         log_result("--quiet exit code", "FAIL", "Unexpected exit behavior")
 
-    capture_quartz_screenshot("ghent_summary_enhanced_quiet")
+    capture_quartz_screenshot("ghent_status_enhanced_quiet")
 
     # Test 5: --watch --format json on tbgs PR #1 (already completed checks)
     print("\n--- Test 5: --watch --format json (tbgs PR #1) ---")
     await session.async_send_text(
-        f"{BINARY} summary -R indrasvat/tbgs --pr 1 --watch --format json 2>/dev/null "
+        f"{BINARY} status -R indrasvat/tbgs --pr 1 --watch --format json 2>/dev/null "
         "| python3 -c \"import sys,json; d=json.load(sys.stdin); "
         "print(f'WATCH_OK ready={d.get(\\\"is_merge_ready\\\")} unresolved={d[\\\"comments\\\"][\\\"unresolved_count\\\"]}')\" 2>&1; "
         "echo WATCH_EXIT=$?\n"
     )
     await asyncio.sleep(20.0)
 
-    if await verify_screen_contains(session, "WATCH_OK", "watch summary", timeout=15.0):
+    if await verify_screen_contains(session, "WATCH_OK", "watch status", timeout=15.0):
         screen = await get_screen_text(session)
         if "unresolved=2" in screen:
-            log_result("--watch summary", "PASS", "Watch completed, summary has unresolved=2")
+            log_result("--watch status", "PASS", "Watch completed, status has unresolved=2")
         else:
-            log_result("--watch summary", "PASS", "Watch completed, summary produced")
+            log_result("--watch status", "PASS", "Watch completed, status produced")
     else:
-        log_result("--watch summary", "FAIL", "Watch did not produce summary output")
+        log_result("--watch status", "FAIL", "Watch did not produce status output")
 
-    capture_quartz_screenshot("ghent_summary_enhanced_watch")
+    capture_quartz_screenshot("ghent_status_enhanced_watch")
 
     # Test 6: Backward compat — --format json without --logs
     print("\n--- Test 6: Backward compat (no --logs, no log_excerpt) ---")
     await session.async_send_text(
-        f"{BINARY} summary -R indrasvat/tbgs --pr 1 --format json "
+        f"{BINARY} status -R indrasvat/tbgs --pr 1 --format json "
         "| python3 -c \"import sys,json; d=json.load(sys.stdin); "
         "has_excerpt=any(c.get('log_excerpt','') for c in d['checks']['checks']); "
         "print(f'COMPAT_OK ready={d.get(\\\"is_merge_ready\\\")} has_excerpt={has_excerpt} unresolved={d[\\\"comments\\\"][\\\"unresolved_count\\\"]}')\" 2>&1; "
@@ -254,12 +254,12 @@ async def run_test(connection):
     else:
         log_result("Backward compat", "FAIL", "Command did not produce expected output")
 
-    capture_quartz_screenshot("ghent_summary_enhanced_compat")
+    capture_quartz_screenshot("ghent_status_enhanced_compat")
 
     # Test 7: Stress test — openclaw/openclaw PR #25736 (30+ checks)
     print("\n--- Test 7: Stress test (openclaw/openclaw PR #25736, 30+ checks) ---")
     await session.async_send_text(
-        f"{BINARY} summary -R openclaw/openclaw --pr 25736 --logs --format json "
+        f"{BINARY} status -R openclaw/openclaw --pr 25736 --logs --format json "
         "| python3 -c \"import sys,json; d=json.load(sys.stdin); "
         "total=len(d['checks']['checks']); "
         "fails=[c for c in d['checks']['checks'] if c['conclusion']=='failure']; "
@@ -277,7 +277,7 @@ async def run_test(connection):
     else:
         log_result("Stress test", "FAIL", "Command did not complete in time")
 
-    capture_quartz_screenshot("ghent_summary_enhanced_stress")
+    capture_quartz_screenshot("ghent_status_enhanced_stress")
 
     # Summary
     print(f"\n{'='*60}")

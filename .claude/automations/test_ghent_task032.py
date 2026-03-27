@@ -8,16 +8,16 @@
 # ///
 
 """
-ghent Task 032 Visual Tests: Summary overflow, async loading, Esc navigation.
+ghent Task 032 Visual Tests: Status overflow, async loading, Esc navigation.
 
 Stress-tests the P1/P2/P3 fixes against oven-sh/bun extreme PRs.
 
 Tests:
     1. Build & Install
-    2. Summary overflow — PR #24063 (61 reviews, 101 threads): KPIs visible, approvals capped
-    3. Summary overflow — PR #27327 (25 reviews, 68 threads): all sections fit
+    2. Status overflow — PR #24063 (61 reviews, 101 threads): KPIs visible, approvals capped
+    3. Status overflow — PR #27327 (25 reviews, 68 threads): all sections fit
     4. Async loading — PR #24063: loading indicator appears immediately
-    5. Esc navigation round-trip: summary → c → esc → summary → k → esc → summary
+    5. Esc navigation round-trip: status → c → esc → status → k → esc → status
 
 Usage:
     uv run .claude/automations/test_ghent_task032.py
@@ -191,9 +191,9 @@ async def main(connection):
             await dump_screen(session, "build_failure")
             return print_summary()
 
-        # ── TEST 2: Summary overflow — PR #24063 (61 reviews) ─────
-        print_test_header("Summary overflow: PR #24063 (61 reviews, 101 threads)", 2)
-        await session.async_send_text("gh ghent summary -R oven-sh/bun --pr 24063 2>&1\n")
+        # ── TEST 2: Status overflow — PR #24063 (61 reviews) ─────
+        print_test_header("Status overflow: PR #24063 (61 reviews, 101 threads)", 2)
+        await session.async_send_text("gh ghent status -R oven-sh/bun --pr 24063 2>&1\n")
         await asyncio.sleep(15.0)  # Large PR — give it time
 
         screen_text = await get_all_screen_text(session)
@@ -206,24 +206,24 @@ async def main(connection):
         has_approvals_section = "Approvals" in screen_text
 
         if has_kpi and has_sections:
-            log_result("Summary overflow PR #24063", "PASS",
+            log_result("Status overflow PR #24063", "PASS",
                        f"KPI={has_kpi}, sections={has_sections}, overflow_indicator={has_overflow}, approvals={has_approvals_section}",
                        screenshot=screenshot)
         elif has_sections:
-            log_result("Summary overflow PR #24063", "UNVERIFIED",
+            log_result("Status overflow PR #24063", "UNVERIFIED",
                        f"KPI={has_kpi}, sections={has_sections}, overflow={has_overflow}",
                        screenshot=screenshot)
         else:
-            log_result("Summary overflow PR #24063", "FAIL",
+            log_result("Status overflow PR #24063", "FAIL",
                        f"KPI={has_kpi}, sections={has_sections}")
             await dump_screen(session, "overflow_24063")
 
         await session.async_send_text("q")
         await asyncio.sleep(1.0)
 
-        # ── TEST 3: Summary overflow — PR #27327 (68 threads, 25 reviews) ─
-        print_test_header("Summary overflow: PR #27327 (68 threads, 25 reviews)", 3)
-        await session.async_send_text("gh ghent summary -R oven-sh/bun --pr 27327 2>&1\n")
+        # ── TEST 3: Status overflow — PR #27327 (68 threads, 25 reviews) ─
+        print_test_header("Status overflow: PR #27327 (68 threads, 25 reviews)", 3)
+        await session.async_send_text("gh ghent status -R oven-sh/bun --pr 27327 2>&1\n")
         await asyncio.sleep(10.0)
 
         screen_text = await get_all_screen_text(session)
@@ -236,11 +236,11 @@ async def main(connection):
 
         sections_visible = sum([has_threads, has_checks, has_approvals])
         if has_kpi and sections_visible >= 2:
-            log_result("Summary overflow PR #27327", "PASS",
+            log_result("Status overflow PR #27327", "PASS",
                        f"KPI={has_kpi}, threads={has_threads}, checks={has_checks}, approvals={has_approvals}",
                        screenshot=screenshot)
         else:
-            log_result("Summary overflow PR #27327", "FAIL",
+            log_result("Status overflow PR #27327", "FAIL",
                        f"KPI={has_kpi}, sections_visible={sections_visible}")
             await dump_screen(session, "overflow_27327")
 
@@ -249,7 +249,7 @@ async def main(connection):
 
         # ── TEST 4: Async loading — quick screenshot during load ──
         print_test_header("Async loading: instant TUI frame", 4)
-        await session.async_send_text("gh ghent summary -R oven-sh/bun --pr 24063 2>&1\n")
+        await session.async_send_text("gh ghent status -R oven-sh/bun --pr 24063 2>&1\n")
         # Capture very quickly — within 1.5s of launch
         await asyncio.sleep(1.5)
 
@@ -287,12 +287,12 @@ async def main(connection):
         # ── TEST 5: Esc navigation round-trip ────────────────────
         print_test_header("Esc navigation round-trip", 5)
         # Use a fast PR for this test
-        await session.async_send_text("gh ghent summary -R indrasvat/tbgs --pr 1 2>&1\n")
+        await session.async_send_text("gh ghent status -R indrasvat/tbgs --pr 1 2>&1\n")
         await asyncio.sleep(8.0)
 
-        # Verify we're at summary
-        summary_text = await get_all_screen_text(session)
-        at_summary = "Review Threads" in summary_text or "UNRESOLVED" in summary_text
+        # Verify we're at status
+        status_text = await get_all_screen_text(session)
+        at_status = "Review Threads" in status_text or "UNRESOLVED" in status_text
 
         # Press 'c' → comments
         await session.async_send_text("c")
@@ -301,12 +301,12 @@ async def main(connection):
         screenshot_c = capture_screenshot("t032_esc_nav_comments")
         at_comments = "comments" in comments_text and ("expand" in comments_text or "unresolved" in comments_text)
 
-        # Press Esc → back to summary
+        # Press Esc → back to status
         await session.async_send_text("\x1b")  # Escape key
         await asyncio.sleep(1.0)
         back_text = await get_all_screen_text(session)
-        screenshot_back = capture_screenshot("t032_esc_nav_back_to_summary")
-        back_at_summary = "Review Threads" in back_text or "UNRESOLVED" in back_text or "CI Checks" in back_text
+        screenshot_back = capture_screenshot("t032_esc_nav_back_to_status")
+        back_at_status = "Review Threads" in back_text or "UNRESOLVED" in back_text or "CI Checks" in back_text
 
         # Press 'k' → checks
         await session.async_send_text("k")
@@ -314,24 +314,24 @@ async def main(connection):
         checks_text = await get_all_screen_text(session)
         at_checks = "checks" in checks_text and ("view logs" in checks_text or "passed" in checks_text)
 
-        # Press Esc → back to summary
+        # Press Esc → back to status
         await session.async_send_text("\x1b")
         await asyncio.sleep(1.0)
         final_text = await get_all_screen_text(session)
-        screenshot_final = capture_screenshot("t032_esc_nav_final_summary")
-        final_at_summary = "Review Threads" in final_text or "UNRESOLVED" in final_text or "CI Checks" in final_text
+        screenshot_final = capture_screenshot("t032_esc_nav_final_status")
+        final_at_status = "Review Threads" in final_text or "UNRESOLVED" in final_text or "CI Checks" in final_text
 
-        if at_summary and at_comments and back_at_summary and final_at_summary:
+        if at_status and at_comments and back_at_status and final_at_status:
             log_result("Esc navigation round-trip", "PASS",
-                       f"summary={at_summary}, c→comments={at_comments}, esc→summary={back_at_summary}, k→checks={at_checks}, esc→summary={final_at_summary}",
+                       f"status={at_status}, c→comments={at_comments}, esc→status={back_at_status}, k→checks={at_checks}, esc→status={final_at_status}",
                        screenshot=screenshot_final)
-        elif back_at_summary or final_at_summary:
+        elif back_at_status or final_at_status:
             log_result("Esc navigation round-trip", "UNVERIFIED",
-                       f"summary={at_summary}, c→comments={at_comments}, esc→back={back_at_summary}, k→checks={at_checks}, esc→final={final_at_summary}",
+                       f"status={at_status}, c→comments={at_comments}, esc→back={back_at_status}, k→checks={at_checks}, esc→final={final_at_status}",
                        screenshot=screenshot_back)
         else:
             log_result("Esc navigation round-trip", "FAIL",
-                       f"summary={at_summary}, comments={at_comments}, back={back_at_summary}, final={final_at_summary}")
+                       f"status={at_status}, comments={at_comments}, back={back_at_status}, final={final_at_status}")
             await dump_screen(session, "esc_nav")
 
     except Exception as e:
