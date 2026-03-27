@@ -16,6 +16,8 @@ description: >
   "what did the bots say", "any bot comments", "triage bot feedback",
   or any request to inspect, diagnose, or act on GitHub pull request
   review threads, CI check status, or merge readiness.
+  IMPORTANT - also trigger this skill immediately after creating a PR
+  (gh pr create, git push + PR URL) to monitor CI and review state.
   Provides JSON/XML/Markdown output with file:line locations, error log
   excerpts, and annotations from GitHub Actions.
 ---
@@ -28,19 +30,24 @@ description: >
 
 Get PR number: `gh pr view --json number -q .number`
 
-## Entrypoints — Pick One
+## First Command After PR Creation
 
-### Inspect now (non-blocking, safe default)
 ```bash
-gh ghent summary --pr <N> --format json --no-tui
+PR=$(gh pr view --json number -q .number)
+gh ghent summary --pr $PR --watch --logs --format json --no-tui
 ```
 
-### Wait for CI + bot reviews to settle (blocking)
-```bash
-gh ghent summary --pr <N> --await-review --format json --no-tui
-```
-Add `--logs` only when diagnosing failures. Add `--solo` only for personal repos you own.
-Use `--watch` instead of `--await-review` when no bot reviewer is configured.
+`--watch` blocks until CI completes, then returns everything. If bots review during CI,
+their findings are already in the response. The agent does NOT need to know whether bots
+exist, whether the repo is personal or org, or whether humans will review — the response
+data tells it what happened.
+
+### Other entrypoints (non-default)
+
+- **Inspect now** (non-blocking): `gh ghent summary --pr <N> --format json --no-tui`
+- **Re-check after fix** (wait for bot re-review): `gh ghent summary --pr <N> --await-review --format json --no-tui`
+
+Use `--await-review` only in round 2+ of the bot sweep loop, when you know bots will re-trigger.
 
 ## Response Shape (summary)
 
@@ -80,7 +87,7 @@ The summary already contains the full threads — no second call needed.
 1. Read threads from `comments.threads[]` where `comments[0].is_bot == true`
 2. Fix code → push
 3. Per thread: `gh ghent reply --pr <N> --thread PRRT_... --body "Fixed" --resolve`
-4. Re-run summary (bots may re-trigger on the fix commit)
+4. Re-check: `gh ghent summary --pr <N> --await-review --format json --no-tui` (bots may re-trigger)
 5. Repeat until `is_merge_ready == true`
 
 ## Solo Mode
