@@ -1,4 +1,4 @@
-# Task 5.5: Summary Dashboard
+# Task 5.5: Status Dashboard
 
 ## Status: DONE
 
@@ -11,17 +11,17 @@
 
 ## Problem
 
-The summary dashboard is the TUI landing view: KPI cards (unresolved count, checks pass/fail, approvals), merge readiness badge, section previews, and quick-nav keys to jump to full views.
+The status dashboard is the TUI landing view: KPI cards (unresolved count, checks pass/fail, approvals), merge readiness badge, section previews, and quick-nav keys to jump to full views.
 
 ## PRD Reference
 
-- §6.6 (Summary Command) — TUI: KPI cards, READY/NOT READY badge, sections, quick-nav
+- §6.6 (Status Command) — TUI: KPI cards, READY/NOT READY badge, sections, quick-nav
 - §5.3 (TUI View Architecture) — ViewSummary
 - Acceptance criteria: FR-SUM-01 through FR-SUM-05
 
 ## Research References
 
-- `docs/tui-mockups.html` — Summary tab (KPI card layout, section previews)
+- `docs/tui-mockups.html` — Status tab (KPI card layout, section previews)
 
 ## Files to Create
 
@@ -31,12 +31,12 @@ The summary dashboard is the TUI landing view: KPI cards (unresolved count, chec
 
 ## Files to Modify
 
-- `internal/tui/app.go` — Register summary view, set as default start view for `gh ghent summary`
+- `internal/tui/app.go` — Register status view, set as default start view for `gh ghent status`
 
 ## Execution Steps
 
 ### Step 1: Read context
-1. Read `docs/tui-mockups.html` — summary tab (exact layout with KPI cards)
+1. Read `docs/tui-mockups.html` — status tab (exact layout with KPI cards)
 2. Read PRD §6.6
 
 ### Step 2: Implement KPI cards row
@@ -79,9 +79,9 @@ Create `.claude/automations/test_ghent_summary.py` following canonical template 
 uv run .claude/automations/test_ghent_summary.py
 ```
 Visual assertions:
-- Launch: `gh ghent summary -R indrasvat/tbgs --pr 1` → TUI renders (NOT READY: 2 unresolved threads, checks pass)
-- Also test: `gh ghent summary -R indrasvat/doot --pr 1` → READY (0 unresolved, checks pass)
-- Also test: `gh ghent summary -R indrasvat/peek-it --pr 2` → NOT READY (threads + failing checks)
+- Launch: `gh ghent status -R indrasvat/tbgs --pr 1` → TUI renders (NOT READY: 2 unresolved threads, checks pass)
+- Also test: `gh ghent status -R indrasvat/doot --pr 1` → READY (0 unresolved, checks pass)
+- Also test: `gh ghent status -R indrasvat/peek-it --pr 2` → NOT READY (threads + failing checks)
 - Verify: KPI cards visible (counts for unresolved, checks, approvals)
 - Verify: READY or NOT READY badge visible
 - Verify: section previews show thread/check summaries

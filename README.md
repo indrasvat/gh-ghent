@@ -26,7 +26,7 @@ gh ghent comments --pr 42
 gh ghent checks --pr 42
 
 # Full PR dashboard with merge readiness
-gh ghent summary --pr 42
+gh ghent status --pr 42
 ```
 
 ## How It Works
@@ -113,24 +113,24 @@ echo "Acknowledged" | gh ghent reply --pr 42 --thread PRRT_abc123 --body-file -
 
 Exit codes: `0` = reply posted, `1` = thread not found, `2` = error.
 
-### `gh ghent summary`
+### `gh ghent status`
 
 Combined PR status dashboard with merge-readiness assessment.
 
 ```bash
-gh ghent summary --pr 42                     # Interactive dashboard
-gh ghent summary --pr 42 --logs --format json  # Full status with failure diagnostics
-gh ghent summary --pr 42 --watch --format json # Wait for CI, then full report
-gh ghent summary --pr 42 --await-review        # Wait for CI + bot reviews to settle
-gh ghent summary --pr 42 --quiet               # Silent merge-readiness gate
-gh ghent summary --pr 42 --solo                # Skip approval check (personal repos)
+gh ghent status --pr 42                     # Interactive dashboard
+gh ghent status --pr 42 --logs --format json  # Full status with failure diagnostics
+gh ghent status --pr 42 --watch --format json # Wait for CI, then full report
+gh ghent status --pr 42 --await-review        # Wait for CI + bot reviews to settle
+gh ghent status --pr 42 --quiet               # Silent merge-readiness gate
+gh ghent status --pr 42 --solo                # Skip approval check (personal repos)
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--pr` | Pull request number (required) |
 | `--logs` | Include failing job log excerpts and annotations |
-| `--watch` | Poll until CI completes, then output full summary |
+| `--watch` | Poll until CI completes, then output full status |
 | `--await-review` | After CI completes, wait for review activity to settle (implies `--watch`) |
 | `--review-timeout` | Hard timeout for `--await-review` (default: `5m`) |
 | `--quiet` | Silent on merge-ready (exit 0), full output on not-ready (exit 1) |
@@ -170,7 +170,7 @@ gh ghent comments --pr 42 --format json --no-tui
 gh ghent checks --pr 42 --format json --logs --no-tui
 
 # One-shot merge readiness
-gh ghent summary --pr 42 --format json --no-tui | jq '.is_merge_ready'
+gh ghent status --pr 42 --format json --no-tui | jq '.is_merge_ready'
 ```
 
 ### Exit Codes
@@ -188,22 +188,22 @@ All commands use meaningful exit codes for scripting:
 
 ```bash
 # 1. Get everything in one call with failure diagnostics
-SUMMARY=$(gh ghent summary --pr 42 --logs --format json --no-tui)
+STATUS=$(gh ghent status --pr 42 --logs --format json --no-tui)
 
 # 2. Check merge readiness
-echo "$SUMMARY" | jq -e '.is_merge_ready' && exit 0
+echo "$STATUS" | jq -e '.is_merge_ready' && exit 0
 
 # 3. Read CI failures (annotations + log excerpts)
-echo "$SUMMARY" | jq '.checks.checks[] | select(.conclusion=="failure") | {name, log_excerpt, annotations}'
+echo "$STATUS" | jq '.checks.checks[] | select(.conclusion=="failure") | {name, log_excerpt, annotations}'
 
 # 4. Read unresolved review threads
-echo "$SUMMARY" | jq '.comments.threads[] | {path, line, body: .comments[0].body}'
+echo "$STATUS" | jq '.comments.threads[] | {path, line, body: .comments[0].body}'
 
 # 5. Fix code, then resolve + reply
 gh ghent resolve --pr 42 --all --format json
 
-# 6. Wait for CI + bot review, get fresh summary
-gh ghent summary --pr 42 --await-review --logs --format json --no-tui
+# 6. Wait for CI + bot review, get fresh status
+gh ghent status --pr 42 --await-review --logs --format json --no-tui
 ```
 
 ### Output Formats

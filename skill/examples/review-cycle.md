@@ -9,7 +9,7 @@ PR #1 on `indrasvat/tbgs` has 2 unresolved review threads and 3 passing CI check
 ## Step 1: Assess the PR
 
 ```bash
-gh ghent summary -R indrasvat/tbgs --pr 1 --compact --format json --no-tui
+gh ghent status -R indrasvat/tbgs --pr 1 --compact --format json --no-tui
 ```
 
 Output:
@@ -128,7 +128,7 @@ gh ghent reply -R indrasvat/tbgs --pr 1 \
 ## Step 8: Verify
 
 ```bash
-gh ghent summary -R indrasvat/tbgs --pr 1 --compact --format json --no-tui | \
+gh ghent status -R indrasvat/tbgs --pr 1 --compact --format json --no-tui | \
   jq '{merge_ready: .is_merge_ready, unresolved: .unresolved}'
 ```
 

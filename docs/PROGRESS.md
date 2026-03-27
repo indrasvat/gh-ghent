@@ -36,7 +36,7 @@
 - [x] Task 2.3: `gh ghent checks --logs` → `docs/tasks/006-checks-logs.md`
 - [x] Task 2.4: `gh ghent resolve` → `docs/tasks/007-resolve-command.md`
 - [x] Task 2.5: `gh ghent reply` → `docs/tasks/008-reply-command.md`
-- [x] Task 2.6: `gh ghent summary` → `docs/tasks/009-summary-command.md`
+- [x] Task 2.6: `gh ghent status` → `docs/tasks/009-summary-command.md`
 
 ### Phase 3: CLI Polish
 - [x] Task 3.1: Watch mode (pipe) → `docs/tasks/010-watch-mode-pipe.md`
@@ -60,7 +60,7 @@
 - [x] Task 5.2: Comments expanded view → `docs/tasks/019-comments-expanded-view.md`
 - [x] Task 5.3: Checks view + log viewer → `docs/tasks/020-checks-view.md`
 - [x] Task 5.4: Resolve view — multi-select → `docs/tasks/021-resolve-view.md`
-- [x] Task 5.5: Summary dashboard → `docs/tasks/022-summary-dashboard.md`
+- [x] Task 5.5: Status dashboard → `docs/tasks/022-summary-dashboard.md`
 - [x] Task 5.6: Watch mode TUI → `docs/tasks/023-watch-mode-tui.md`
 
 > **Milestone: TUI Views complete** — all interactive views implemented, verified with live CI
@@ -68,7 +68,7 @@
 ### Phase 6: Agent Optimization
 - [x] Task 6.1: --since flag → `docs/tasks/024-since-filter.md`
 - [x] Task 6.2: --group-by flag → `docs/tasks/025-group-by-flag.md`
-- [x] Task 6.3: Summary enhancements → `docs/tasks/026-summary-enhancements.md`
+- [x] Task 6.3: Status enhancements → `docs/tasks/026-summary-enhancements.md`
 - [x] Task 6.4: Batch resolve → `docs/tasks/027-batch-resolve.md`
 
 > **Milestone: Agent Optimization complete** — all agent-facing features implemented, 489 tests passing
@@ -82,13 +82,13 @@
 - [x] Task 8.1: Styled help & version output → `docs/tasks/031-styled-help-version.md`
 
 ### Phase 9: Bug Fixes
-- [x] Task 9.1: Summary overflow, async startup, Esc navigation → `docs/tasks/032-summary-overflow-esc-nav.md`
+- [x] Task 9.1: Status overflow, async startup, Esc navigation → `docs/tasks/032-summary-overflow-esc-nav.md`
 - [x] Task 9.2: Dead keybindings → `docs/tasks/033-dead-keybindings.md`
 
-### Phase 10: Summary Enhancement
-- [x] Task 10.1: Summary --logs, --watch, --quiet + formatter enrichment → `docs/tasks/034-summary-enhancement.md`
+### Phase 10: Status Enhancement
+- [x] Task 10.1: Status --logs, --watch, --quiet + formatter enrichment → `docs/tasks/034-summary-enhancement.md`
 
-> **Milestone: Summary Enhancement complete** — summary is now a complete single-command entry point for PR monitoring
+> **Milestone: Status Enhancement complete** — `status` is now a complete single-command entry point for PR monitoring
 
 ## Blockers
 
@@ -96,17 +96,17 @@
 
 ## Session Log
 
-### 2026-02-24 (Phase 10: Summary Enhancement — Task 034)
-- **Task 034 (Summary --logs, --watch, --quiet):** Enhanced `gh ghent summary` to be a complete single-command entry point for PR monitoring.
+### 2026-02-24 (Phase 10: Status Enhancement — Task 034)
+- **Task 034 (Status --logs, --watch, --quiet):** Enhanced `gh ghent status` to be a complete single-command entry point for PR monitoring.
   - **--logs:** Fetches failing job log excerpts via FetchJobLog + ExtractErrorLines (reuses checks.go pattern). Populates CheckRun.LogExcerpt for failing checks.
-  - **--watch:** TTY launches ViewWatch TUI. Non-TTY: WatchChecks streams to stderr, then falls through to full summary fetch to stdout. `--watch` implies `--logs`.
+  - **--watch:** TTY launches ViewWatch TUI. Non-TTY: WatchChecks streams to stderr, then falls through to full status fetch to stdout. `--watch` implies `--logs`.
   - **--quiet:** Silent exit 0 on merge-ready (no output), full output + exit 1 on not-ready.
   - **Markdown FormatSummary:** Added unresolved thread details (path:line @author preview) and failed check sections (### FAIL: name, annotations, log excerpt in fenced block).
   - **Markdown FormatCompactSummary:** Added failed check digest after thread table.
   - **JSON FormatCompactSummary:** Added `failed_checks` array with name, annotations, log_excerpt.
   - **XML FormatSummary:** Added Threads to xmlSummaryComments, FailedChecks to xmlSummaryChecks.
   - **XML FormatCompactSummary:** Added FailedChecks to xmlCompactSummary struct.
-- **Documentation:** README (flags table + agent workflow), SKILL.md (restructured summary-first with trigger phrases), command-reference.md (new flags + schemas), agent-workflows.md (CI monitor → summary --watch --logs), ci-monitor.md (updated walkthrough), feature-showcase-hero.html (3 new summary rows replacing checks --verbose).
+- **Documentation:** README (flags table + agent workflow), SKILL.md (restructured status-first with trigger phrases), command-reference.md (new flags + schemas), agent-workflows.md (CI monitor → status --watch --logs), ci-monitor.md (updated walkthrough), feature-showcase-hero.html (3 new status rows replacing checks --verbose).
 - **Test count:** 549 → 560 (11 new tests). `make ci-fast` clean with race detector. `make lint` 0 issues.
 - **Files modified:** summary.go, markdown.go, json.go, xml.go, markdown_test.go, json_test.go, xml_test.go, README.md, SKILL.md, command-reference.md, agent-workflows.md, ci-monitor.md, feature-showcase-hero.html, PROGRESS.md + new task file 034.
 
@@ -122,12 +122,12 @@
 - **L4:** `.claude/automations/test_ghent_keybindings.py` rewritten with exhaustive content-specific assertions: 11/11 PASS (10 keybinding tests + 1 regression). Clipboard verified via `pbpaste` (PRRT_ prefix), filter cycling verified with badge + item count + clear, resolve view switch verified with multi-indicator (checkboxes, help bar), roundtrip Esc confirmed.
 
 ### 2026-02-24 (Phase 9: Bug Fixes — Task 032 Summary Overflow, Async Startup, Esc Nav)
-- **P3 (Esc navigation):** Generalized Esc handler in `handleKey()` — returns to `prevView` from any list view, not just resolve/summary. Initialized `prevView = initialView` in `NewApp()`. 3 new tests.
+- **P3 (Esc navigation):** Generalized Esc handler in `handleKey()` — returns to `prevView` from any list view, not just resolve/status. Initialized `prevView = initialView` in `NewApp()`. 3 new tests.
 - **P1 (Summary overflow):** Capped approvals at `maxReviewsShow = 5` with priority sort (CHANGES_REQUESTED > APPROVED > COMMENTED) and "... and N more" overflow indicator. Added viewport scrolling with `scrollOffset` and j/↓/↑ keys. 7 new tests.
-- **P2 (Async loading):** Added `FetchCommentsFunc`/`FetchChecksFunc`/`FetchReviewsFunc` types, `commentsLoadedMsg`/`checksLoadedMsg`/`reviewsLoadedMsg` messages, `SetAsyncFetch()` method. `Init()` fires parallel `tea.Cmd`s, `Update()` handles progressive rendering. Loading view shows "Loading PR data..." until first data arrives. Modified `cli/summary.go` TTY path to launch TUI immediately with async fetch closures. Pipe mode retains blocking errgroup. 6 new tests.
+- **P2 (Async loading):** Added `FetchCommentsFunc`/`FetchChecksFunc`/`FetchReviewsFunc` types, `commentsLoadedMsg`/`checksLoadedMsg`/`reviewsLoadedMsg` messages, `SetAsyncFetch()` method. `Init()` fires parallel `tea.Cmd`s, `Update()` handles progressive rendering. Loading view shows "Loading PR data..." until first data arrives. Modified `cli/status.go` TTY path to launch TUI immediately with async fetch closures. Pipe mode retains blocking errgroup. 6 new tests.
 - **Stress-tested** against oven-sh/bun extreme PRs: #24063 (61 reviews, 101 threads), #27327 (68 threads, 25 reviews, 59 checks), #27338 (46 threads), #27264 (6/6 unresolved), #27056 (42 reviews). All render correctly with overflow indicators.
 - **Performance:** TUI first-frame dropped from 1.3–6.5s → <0.5s (instant). Pipe-mode latency unchanged (API-bound).
-- **L4:** 9/9 existing summary tests PASS + 5/5 task 032 stress tests (4 PASS, 1 UNVERIFIED).
+- **L4:** 9/9 existing status tests PASS + 5/5 task 032 stress tests (4 PASS, 1 UNVERIFIED).
 - **Test count:** 501 → 516 (15 new tests). `make lint` clean. `make test` all pass with race detector.
 
 
@@ -153,11 +153,11 @@
 - **Tasks 3.2, 3.4 (error handling, README):** Already code-complete from prior sessions but task files still showed TODO. Created L4 visual tests (`test_ghent_errors.py` 6/6 PASS, `test_ghent_help.py` 8/8 PASS, `test_ghent_agent.py` 8/8 PASS) to satisfy pre-task-done-gate hook, added Visual Test Results sections, marked DONE.
 - **Task 6.1 (--since filter):** Added `internal/cli/since.go` — `ParseSince()` for ISO 8601 + relative durations (30d, 2w, 24h), `FilterThreadsBySince()`, `FilterChecksBySince()`. `--since` persistent flag on root. 15 tests.
 - **Task 6.2 (--group-by flag):** Added `--group-by` flag to comments (file/author/status). `groupThreads()` + `threadKeyFunc()` in comments.go. `FormatGroupedComments` on all 3 formatters — JSON groups array, XML groups/group, Markdown `##` headers. 8 grouping tests + 6 formatter tests.
-- **Task 6.3 (--compact summary):** Added `--compact` flag to summary. `FormatCompactSummary` with `pr_age`, `last_update`, `review_cycles`, `is_merge_ready`. `computePRAge`, `computeLastUpdate`, `computeReviewCycles`, `formatRelativeTime` helpers. All 3 formatters support compact mode.
+- **Task 6.3 (--compact status):** Added `--compact` flag to `status`. `FormatCompactSummary` with `pr_age`, `last_update`, `review_cycles`, `is_merge_ready`. `computePRAge`, `computeLastUpdate`, `computeReviewCycles`, `formatRelativeTime` helpers. All 3 formatters support compact mode.
 - **Task 6.4 (batch resolve):** Added `--file`, `--author`, `--dry-run` flags to resolve. `matchesFilters()` with `path.Match` glob, `resolveBatch()` with per-thread results. `SkippedCount`/`DryRun` on domain.ResolveResults. 15 tests.
 - All 4 tasks ran in parallel via agent teams in git worktrees, merged sequentially with `make ci-fast` verification after each.
 - **L4 Phase 6 visual test:** `test_ghent_phase6.py` — 8/8 PASS against indrasvat/tbgs PR #1 (--since, --group-by file/author, --compact, batch resolve --dry-run/--file, relative 30d)
-- **TUI visual regression:** All 4 core TUI tests re-run — comments 12/12, checks 15/15, resolve 12/12, summary 9/9 PASS.
+- **TUI visual regression:** All 4 core TUI tests re-run — comments 12/12, checks 15/15, resolve 12/12, status 9/9 PASS.
 - Test count: 419 → 489 (70 new tests)
 - **Phase 6 complete. All 30 tasks DONE. Project feature-complete.**
 
@@ -171,9 +171,9 @@
 - Verification: 419 tests pass, lint clean, vet clean (`make ci` ✓)
 - **Phase 5 complete** — all TUI views implemented and verified.
 
-### 2026-02-23 (Task 5.5 — TUI Views: Summary Dashboard)
-- **Task 5.5 (Summary dashboard):** Created `internal/tui/summary.go` — `summaryModel` with KPI cards row (4 cards: Unresolved, Passed, Failed, Approvals using `lipgloss.JoinHorizontal` and rounded borders), three section previews (Review Threads with top-3 truncation, CI Checks with failed check annotations and pass count, Approvals with reviewer icons and states), merge readiness badge (READY/NOT READY in status bar). Color-coded dots per section (green=clear, red=issues, yellow=pending). Reuses package-scoped helpers: `padWithRight`, `formatTimeAgo`, `checkIsFailed`, `dimStyle`/`greenStyle`/`redStyle`.
-- Wired to `app.go`: summary sub-model, WindowSizeMsg propagation, `SetComments`/`SetChecks`/`SetReviews` set data, status bar shows merge readiness badge, `ViewSummary` renders summary view. Quick-nav c/k/r already handled in app.go.
+### 2026-02-23 (Task 5.5 — TUI Views: Status Dashboard)
+- **Task 5.5 (Status dashboard):** Created `internal/tui/summary.go` — `summaryModel` with KPI cards row (4 cards: Unresolved, Passed, Failed, Approvals using `lipgloss.JoinHorizontal` and rounded borders), three section previews (Review Threads with top-3 truncation, CI Checks with failed check annotations and pass count, Approvals with reviewer icons and states), merge readiness badge (READY/NOT READY in status bar). Color-coded dots per section (green=clear, red=issues, yellow=pending). Reuses package-scoped helpers: `padWithRight`, `formatTimeAgo`, `checkIsFailed`, `dimStyle`/`greenStyle`/`redStyle`.
+- Wired to `app.go`: status sub-model, WindowSizeMsg propagation, `SetComments`/`SetChecks`/`SetReviews` set data, status bar shows merge readiness badge, `ViewSummary` renders status view. Quick-nav c/k/r already handled in app.go.
 - 16 unit tests in summary_test.go (empty view, KPI cards, merge readiness 6 cases, badge, threads section, truncation, checks section, approvals section, review icons, card colors, check names, app integration, ready integration, quick-nav, zero width).
 - L4: 9/9 PASS (test_ghent_summary.py against tbgs NOT READY, doot READY-ish, peek-it NOT READY)
 - Verification: 405 tests pass, lint clean, vet clean (`make ci-fast` ✓)
@@ -203,8 +203,8 @@
 ### 2026-02-22 (Tasks 4.1, 4.2, 4.3 — TUI Foundation)
 - **Task 4.1 (Tokyo Night theme):** Created `internal/tui/styles/theme.go` (17 color constants), `styles.go` (all Lipgloss style definitions), `styles_test.go`. `cmd/theme-demo/main.go` visual harness. L4 test: 8/8 PASS.
 - **Task 4.2 (Shared components):** Created `internal/tui/components/` — statusbar.go, helpbar.go, diffhunk.go with tests. 6 predefined key binding sets per view. Extended theme-demo. L4 test: 6/6 PASS.
-- **Task 4.3 (App shell):** Created `internal/tui/app.go` — root Bubble Tea model with View enum (7 views), key routing (Tab cycle, Enter drill-in, Esc back, summary shortcuts c/k/r), WindowSizeMsg propagation to all sub-models. `keymap.go` — bubbles/key bindings. `cmd/shell-demo/main.go` — interactive demo. 23 unit tests, L4 test: 6/6 PASS. No switch shadowing (pitfall #5), termenv background set/reset.
-- **Task 4.4 (Wire TUI to Cobra):** Created `internal/cli/tui.go` — `launchTUI()` helper with functional options (withRepo, withPR, withComments, withChecks, withReviews). Modified `comments.go`, `checks.go`, `summary.go`, `resolve.go` — if `Flags.IsTTY` → launch TUI with pre-fetched data, else pipe mode. Resolve: TTY without --thread/--all → interactive TUI, else pipe mode. Watch mode stays pipe-only. L3: all pipe mode tests pass. L4 test: 6/6 PASS (TUI launch, Tab switching, --no-tui, piped output, checks TUI).
+- **Task 4.3 (App shell):** Created `internal/tui/app.go` — root Bubble Tea model with View enum (7 views), key routing (Tab cycle, Enter drill-in, Esc back, status shortcuts c/k/r), WindowSizeMsg propagation to all sub-models. `keymap.go` — bubbles/key bindings. `cmd/shell-demo/main.go` — interactive demo. 23 unit tests, L4 test: 6/6 PASS. No switch shadowing (pitfall #5), termenv background set/reset.
+- **Task 4.4 (Wire TUI to Cobra):** Created `internal/cli/tui.go` — `launchTUI()` helper with functional options (withRepo, withPR, withComments, withChecks, withReviews). Modified `comments.go`, `checks.go`, `status.go`, `resolve.go` — if `Flags.IsTTY` → launch TUI with pre-fetched data, else pipe mode. Resolve: TTY without --thread/--all → interactive TUI, else pipe mode. Watch mode stays pipe-only. L3: all pipe mode tests pass. L4 test: 6/6 PASS (TUI launch, Tab switching, --no-tui, piped output, checks TUI).
 - Added charmbracelet/bubbletea v1.3.10, bubbles v1.0.0 dependencies
 - **Phase 4 complete** — TUI foundation wired to Cobra, dual-mode routing works
 - Verification: 302 tests pass, lint clean, vet clean (`make ci` ✓)
@@ -213,8 +213,8 @@
 ### 2026-02-23 (Tasks 2.3, 2.6 — parallel execution)
 - Ran two agents in parallel via worktree isolation
 - **Task 2.3 (checks --logs):** `internal/github/logs.go` — REST job log fetcher via `RequestWithContext` (raw text, not JSON). `ExtractErrorLines` with ANSI stripping, timestamp removal, error keyword/prefix matching, file:line pattern detection, context lines, gap markers, 50-line truncation. Wired `--logs` flag in cli/checks.go with graceful degradation. LogExcerpt field added to domain.CheckRun, XML/MD formatters updated.
-- **Task 2.6 (summary):** `internal/github/reviews.go` — GraphQL PR reviews query. `internal/cli/summary.go` — errgroup parallel fetch (threads + checks + reviews), graceful degradation (reviews optional). `IsMergeReady` logic: no unresolved threads AND checks pass AND at least 1 approval with no CHANGES_REQUESTED. Exit code 0=ready, 1=not ready. XML proper types (xmlSummary, xmlSummaryComments, xmlSummaryChecks, xmlReview). Enhanced markdown FormatSummary with [READY]/[NOT READY] badge and reviewer table.
-- Merged both worktrees: resolved formatter overlaps (LogExcerpt in checks + summary XML types), removed FetchReviews stub from client.go, added golang.org/x/sync dependency
+- **Task 2.6 (status):** `internal/github/reviews.go` — GraphQL PR reviews query. `internal/cli/status.go` — errgroup parallel fetch (threads + checks + reviews), graceful degradation (reviews optional). `IsMergeReady` logic: no unresolved threads AND checks pass AND at least 1 approval with no CHANGES_REQUESTED. Exit code 0=ready, 1=not ready. XML proper types (xmlSummary, xmlSummaryComments, xmlSummaryChecks, xmlReview). Enhanced markdown FormatSummary with [READY]/[NOT READY] badge and reviewer table.
+- Merged both worktrees: resolved formatter overlaps (LogExcerpt in checks + status XML types), removed FetchReviews stub from client.go, added golang.org/x/sync dependency
 - Added `.claude/worktrees/` to .gitignore
 - **Phase 2 complete** — all 6 CLI commands working in pipe mode
 - Verification: 171 tests pass, 0 lint issues, L3 smoke tests pass
@@ -283,14 +283,14 @@
 
 ### 2026-02-22 (Pre-implementation, session 2)
 - Added `gh ghent reply` command to PRD v1.2 (§6.5) — pipe-only agent command for replying to review threads
-- Added Phase 2 task 2.5 (reply), renumbered summary to 2.6
+- Added Phase 2 task 2.5 (reply), renumbered status (formerly summary) to 2.6
 - Updated all cross-references: architecture (§5.1, §5.3), gap analysis (§2.3), domain ports, Phase 1 tasks
 - Uses REST API `POST .../comments/{comment_id}/replies` (simpler than GraphQL for single replies)
 - Flags: `--thread`, `--body`, `--body-file` (with stdin via `-`)
 
 ### 2026-02-22 (Pre-implementation, session 1)
 - Completed all research documentation (8 docs, ~7000 lines)
-- Created TUI mockups (7 views: comments, expanded, checks, watch, resolve, summary, pipe)
+- Created TUI mockups (7 views: comments, expanded, checks, watch, resolve, status, pipe)
 - Created PRD v1.1 with full TUI architecture (Bubble Tea + Lipgloss)
 - Created CLAUDE.md with dual-mode operation, TUI pitfalls
 - Created PROGRESS.md (this file)

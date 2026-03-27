@@ -153,7 +153,7 @@ ghent/
 │   │   ├── checks.go              # gh ghent checks → TUI or pipe
 │   │   ├── resolve.go             # gh ghent resolve → TUI or pipe
 │   │   ├── reply.go               # gh ghent reply → pipe only (agent command)
-│   │   └── summary.go             # gh ghent summary → TUI or pipe
+│   │   └── status.go              # gh ghent status → TUI or pipe
 │   ├── domain/                    # Types + interfaces (no dependencies)
 │   │   ├── types.go               # ReviewThread, CheckRun, Annotation, etc.
 │   │   └── ports.go               # ThreadFetcher, CheckFetcher, ThreadResolver, ThreadReplier, Formatter
@@ -169,7 +169,7 @@ ghent/
 │   │   ├── comments.go            # Comments list + expanded thread view
 │   │   ├── checks.go              # Checks list + annotation display
 │   │   ├── resolve.go             # Multi-select resolve interface
-│   │   ├── summary.go             # Dashboard KPI cards + section summaries
+│   │   ├── status.go              # Dashboard KPI cards + section summaries
 │   │   ├── watcher.go             # Watch mode TUI (spinner, progress, event log)
 │   │   ├── components/            # Reusable TUI components
 │   │   │   ├── statusbar.go       # Top status bar with Lipgloss badges
@@ -239,7 +239,7 @@ tui/app.go (root model)
 ├── ViewChecksList      → tui/checks.go     (bubbles/list, check runs with auto-expanded annotations)
 ├── ViewChecksLog       → tui/checks.go     (bubbles/viewport, full job log for selected check)
 ├── ViewResolve         → tui/resolve.go    (bubbles/list + checkboxes, multi-select resolve)
-├── ViewSummary         → tui/summary.go    (lipgloss layout, KPI cards + section summaries)
+├── ViewStatus          → tui/status.go     (lipgloss layout, KPI cards + section summaries)
 └── ViewWatch           → tui/watcher.go    (spinner + progress bar + event log)
 
 Shared components:
@@ -248,7 +248,7 @@ Shared components:
 └── components/diffhunk.go    (syntax-colored diff hunks)
 
 Tab switching: Tab cycles between comments ↔ checks (top-level views)
-View transitions: Enter (expand/drill into), Esc (back), c/k/r (from summary)
+View transitions: Enter (expand/drill into), Esc (back), c/k/r (from status)
 Pipe mode: Non-TTY outputs via formatter/ (not a view, handled in cli/ layer)
 Reply: No TUI view — pipe-only agent command (cli/reply.go → github/reply.go → formatter/)
 ```
@@ -517,7 +517,7 @@ gh ghent reply --pr 42 --thread PRRT_abc123 --body "Done" --format json
 > **REST reply endpoint:** `docs/github-api-research.md` §8 (Review Comments)
 > **GraphQL viewerCanReply field:** `docs/github-api-research.md` §5 (Key Types)
 
-### 6.6 Summary Command (`gh ghent summary`)
+### 6.6 Status Command (`gh ghent status`)
 
 **Purpose:** Dashboard overview of entire PR state — threads, checks, approvals in one view.
 
@@ -525,7 +525,7 @@ gh ghent reply --pr 42 --thread PRRT_abc123 --body "Done" --format json
 - `--pr <number>` — PR number (required)
 - All persistent flags from root
 
-**TUI mode (TTY):** See `docs/tui-mockups.html` — summary view
+**TUI mode (TTY):** See `docs/tui-mockups.html` — status view
 - KPI cards row: unresolved count, checks passed, checks failed, approvals
 - "NOT READY" / "READY" badge in status bar (merge readiness)
 - Review Threads section: top threads with "... and N more" truncation
@@ -547,7 +547,7 @@ gh ghent reply --pr 42 --thread PRRT_abc123 --body "Done" --format json
 - [ ] FR-SUM-04: Pipe mode includes all sections in one response
 - [ ] FR-SUM-05: Exit code reflects merge readiness
 
-> **TUI mockup:** `docs/tui-mockups.html` — summary tab
+> **TUI mockup:** `docs/tui-mockups.html` — status tab
 
 ### 6.7 Watch Mode (`--watch` flag on `checks`)
 
@@ -682,7 +682,7 @@ Goal: Each command works end-to-end in pipe mode. Every task delivers a fully te
 | 2.3 | `gh ghent checks --logs` — REST job log fetch + integrate into checks output | 2.2 | — |
 | 2.4 | `gh ghent resolve` — GraphQL resolve/unresolve mutations + pipe mode (--thread/--all) | 2.1 | 2.3 |
 | 2.5 | `gh ghent reply` — REST reply to review thread + pipe mode (--thread/--body) | 2.1 | 2.4 |
-| 2.6 | `gh ghent summary` — aggregate comments + checks data + formatters + Cobra wiring | 2.1, 2.2 | — |
+| 2.6 | `gh ghent status` — aggregate comments + checks data + formatters + Cobra wiring | 2.1, 2.2 | — |
 
 **PRD sections needed:** §6.2-6.6 (commands), §6.8 (formats)
 **Verification:** L1 + L3 + L5 per task (run actual binary, verify JSON with jq, check exit codes)
@@ -787,7 +787,7 @@ Goal: All interactive views working per mockups.
 | Q2 | Cache GraphQL responses for watch mode? | Deferred | Skip in v1; add if watch mode is slow |
 | Q3 | Support GHES (GitHub Enterprise Server)? | Deferred | go-gh handles GH_HOST; test when available |
 | Q4 | Mouse support in TUI? | Open | Bubble Tea supports it; nice-to-have |
-| Q5 | Default command (no subcommand → summary)? | Open | Could make `gh ghent` alone show summary |
+| Q5 | Default command (no subcommand → status)? | Open | Could make `gh ghent` alone show status |
 
 ---
 
@@ -796,5 +796,5 @@ Goal: All interactive views working per mockups.
 | Date | Version | Change |
 |------|---------|--------|
 | 2026-02-22 | 1.2 | Added `gh ghent reply` command (§6.5), renumbered §6.6-6.8, added Phase 2 task 2.5 |
-| 2026-02-22 | 1.1 | Added Bubble Tea TUI, summary command, updated phases and architecture |
+| 2026-02-22 | 1.1 | Added Bubble Tea TUI, status command (formerly summary), updated phases and architecture |
 | 2026-02-22 | 1.0 | Initial PRD (incorrectly omitted TUI — corrected in v1.1) |

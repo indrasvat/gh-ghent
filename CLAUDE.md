@@ -47,7 +47,7 @@ so `gh ghent` works immediately. The symlink means every `make build` updates wh
 ```
 cmd/ghent/main.go            → cli.Execute()
 internal/
-├── cli/                     # Cobra commands (root, comments, checks, resolve, reply, summary)
+├── cli/                     # Cobra commands (root, comments, checks, resolve, reply, status)
 ├── domain/                  # Types + interfaces (ReviewThread, CheckRun, ports)
 ├── github/                  # GitHub API adapter (GraphQL + REST via go-gh)
 ├── tui/                     # Bubble Tea interactive TUI
@@ -55,7 +55,7 @@ internal/
 │   ├── comments.go          # Comments list + expanded thread
 │   ├── checks.go            # Checks list + log viewer
 │   ├── resolve.go           # Multi-select resolve
-│   ├── summary.go           # Dashboard KPI + sections
+│   ├── status.go            # Dashboard KPI + sections
 │   ├── watcher.go           # Watch mode (spinner, progress, event log)
 │   ├── components/          # statusbar, helpbar, diffhunk
 │   └── styles/              # Tokyo Night theme, Lipgloss definitions
@@ -152,7 +152,7 @@ Run `make install` first to register with gh, then test against these repos:
 |------|-----|---------|--------|---------|
 | `indrasvat/tbgs` | #1 | 2 unresolved (`PRRT_kwDOQQ76Ts5iIWqn`, `PRRT_kwDOQQ76Ts5iIWqx`) | pass (3) | comments, resolve, reply |
 | `indrasvat/peek-it` | #2 | 1 unresolved | failure (2) | checks with annotations |
-| `indrasvat/doot` | #1 | 1 resolved | pass (1) | checks pass, summary merge-ready |
+| `indrasvat/doot` | #1 | 1 resolved | pass (1) | checks pass, status merge-ready |
 | `indrasvat/visarga` | #1 | 0 | failure (1 fail, 3 skip) | checks failure |
 | `indrasvat/querylastic` | #1 | 0 | failure (2) | checks with annotations |
 | `indrasvat/context-lens` | #1 | 0 | failure (2 fail, 4 pass) | checks mixed |

@@ -85,19 +85,19 @@ Lint: skipped
 Format: failure
 ```
 
-## Step 6: Use summary --watch for Full Report After CI
+## Step 6: Use status --watch for Full Report After CI
 
-Wait for CI to complete and get a full summary with failure diagnostics in one call:
+Wait for CI to complete and get a full status report with failure diagnostics in one call:
 
 ```bash
-# Watch status goes to stderr, final summary to stdout
-gh ghent summary -R owner/repo --pr 42 --watch --logs --format json --no-tui 2>/dev/null | jq
+# Watch progress goes to stderr, final status output to stdout
+gh ghent status -R owner/repo --pr 42 --watch --logs --format json --no-tui 2>/dev/null | jq
 ```
 
 This is the recommended approach: it waits for CI, then fetches threads + reviews + checks
 with log excerpts in a single output. Parse failures:
 ```bash
-gh ghent summary --pr 42 --watch --logs --format json --no-tui 2>/dev/null | \
+gh ghent status --pr 42 --watch --logs --format json --no-tui 2>/dev/null | \
   jq '.checks.checks[] | select(.log_excerpt) | {name, conclusion, log_excerpt, annotations}'
 ```
 
@@ -125,7 +125,7 @@ git add -A && git commit -m "fix: resolve CI failures" && git push
 sleep 10
 
 # Watch and get full report with failure diagnostics
-gh ghent summary --pr 42 --watch --logs --format json --no-tui 2>/dev/null | \
+gh ghent status --pr 42 --watch --logs --format json --no-tui 2>/dev/null | \
   jq '{merge_ready: .is_merge_ready, checks: .check_status, failures: [.checks.checks[] | select(.log_excerpt) | .name]}'
 ```
 

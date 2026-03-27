@@ -1,4 +1,4 @@
-# Task 6.3: Summary Mode Enhancements
+# Task 6.3: Status Mode Enhancements
 
 ## Status: DONE
 
@@ -12,16 +12,16 @@
 
 ## Problem
 
-The summary command can be enhanced with a one-line-per-thread digest mode for quick agent scanning, compact output mode, and additional metadata (PR age, review cycle count, time since last update).
+The `status` command can be enhanced with a one-line-per-thread digest mode for quick agent scanning, compact output mode, and additional metadata (PR age, review cycle count, time since last update).
 
 ## PRD Reference
 
-- §8 Phase 6 — Task 6.3: Summary mode enhancements
-- Original feature guide: `~/.agent/diagrams/ghent-research-report.html` §7 Feature #1 (expanded summary)
+- §8 Phase 6 — Task 6.3: Status mode enhancements
+- Original feature guide: `~/.agent/diagrams/ghent-research-report.html` §7 Feature #1 (expanded status)
 
 ## Files to Modify
 
-- `internal/cli/summary.go` — Add `--compact` flag
+- `internal/cli/status.go` — Add `--compact` flag
 - `internal/formatter/json.go` — Compact summary format
 - `internal/formatter/xml.go` — Compact summary format
 - `internal/formatter/markdown.go` — One-line-per-thread digest
@@ -51,7 +51,7 @@ The summary command can be enhanced with a one-line-per-thread digest mode for q
 ### L1 + L3
 ```bash
 make test && make build
-./bin/gh-ghent summary --pr 1 --compact --format json | jq '. | length'
+./bin/gh-ghent status --pr 1 --compact --format json | jq '. | length'
 ```
 
 ## Completion Criteria
@@ -64,7 +64,7 @@ make test && make build
 ## Commit
 
 ```
-feat(summary): add --compact mode and additional PR metadata
+feat(status): add --compact mode and additional PR metadata
 
 - One-line-per-thread compact digest mode
 - PR age, review cycle count, time since last update

@@ -1,4 +1,4 @@
-# Task 032: Summary Pane Overflow, Slow Startup & Esc Navigation
+# Task 032: Status Pane Overflow, Slow Startup & Esc Navigation
 
 - **Phase:** 9 (Bug Fixes)
 - **Status:** DONE
@@ -10,11 +10,11 @@
 
 Three related TUI issues discovered when testing against large, active PRs:
 
-### P1: Summary Pane Overflow (Critical)
+### P1: Status Pane Overflow (Critical)
 
-**Repro:** `gh ghent summary -R oven-sh/bun --pr 24063`
+**Repro:** `gh ghent status -R oven-sh/bun --pr 24063`
 
-The Approvals section in the summary dashboard renders ALL reviews with no limit.
+The Approvals section in the status dashboard renders ALL reviews with no limit.
 For a PR with 61 reviews, this generates 61+ lines that push the KPI cards, Review
 Threads section, and CI Checks section completely off-screen — only the Approvals
 list is visible (see screenshot).
@@ -27,15 +27,15 @@ but never truncates or enables scrolling.
 **Fix:** Two-part solution:
 1. Cap displayed reviews in `renderApprovalsSection()` to a reasonable max (e.g., 5),
    with a `... and N more` overflow indicator (consistent with threads section pattern).
-2. Add viewport-based scrolling to the summary view so users can scroll through content
+2. Add viewport-based scrolling to the status view so users can scroll through content
    that exceeds `m.height`. Use `bubbles/viewport` or manual line-based scrolling.
 
 ### P2: Slow TUI Startup (Major)
 
-**Repro:** `gh ghent summary -R oven-sh/bun --pr 24063` — takes ~3-5 seconds before TUI appears.
+**Repro:** `gh ghent status -R oven-sh/bun --pr 24063` — takes ~3-5 seconds before TUI appears.
 
-The summary command fetches threads, checks, and reviews in parallel via `errgroup`,
-but ALL three must complete before the TUI launches (cli/summary.go:57-96). For repos
+The `status` command fetches threads, checks, and reviews in parallel via `errgroup`,
+but ALL three must complete before the TUI launches (cli/status.go:57-96). For repos
 with massive activity, the user stares at a blank terminal.
 
 **Root cause:** `launchTUI()` is called after `g.Wait()` — the TUI is never rendered
@@ -50,7 +50,7 @@ incrementally as each fetch completes via `tea.Cmd` messages. Pattern:
 
 ### P3: Esc Key Doesn't Navigate Back (Minor)
 
-**Repro:** Launch `gh ghent summary -R oven-sh/bun --pr 27269`, press `c` to jump
+**Repro:** Launch `gh ghent status -R oven-sh/bun --pr 27269`, press `c` to jump
 to comments view, then press `Esc` — nothing happens. Must press `q` to quit entirely.
 
 **Root cause:** In `handleKey()` (app.go:206-221), pressing Esc from `ViewCommentsList`
@@ -59,10 +59,10 @@ or `ViewChecksList` falls through silently:
 - `ViewResolve || ViewSummary` check → false for list views → skipped
 - Falls to final `return a, nil` — Esc is swallowed
 
-The `prevView` field IS correctly set when navigating from summary (lines 227-238),
+The `prevView` field IS correctly set when navigating from status (lines 227-238),
 but the Esc handler doesn't check it for list views.
 
-**Fix:** After the detail/resolve/summary checks, add a fallback: if `a.prevView`
+**Fix:** After the detail/resolve/status checks, add a fallback: if `a.prevView`
 is set and different from `a.activeView`, navigate back to `a.prevView`:
 
 ```go
@@ -73,7 +73,7 @@ if a.prevView != a.activeView {
 }
 ```
 
-Also need to ensure `prevView` is set when navigating from summary to comments/checks
+Also need to ensure `prevView` is set when navigating from status to comments/checks
 via the `c`/`k` shortcuts — this is already done in lines 227-238. But we also need
 to set `prevView` when entering checks/comments from the checks/resolve views so the
 back chain works consistently.
@@ -84,13 +84,13 @@ back chain works consistently.
 
 **Files:** `internal/tui/app.go`
 
-1. In `handleKey()`, after the existing Esc checks for detail/resolve/summary views,
+1. In `handleKey()`, after the existing Esc checks for detail/resolve/status views,
    add a general fallback that returns to `prevView` when it differs from `activeView`.
 2. Ensure `prevView` is initialized properly (default `ViewSummary` when starting from
-   summary, or `ViewCommentsList` when starting from comments).
+   status, or `ViewCommentsList` when starting from comments).
 3. Update `cycleView()` to also set `prevView` for Tab/Shift+Tab cycling.
 
-### Step 2: Fix summary approvals overflow (P1) — Medium complexity
+### Step 2: Fix status approvals overflow (P1) — Medium complexity
 
 **Files:** `internal/tui/summary.go`
 
@@ -101,12 +101,12 @@ back chain works consistently.
    - Track `scrollOffset int` field.
    - In `View()`, after building full content, slice to visible lines based on
      `scrollOffset` and `m.height`.
-   - Handle `j`/`k` keys for scrolling in summary view (forward from app.go).
+   - Handle `j`/`k` keys for scrolling in status view (forward from app.go).
    - Show scroll indicator (e.g., `↓ more` / `↑ more`) when content overflows.
 
 ### Step 3: Fix slow startup (P2) — Highest complexity
 
-**Files:** `internal/cli/summary.go`, `internal/tui/app.go`, `internal/tui/summary.go`
+**Files:** `internal/cli/status.go`, `internal/tui/app.go`, `internal/tui/summary.go`
 
 1. Define new message types in tui package:
    ```go
@@ -116,14 +116,14 @@ back chain works consistently.
    ```
 2. Add `Init()` support to App that fires fetch commands.
 3. Modify `launchTUI()` to accept fetch functions instead of pre-fetched data.
-4. Modify `summary.go` CLI to launch TUI immediately, passing fetch funcs.
-5. Show loading spinner/text in summary view while data loads:
+4. Modify `status.go` CLI to launch TUI immediately, passing fetch funcs.
+5. Show loading spinner/text in status view while data loads:
    - "Loading review threads..."
    - "Loading CI checks..."
    - "Loading reviews..."
 6. Progressive rendering: show sections as their data arrives.
 
-### Step 4: Update help bar for summary scrolling
+### Step 4: Update help bar for status scrolling
 
 **Files:** `internal/tui/components/helpbar.go`
 
@@ -136,11 +136,11 @@ back chain works consistently.
 
 **File:** `internal/tui/app_test.go`
 
-1. **Esc navigation from comments→summary:**
+1. **Esc navigation from comments→status:**
    - Create App with `ViewSummary`, simulate `c` key → verify `ViewCommentsList`.
    - Simulate `Esc` → verify returns to `ViewSummary`.
 
-2. **Esc navigation from checks→summary:**
+2. **Esc navigation from checks→status:**
    - Create App with `ViewSummary`, simulate `k` key → verify `ViewChecksList`.
    - Simulate `Esc` → verify returns to `ViewSummary`.
 
@@ -213,7 +213,7 @@ dimensions. These PRs were selected specifically to surface edge cases.
   17 still-unresolved threads even after merge — a common real-world pattern.
 
 - **#27019** (MERGED, SHA-512 integrity): Merged despite `CHANGES_REQUESTED` review decision and
-  3 unresolved threads. Tests edge case for summary's `is_merge_ready` logic.
+  3 unresolved threads. Tests edge case for status's `is_merge_ready` logic.
 
 #### Important: Buildkite CI Discovery
 
@@ -230,28 +230,28 @@ status fetching as a follow-up task, or at minimum note this gap in the checks v
 ### L3 Manual Test Commands
 
 ```bash
-# ── P1: Summary overflow ──────────────────────────────────────────
+# ── P1: Status overflow ───────────────────────────────────────────
 
 # Original repro — 61 reviews overflow
-gh ghent summary -R oven-sh/bun --pr 24063
+gh ghent status -R oven-sh/bun --pr 24063
 
 # Extreme: 25 reviews + 77 threads + 59 checks
-gh ghent summary -R oven-sh/bun --pr 27327
+gh ghent status -R oven-sh/bun --pr 27327
 
 # Small PR — regression (should look clean)
-gh ghent summary -R oven-sh/bun --pr 27269
+gh ghent status -R oven-sh/bun --pr 27269
 
 # ── P2: Startup speed ────────────────────────────────────────────
 
 # Time TUI appearance — should be <1s
-time gh ghent summary -R oven-sh/bun --pr 24063
-time gh ghent summary -R oven-sh/bun --pr 27327
+time gh ghent status -R oven-sh/bun --pr 24063
+time gh ghent status -R oven-sh/bun --pr 27327
 
 # ── P3: Esc navigation ───────────────────────────────────────────
 
-# summary → c → esc → should be back at summary
-# summary → k → esc → should be back at summary
-gh ghent summary -R oven-sh/bun --pr 27269
+# status → c → esc → should be back at status
+# status → k → esc → should be back at status
+gh ghent status -R oven-sh/bun --pr 27269
 
 # ── Comments view stress tests ────────────────────────────────────
 
@@ -291,11 +291,11 @@ gh ghent checks -R indrasvat/peek-it --pr 2 --format json | jq '.overall_status'
 
 All tests use `iterm2-driver` skill for automated screenshot verification.
 
-#### Test 1: Summary overflow — extreme PR (68 threads, 25 reviews)
+#### Test 1: Status overflow — extreme PR (68 threads, 25 reviews)
 
 ```python
 """
-Test: Summary pane shows KPI cards and capped reviews for extreme PR.
+Test: Status pane shows KPI cards and capped reviews for extreme PR.
 Repo: oven-sh/bun PR #27327 (68 unresolved threads, 25 reviews, 59 checks)
 Verify:
   - KPI cards row visible at top (UNRESOLVED, PASSED, FAILED, APPROVALS)
@@ -305,12 +305,12 @@ Verify:
   - Status bar shows "NOT READY" badge
   - No content pushed off-screen
 """
-# Launch: gh ghent summary -R oven-sh/bun --pr 27327
+# Launch: gh ghent status -R oven-sh/bun --pr 27327
 # Wait for TUI to render
 # Screenshot and verify all 4 sections visible within viewport
 ```
 
-#### Test 2: Summary overflow — original repro (61 reviews)
+#### Test 2: Status overflow — original repro (61 reviews)
 
 ```python
 """
@@ -321,38 +321,38 @@ Verify:
   - Approvals section capped (not 61 raw lines)
   - "... and 56 more" (or similar) overflow text present
 """
-# Launch: gh ghent summary -R oven-sh/bun --pr 24063
+# Launch: gh ghent status -R oven-sh/bun --pr 24063
 # Wait for TUI to render
 # Screenshot and verify KPI row is visible
 ```
 
-#### Test 3: Summary — small PR (regression)
+#### Test 3: Status — small PR (regression)
 
 ```python
 """
-Test: Summary pane renders correctly for PR with few/no reviews.
+Test: Status pane renders correctly for PR with few/no reviews.
 Repo: oven-sh/bun PR #27269 (0 reviews, 5 checks)
 Verify:
   - KPI cards: 0 UNRESOLVED, 5 PASSED, 0 FAILED, 0 APPROVALS
   - Approvals section: "No reviews yet"
   - Plenty of empty space (no overflow)
 """
-# Launch: gh ghent summary -R oven-sh/bun --pr 27269
+# Launch: gh ghent status -R oven-sh/bun --pr 27269
 # Screenshot and verify layout matches expected
 ```
 
-#### Test 4: Summary scrolling (j/k navigation)
+#### Test 4: Status scrolling (j/k navigation)
 
 ```python
 """
-Test: Summary view scrolls with j/k when content exceeds viewport.
+Test: Status view scrolls with j/k when content exceeds viewport.
 Repo: oven-sh/bun PR #27327 (large content)
 Verify:
   - Press j multiple times → content scrolls down
   - Press k → content scrolls back up
   - Scroll indicators visible when content overflows
 """
-# Launch: gh ghent summary -R oven-sh/bun --pr 27327
+# Launch: gh ghent status -R oven-sh/bun --pr 27327
 # Wait for render
 # Send 'j' key 5 times
 # Screenshot — verify content has scrolled
@@ -360,27 +360,27 @@ Verify:
 # Screenshot — verify back at top
 ```
 
-#### Test 5: Esc navigation from summary sub-views
+#### Test 5: Esc navigation from status sub-views
 
 ```python
 """
-Test: Esc returns to summary when navigating via c/k shortcuts.
+Test: Esc returns to status when navigating via c/k shortcuts.
 Verify:
-  - Start at summary → press 'c' → comments list shown
-  - Press Esc → back to summary (KPI cards visible)
+  - Start at status → press 'c' → comments list shown
+  - Press Esc → back to status (KPI cards visible)
   - Press 'k' → checks list shown
-  - Press Esc → back to summary
+  - Press Esc → back to status
 """
-# Launch: gh ghent summary -R oven-sh/bun --pr 27269
-# Screenshot 1: summary view
+# Launch: gh ghent status -R oven-sh/bun --pr 27269
+# Screenshot 1: status view
 # Send 'c' key
 # Screenshot 2: comments view (verify status bar says "comments")
 # Send Esc key
-# Screenshot 3: summary view (verify KPI cards visible)
+# Screenshot 3: status view (verify KPI cards visible)
 # Send 'k' key
 # Screenshot 4: checks view
 # Send Esc key
-# Screenshot 5: summary view again
+# Screenshot 5: status view again
 ```
 
 #### Test 6: Startup speed — loading state visible
@@ -394,10 +394,10 @@ Verify:
   - Loading text/spinner visible while data fetches
   - Sections populate progressively as data arrives
 """
-# Launch: gh ghent summary -R oven-sh/bun --pr 27327
+# Launch: gh ghent status -R oven-sh/bun --pr 27327
 # Screenshot immediately after launch (~0.5s) — verify loading state
 # Wait 5s for data to load
-# Screenshot — verify fully populated summary
+# Screenshot — verify fully populated status
 ```
 
 #### Test 7: Comments list — 68 unresolved threads
@@ -506,7 +506,7 @@ Verify:
   - Threads section shows 3 unresolved
   - Approvals section shows CHANGES_REQUESTED review
 """
-# Launch: gh ghent summary -R oven-sh/bun --pr 27019
+# Launch: gh ghent status -R oven-sh/bun --pr 27019
 # Screenshot — verify CHANGES_REQUESTED visible in approvals section
 ```
 
@@ -516,7 +516,7 @@ Verify:
 """
 Test: Existing test matrix repos still render correctly.
 Repos: indrasvat/tbgs#1, indrasvat/doot#1, indrasvat/peek-it#2
-Verify: each summary view shows correct KPI counts and sections.
+Verify: each status view shows correct KPI counts and sections.
 """
 # Launch each and screenshot for visual regression
 ```
@@ -532,21 +532,21 @@ implementation and **after** each major fix to track regression/improvement.
 # ── BEFORE: Run once and save output ──────────────────────────────
 hyperfine --warmup 1 --runs 3 -i \
   -n 'PR #24063 (101 threads, 61 reviews)' \
-    'gh ghent summary -R oven-sh/bun --pr 24063 --no-tui --format json 2>/dev/null > /dev/null' \
+    'gh ghent status -R oven-sh/bun --pr 24063 --no-tui --format json 2>/dev/null > /dev/null' \
   -n 'PR #27327 (68 threads, 25 reviews)' \
-    'gh ghent summary -R oven-sh/bun --pr 27327 --no-tui --format json 2>/dev/null > /dev/null' \
+    'gh ghent status -R oven-sh/bun --pr 27327 --no-tui --format json 2>/dev/null > /dev/null' \
   -n 'PR #27269 (0 threads, 0 reviews)' \
-    'gh ghent summary -R oven-sh/bun --pr 27269 --no-tui --format json 2>/dev/null > /dev/null' \
+    'gh ghent status -R oven-sh/bun --pr 27269 --no-tui --format json 2>/dev/null > /dev/null' \
   --export-markdown /tmp/ghent-before-perf.md
 
 # ── AFTER: Run same commands, export to different file ────────────
 hyperfine --warmup 1 --runs 3 -i \
   -n 'PR #24063 (101 threads, 61 reviews)' \
-    'gh ghent summary -R oven-sh/bun --pr 24063 --no-tui --format json 2>/dev/null > /dev/null' \
+    'gh ghent status -R oven-sh/bun --pr 24063 --no-tui --format json 2>/dev/null > /dev/null' \
   -n 'PR #27327 (68 threads, 25 reviews)' \
-    'gh ghent summary -R oven-sh/bun --pr 27327 --no-tui --format json 2>/dev/null > /dev/null' \
+    'gh ghent status -R oven-sh/bun --pr 27327 --no-tui --format json 2>/dev/null > /dev/null' \
   -n 'PR #27269 (0 threads, 0 reviews)' \
-    'gh ghent summary -R oven-sh/bun --pr 27269 --no-tui --format json 2>/dev/null > /dev/null' \
+    'gh ghent status -R oven-sh/bun --pr 27269 --no-tui --format json 2>/dev/null > /dev/null' \
   --export-markdown /tmp/ghent-after-perf.md
 ```
 
@@ -596,17 +596,17 @@ missing 56-61 Buildkite statuses. This should be tracked as a follow-up:
 
 ## Acceptance Criteria
 
-- [x] KPI cards always visible at top of summary for any PR size
+- [x] KPI cards always visible at top of status for any PR size
 - [x] Approvals section capped with overflow indicator
 - [x] Summary view scrollable with j/↓/↑ when content exceeds viewport
 - [x] TUI appears within ~1s for any PR (loading state shown)
 - [x] Data populates progressively as API calls complete
-- [x] Esc returns to summary from comments/checks views
+- [x] Esc returns to status from comments/checks views
 - [x] Esc is no-op at top-level (when no prevView set)
 - [ ] Comments list handles 68+ threads without garbling
 - [ ] Checks list handles 60+ checks without overflow
 - [ ] Resolve view handles 68+ threads with smooth multi-select
 - [x] All L3 test matrix repos pass (indrasvat/* repos: tbgs, doot, peek-it)
-- [ ] All 13 L4 iterm2-driver tests pass (9/13 done — existing summary tests pass)
+- [ ] All 13 L4 iterm2-driver tests pass (9/13 done — existing status tests pass)
 - [x] `make test` passes with new unit tests (516 tests, 0 failures)
 - [x] `make lint` passes

@@ -34,17 +34,18 @@ Get PR number: `gh pr view --json number -q .number`
 
 ```bash
 PR=$(gh pr view --json number -q .number)
-gh ghent summary --pr $PR --await-review --solo --logs --format json --no-tui
+gh ghent status --pr $PR --await-review --solo --logs --format json --no-tui
 ```
 
 Waits for CI, then waits for bot reviewers to settle (5m timeout, exits early after 30s silence).
 Returns everything: threads with `is_bot`, checks with log excerpts, reviews, `is_merge_ready`.
 
 **Drop `--solo`** for org repos with required review policies.
-**Drop `--await-review`** if you know no bot reviewers are configured (saves 30s).
+`--await-review` is the default — it only costs 30s of silence detection even without bot reviewers.
+**Drop `--await-review`** only in mid-development re-checks where you just want CI status.
 **Drop `--logs`** on re-checks after fixing threads (only needed for CI failures).
 
-## Response Shape (summary)
+## Response Shape (status)
 
 ```json
 {
@@ -66,7 +67,7 @@ Returns everything: threads with `is_bot`, checks with log excerpts, reviews, `i
 
 ## Decision Order
 
-Act on the **first matching** condition — fix it, then re-run summary:
+Act on the **first matching** condition — fix it, then re-run status:
 
 1. **Exit code 2** → auth / rate limit / not-found error. Fix credentials.
 2. **`checks.overall_status == "failure"`** → Fix CI. Log excerpts and annotations are inline.
@@ -77,12 +78,12 @@ Act on the **first matching** condition — fix it, then re-run summary:
 
 ## Bot Sweep (when `unanswered_count > 0`)
 
-The summary already contains the full threads — no second call needed.
+The status already contains the full threads — no second call needed.
 
 1. Read threads from `comments.threads[]` where `comments[0].is_bot == true`
 2. Fix code → push
 3. Per thread: `gh ghent reply --pr <N> --thread PRRT_... --body "Fixed" --resolve`
-4. Re-check: `gh ghent summary --pr <N> --await-review --solo --format json --no-tui`
+4. Re-check: `gh ghent status --pr <N> --await-review --solo --format json --no-tui`
 5. Repeat until `is_merge_ready == true`
 
 ## Solo Mode
@@ -95,7 +96,7 @@ on a personal repo, retry with `--solo`.
 
 | Command | Purpose | Key Flags |
 |---------|---------|-----------|
-| `summary` | Full PR status + merge readiness | `--logs`, `--watch`, `--await-review`, `--quiet`, `--compact`, `--solo` |
+| `status` | Full PR status + merge readiness | `--logs`, `--watch`, `--await-review`, `--quiet`, `--compact`, `--solo` |
 | `comments` | Unresolved review threads | `--bots-only`, `--humans-only`, `--unanswered`, `--group-by` |
 | `checks` | CI status + annotations | `--logs`, `--watch` |
 | `resolve` | Resolve/unresolve threads | `--thread`, `--all`, `--file`, `--author`, `--unresolve`, `--dry-run` |
@@ -105,7 +106,7 @@ on a personal repo, retry with `--solo`.
 
 | Command | 0 | 1 | 2 | 3 | 4 |
 |---------|---|---|---|---|---|
-| `summary` | merge-ready | not ready | error | — | — |
+| `status` | merge-ready | not ready | error | — | — |
 | `comments` | no unresolved | has unresolved | error | — | — |
 | `checks` | all pass | failure | error | pending | — |
 | `resolve` | all success | partial failure | total failure | — | — |
@@ -117,7 +118,7 @@ Exit 2 = auth failure, rate limit, or resource not found.
 
 ```bash
 # Merge-readiness gate (silent exit 0 if ready, exit 1 + full output if not)
-gh ghent summary --pr <N> --quiet --solo
+gh ghent status --pr <N> --quiet --solo
 
 # Drill-down: bot threads only
 gh ghent comments --pr <N> --bots-only --unanswered --format json --no-tui
@@ -125,8 +126,8 @@ gh ghent comments --pr <N> --bots-only --unanswered --format json --no-tui
 # Group by file for batch fixing
 gh ghent comments --pr <N> --group-by file --format json --no-tui
 
-# Compact summary (minimal tokens for polling loops)
-gh ghent summary --pr <N> --compact --format json --no-tui
+# Compact status (minimal tokens for polling loops)
+gh ghent status --pr <N> --compact --format json --no-tui
 ```
 
 ## References

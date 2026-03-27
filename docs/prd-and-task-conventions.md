@@ -134,7 +134,7 @@ make test-all           # All levels
 ```
 cmd/ghent/main.go            → cli.Execute()
 internal/
-├── cli/                     # Cobra commands (root, comments, checks, resolve, summary)
+├── cli/                     # Cobra commands (root, comments, checks, resolve, status)
 ├── domain/                  # Types + interfaces (ReviewThread, CheckRun, ports)
 ├── github/                  # GitHub API adapter (GraphQL + REST via go-gh)
 ├── tui/                     # Bubble Tea interactive TUI
@@ -142,7 +142,7 @@ internal/
 │   ├── comments.go          # Comments list + expanded thread
 │   ├── checks.go            # Checks list + log viewer
 │   ├── resolve.go           # Multi-select resolve
-│   ├── summary.go           # Dashboard KPI + sections
+│   ├── status.go            # Dashboard KPI + sections
 │   ├── watcher.go           # Watch mode (spinner, progress, event log)
 │   ├── components/          # statusbar, helpbar, diffhunk
 │   └── styles/              # Tokyo Night theme, Lipgloss definitions
@@ -351,7 +351,7 @@ The PRD should be structured so agents **never need to read the whole thing**. E
 ### 6.4 `gh ghent resolve`
 ...
 
-### 6.5 `gh ghent summary`
+### 6.5 `gh ghent status`
 ...
 
 ### 6.6 Watch Mode
@@ -380,7 +380,7 @@ The PRD should be structured so agents **never need to read the whole thing**. E
 | 2.2: `gh ghent checks` | Phase 1 | 2.1 |
 | 2.3: `gh ghent checks --logs` | 2.2 | — |
 | 2.4: `gh ghent resolve` | 2.1 | 2.3 |
-| 2.5: `gh ghent summary` | 2.1, 2.2 | — |
+| 2.5: `gh ghent status` | 2.1, 2.2 | — |
 
 ### Phase 3: CLI Polish
 | Task | Depends On | Parallel With |
@@ -647,7 +647,7 @@ PROGRESS.md serves two purposes:
 - [ ] Task 2.2: `gh ghent checks`
 - [ ] Task 2.3: `gh ghent checks --logs`
 - [ ] Task 2.4: `gh ghent resolve`
-- [ ] Task 2.5: `gh ghent summary`
+- [ ] Task 2.5: `gh ghent status`
 
 ### Phase 3: CLI Polish
 - [ ] Task 3.1: Watch mode (pipe)
