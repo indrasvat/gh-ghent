@@ -542,7 +542,7 @@
     <div class="tab" onclick="showView('checks')">checks</div>
     <div class="tab" onclick="showView('checks-watch')">checks --watch</div>
     <div class="tab" onclick="showView('resolve')">resolve</div>
-    <div class="tab" onclick="showView('summary')">status</div>
+    <div class="tab" onclick="showView('status')">status</div>
     <div class="tab" onclick="showView('pipe')">pipe mode</div>
   </div>
 
@@ -1107,7 +1107,7 @@
   </div>
 
   <!-- ============ VIEW 6: SUMMARY ============ -->
-  <div id="view-summary" class="term-window">
+  <div id="view-status" class="term-window">
     <div class="term-titlebar">
       <div class="term-dot term-dot--red"></div>
       <div class="term-dot term-dot--yellow"></div>
@@ -1234,7 +1234,7 @@
     </div>
   </div>
 
-  <div class="mockup-note" id="note-summary" style="display:none;">
+  <div class="mockup-note" id="note-status" style="display:none;">
     <strong>Summary View.</strong> A dashboard overview of the entire PR state.
     Uses Lipgloss <code>JoinVertical</code> to stack sections and <code>JoinHorizontal</code> for the KPI cards row.
     Each section is a Lipgloss bordered box with a title bar.
@@ -1375,7 +1375,7 @@
       'checks': 2,
       'checks-watch': 3,
       'resolve': 4,
-      'summary': 5,
+      'status': 5,
       'pipe': 6
     };
     if (nameMap[name] !== undefined) {

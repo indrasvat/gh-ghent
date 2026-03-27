@@ -58,7 +58,7 @@ The keys were added to the help bar during TUI design (matching the mockup in
 - `checksListModel.Update()` (checks.go:93-119) handles j/k/enter/l/o but NOT `R`
 
 **Status (`o`, `R`):**
-- `SummaryKeys()` (helpbar.go:129-137) advertises both
+- `StatusKeys()` (helpbar.go:129-137) advertises both
 - `app.handleKey()` (app.go:334-358) handles c/k/r/j/down/up for status but NOT `o`/`R`
 
 ## Implementation Plan
@@ -153,7 +153,7 @@ Two possible approaches:
 **Files:** `internal/tui/app.go`
 
 1. Construct PR URL from repo + PR number: `https://github.com/{repo}/pull/{pr}`
-2. In `app.handleKey()`, for `ViewSummary`, handle `o`:
+2. In `app.handleKey()`, for `ViewStatus`, handle `o`:
    - Call `openInBrowser(prURL)` with constructed URL
 
 ### Step 7: Implement `R` (re-run failed) — Checks List + Status
@@ -186,7 +186,7 @@ Consider implementing `R` as Task 034 if scope becomes too large.
 2. **Comments List `f` → filter toggle:** Press `f` → verify items filtered to single file
 3. **Comments List `y` → clipboard cmd:** Press `y` → verify returned command is clipboard copy
 4. **Comments Expanded `o` → browser cmd:** Press `o` → verify returned command opens URL
-5. **Status `o` → browser cmd:** Press `o` in ViewSummary → verify opens PR URL
+5. **Status `o` → browser cmd:** Press `o` in ViewStatus → verify opens PR URL
 6. **Comments `r` expanded → resolve cmd:** Press `r` in expanded → verify resolve triggered
 
 **File:** `internal/tui/comments_test.go` (new tests)

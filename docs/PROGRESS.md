@@ -173,7 +173,7 @@
 
 ### 2026-02-23 (Task 5.5 — TUI Views: Status Dashboard)
 - **Task 5.5 (Status dashboard):** Created `internal/tui/summary.go` — `summaryModel` with KPI cards row (4 cards: Unresolved, Passed, Failed, Approvals using `lipgloss.JoinHorizontal` and rounded borders), three section previews (Review Threads with top-3 truncation, CI Checks with failed check annotations and pass count, Approvals with reviewer icons and states), merge readiness badge (READY/NOT READY in status bar). Color-coded dots per section (green=clear, red=issues, yellow=pending). Reuses package-scoped helpers: `padWithRight`, `formatTimeAgo`, `checkIsFailed`, `dimStyle`/`greenStyle`/`redStyle`.
-- Wired to `app.go`: status sub-model, WindowSizeMsg propagation, `SetComments`/`SetChecks`/`SetReviews` set data, status bar shows merge readiness badge, `ViewSummary` renders status view. Quick-nav c/k/r already handled in app.go.
+- Wired to `app.go`: status sub-model, WindowSizeMsg propagation, `SetComments`/`SetChecks`/`SetReviews` set data, status bar shows merge readiness badge, `ViewStatus` renders status view. Quick-nav c/k/r already handled in app.go.
 - 16 unit tests in summary_test.go (empty view, KPI cards, merge readiness 6 cases, badge, threads section, truncation, checks section, approvals section, review icons, card colors, check names, app integration, ready integration, quick-nav, zero width).
 - L4: 9/9 PASS (test_ghent_summary.py against tbgs NOT READY, doot READY-ish, peek-it NOT READY)
 - Verification: 405 tests pass, lint clean, vet clean (`make ci-fast` ✓)
