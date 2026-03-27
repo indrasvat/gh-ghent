@@ -83,99 +83,52 @@ fi
 - `--solo` still blocks on `CHANGES_REQUESTED` — it only relaxes the "needs approval" requirement
 - Prefer `GH_GHENT_SOLO=1` env var for persistent config (set in shell profile)
 
-## Bot Sweep — Triage Bot Reviewer Findings
+## Start Here: One Command, Then Branch
 
-When bot reviewers (Codex, CodeRabbit, Copilot, Cursor Bugbot) post findings on a PR,
-use the bot sweep workflow to triage everything in a tight loop:
+Every agent workflow starts with one call. The response tells you what to do next.
 
 ```bash
-# 1. Wait for CI + bot reviews to settle
-gh ghent summary --pr 42 --await-review --solo --format json --no-tui
+gh ghent summary --pr 42 --await-review --solo --logs --format json --no-tui
+```
 
-# 2. Fetch only unanswered bot findings
+This blocks until CI passes and bot reviewers settle, then returns everything:
+threads (with `is_bot` per comment), checks (with log excerpts), reviews, and `is_merge_ready`.
+
+**Decision tree from the summary response:**
+
+| Condition | Action |
+|---|---|
+| `is_merge_ready == true` | Merge the PR |
+| `checks.overall_status == "failure"` | Fix CI — log excerpts and annotations are inline |
+| `comments.unanswered_count > 0` | Bot sweep — threads are inline, fix and `reply --resolve` each |
+| `comments.unresolved_count > 0` | Resolve remaining threads — `resolve --all` or per-thread |
+
+**Bot sweep loop** (when `unanswered_count > 0`):
+1. Read bot threads from `comments.threads[]` where `comments[0].is_bot == true`
+2. Fix code → push
+3. `gh ghent reply --pr 42 --thread PRRT_... --body "Fixed" --resolve` per thread
+4. `gh ghent summary --pr 42 --await-review --solo --format json --no-tui` (bots may re-trigger)
+5. Repeat until `is_merge_ready == true`
+
+No second `comments` call needed — the summary has the full threads. Use `comments --bots-only --unanswered`
+only when you want a filtered drill-down view.
+
+## Other Common Calls
+
+```bash
+# Merge-readiness gate (silent exit 0 if ready, full output + exit 1 if not)
+gh ghent summary --pr 42 --quiet --solo
+
+# CI only (no review wait)
+gh ghent summary --pr 42 --watch --logs --format json --no-tui
+
+# Drill-down: bot threads only, human threads only, all threads
 gh ghent comments --pr 42 --bots-only --unanswered --format json --no-tui
+gh ghent comments --pr 42 --humans-only --format json --no-tui
+gh ghent checks --pr 42 --logs --format json --no-tui
 
-# 3. For each finding: evaluate → fix if true positive → reply+resolve in one step
-gh ghent reply --pr 42 --thread PRRT_... --body "Fixed in $(git rev-parse --short HEAD)" --resolve
-
-# 4. Verify clean state (should return 0 unanswered bot threads)
-gh ghent comments --pr 42 --bots-only --unanswered --format json --no-tui | jq '.unanswered_count'
-
-# 5. If bots re-trigger on your fix, repeat from step 1
-```
-
-**Bot detection** uses GitHub's GraphQL `__typename` field — any GitHub App bot is automatically
-identified, including custom enterprise bots. The `is_bot` field appears on every comment in
-JSON/XML/MD output, and a `[bot]` badge shows in the TUI.
-
-**Key flags:**
-
-| Flag | On | Purpose |
-|------|----|---------|
-| `--bots-only` / `-b` | `comments`, `summary` | Show only bot-originated threads |
-| `--humans-only` / `-H` | `comments` | Show only human-originated threads |
-| `--unanswered` / `-a` | `comments` | Show only threads with no replies |
-| `--resolve` | `reply` | Resolve the thread after posting the reply |
-
-`--bots-only` and `--unanswered` are composable: `--bots-only --unanswered` gives only
-unanswered bot threads — the exact set an agent needs to process.
-
-## Recommended: Start with Summary
-
-For most agent tasks, start with `gh ghent summary --pr N --logs --format json --no-tui`.
-This single call returns: unresolved threads with file:line, CI check status with annotations
-and error log excerpts, approval state, and merge readiness. Only use individual commands
-(`comments`, `checks`) when you need deeper detail or specific actions (`resolve`, `reply`).
-
-## Quick Start
-
-### 1. Get full PR status with failure diagnostics
-```bash
-gh ghent summary --pr 42 --logs --format json --no-tui
-```
-Returns: unresolved threads, CI checks with annotations and log excerpts, approvals, `is_merge_ready`.
-Exit code 0 = merge-ready, 1 = not ready.
-
-### 2. Wait for CI, then get full report
-```bash
-gh ghent summary --pr 42 --watch --format json --no-tui
-```
-Polls CI until terminal status (stderr), then outputs full summary (stdout).
-Pipe-friendly: `gh ghent summary --pr 42 --watch --format json 2>/dev/null | jq`
-
-### 2b. Wait for CI + bot review, then get full report
-```bash
-gh ghent summary --pr 42 --await-review --format json --no-tui
-```
-After CI passes, continues watching for review activity to settle. Use this when
-a bot reviewer (Codex, CodeRabbit, Copilot) is configured on the repo. Settles
-after 30s of no new comments/reviews, or times out after 5m (configurable via
-`--review-timeout`). The output includes a `review_settled` field showing
-settlement phase and activity count.
-
-**When to use `--await-review` vs `--watch`:**
-- `--watch` — only wait for CI. Use when you don't expect bot reviews, or will poll for comments separately.
-- `--await-review` — wait for CI + review activity. Use after creating a PR when you know a bot reviewer will post comments. Implies `--watch`.
-
-### 3. Quick merge-readiness gate
-```bash
-gh ghent summary --pr 42 --quiet               # Requires approval
-gh ghent summary --pr 42 --quiet --solo         # Personal repo (no approval needed)
-```
-Silent exit 0 if merge-ready, full output + exit 1 if not ready.
-
-### 4. Sweep bot findings
-```bash
-gh ghent comments --pr 42 --bots-only --unanswered --format json --no-tui  # Unanswered bot threads
-gh ghent reply --pr 42 --thread PRRT_... --body "Fixed" --resolve          # Reply + resolve in one step
-```
-
-### 5. Drill down when needed
-```bash
-gh ghent comments --pr 42 --format json --no-tui     # All unresolved threads
-gh ghent comments --pr 42 --humans-only --format json --no-tui  # Human feedback only
-gh ghent checks --pr 42 --logs --format json --no-tui # Detailed check runs
-gh ghent resolve --pr 42 --all                         # Batch resolve
+# Batch resolve all threads at once
+gh ghent resolve --pr 42 --all
 ```
 
 ## Commands
@@ -203,38 +156,10 @@ For complete flag reference, see [references/command-reference.md](references/co
 | `--solo` | | `false` | Skip approval requirement (or `GH_GHENT_SOLO=1`) |
 | `--debug` | | `false` | Debug logging to stderr |
 
-**Troubleshooting:** If output seems incomplete (e.g., empty `log_excerpt`, missing checks),
-add `--debug` to see API calls and timing on stderr. This reveals 404s from expired logs,
-rate limits, and context cancellations without changing stdout.
+## Tips
 
-## Core Workflow
-
-```bash
-# 1. After creating a PR, wait for CI + bot review in a single call
-SUMMARY=$(gh ghent summary --pr 42 --await-review --logs --format json --no-tui)
-
-# 2. Check merge readiness
-echo "$SUMMARY" | jq '.is_merge_ready'
-
-# 3. If CI failing, read the log excerpts (covers failure, timed_out, cancelled, etc.)
-echo "$SUMMARY" | jq '.checks.checks[] | select(.log_excerpt) | {name, conclusion, log_excerpt, annotations}'
-
-# 4. If threads need fixing, read them
-echo "$SUMMARY" | jq '.comments.threads[] | {path, line, body: .comments[0].body}'
-
-# 5. Fix code, push, then reply+resolve each thread
-# Thread IDs are in comments output at .threads[].id (e.g., PRRT_kwDO...)
-gh ghent reply --pr 42 --thread PRRT_... --body "Fixed in abc123" --resolve
-
-# Or batch-resolve all threads at once:
-gh ghent resolve --pr 42 --all
-
-# 6. Re-check after fixes (--await-review waits for re-review if bot re-triggers)
-gh ghent summary --pr 42 --await-review --logs --format json --no-tui
-```
-
-> **Tip:** If the repo has no bot reviewer configured, use `--watch` instead of
-> `--await-review` to avoid waiting for a timeout that will never be useful.
+- No bot reviewer configured? Use `--watch` instead of `--await-review` to skip the review timeout.
+- Output incomplete? Add `--debug` to see API calls, 404s, and rate limits on stderr.
 
 ## Exit Codes
 
