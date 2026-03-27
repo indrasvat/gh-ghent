@@ -787,7 +787,7 @@ ghent operates in two modes based on TTY detection:
 - `--no-tui` flag forces pipe mode even in TTY (for agents in pseudo-TTY)
 - Detection: `go-gh/v2/pkg/term.FromEnv().IsTerminalOutput()`
 
-The TUI mockups (`docs/tui-mockups.html`) are the authoritative visual spec — 7 views covering comments, expanded thread, checks, watch, resolve, summary, and pipe mode.
+The TUI mockups (`docs/tui-mockups.html`) are the authoritative visual spec — 7 views covering comments, expanded thread, checks, watch, resolve, status, and pipe mode.
 
 All yukti/vivecaka TUI pitfalls apply directly. See `docs/testing-strategy.md` §7.
 

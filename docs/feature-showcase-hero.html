@@ -123,40 +123,36 @@
     </div>
     <table>
       <tr>
-        <td class="desc">Unresolved review comments with file:line</td>
-        <td class="cmd"><span class="c">gh ghent comments</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--no-tui</span> <span class="f">--format</span> <span class="v">md</span></td>
+        <td class="desc">Full PR check — CI, reviews, merge gate</td>
+        <td class="cmd"><span class="c">gh ghent status</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--await-review</span> <span class="f">--solo</span> <span class="f">--logs</span> <span class="f">--format</span> <span class="v">json</span> <span class="f">--no-tui</span></td>
       </tr>
       <tr>
-        <td class="desc">Full status with failure diagnostics</td>
-        <td class="cmd"><span class="c">gh ghent summary</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--logs</span> <span class="f">--format</span> <span class="v">json</span></td>
+        <td class="desc">Review comments with file:line</td>
+        <td class="cmd"><span class="c">gh ghent comments</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--format</span> <span class="v">json</span> <span class="f">--no-tui</span></td>
       </tr>
       <tr>
-        <td class="desc">Wait for CI, get full report</td>
-        <td class="cmd"><span class="c">gh ghent summary</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--watch</span> <span class="f">--logs</span> <span class="f">--format</span> <span class="v">json</span></td>
+        <td class="desc">CI status + failure diagnostics</td>
+        <td class="cmd"><span class="c">gh ghent checks</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--logs</span> <span class="f">--format</span> <span class="v">json</span></td>
+      </tr>
+      <tr>
+        <td class="desc">Resolve all threads after fixing</td>
+        <td class="cmd"><span class="c">gh ghent resolve</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--all</span></td>
+      </tr>
+      <tr>
+        <td class="desc">Reply + resolve in one shot</td>
+        <td class="cmd"><span class="c">gh ghent reply</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--thread</span> <span class="v">PRRT_...</span> <span class="f">--body</span> <span class="v">"Fixed"</span> <span class="f">--resolve</span></td>
       </tr>
       <tr>
         <td class="desc">Silent merge-readiness gate</td>
-        <td class="cmd"><span class="c">gh ghent summary</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--quiet</span></td>
-      </tr>
-      <tr>
-        <td class="desc">Resolve review threads via GraphQL</td>
-        <td class="cmd"><span class="c">gh ghent resolve</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--no-tui</span> <span class="f">--all</span></td>
-      </tr>
-      <tr>
-        <td class="desc">One-shot merge readiness</td>
-        <td class="cmd"><span class="c">gh ghent summary</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--format</span> <span class="v">json</span> <span class="p">|</span> <span class="j">jq</span> <span class="v">'.is_merge_ready'</span></td>
-      </tr>
-      <tr>
-        <td class="desc">Reply to threads from CLI/agents</td>
-        <td class="cmd"><span class="c">gh ghent reply</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--no-tui</span> <span class="f">--thread</span> <span class="v">PRRT_...</span> <span class="f">--body</span> <span class="v">"Fixed"</span></td>
+        <td class="cmd"><span class="c">gh ghent status</span> <span class="f">--pr</span> <span class="v">42</span> <span class="f">--quiet</span> <span class="f">--solo</span></td>
       </tr>
       <tr>
         <td class="desc">Works on any public repo</td>
         <td class="cmd"><span class="c">gh ghent checks</span> <span class="f">-R</span> <span class="v">oven-sh/bun</span> <span class="f">--pr</span> <span class="v">27364</span> <span class="f">--no-tui</span></td>
       </tr>
       <tr>
-        <td class="desc">Interactive TUI in a terminal</td>
-        <td class="cmd"><span class="c">gh ghent comments</span> <span class="f">--pr</span> <span class="v">42</span>  <span class="j"># Bubble Tea</span></td>
+        <td class="desc">Interactive TUI</td>
+        <td class="cmd"><span class="c">gh ghent status</span> <span class="f">--pr</span> <span class="v">42</span>  <span class="j"># Bubble Tea</span></td>
       </tr>
     </table>
     <div class="foot">
