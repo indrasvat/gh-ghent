@@ -93,11 +93,11 @@ func main() {
 	fmt.Println(styles.BoxFocused.Width(w - 4).Render(boxContent))
 	fmt.Println()
 
-	// ── Summary KPIs ──
-	fmt.Println("  Summary KPIs:")
+	// ── Status KPIs ──
+	fmt.Println("  Status KPIs:")
 	kpi := func(count, label string, color lipgloss.Color) string {
-		return styles.SummaryCount.Foreground(color).Render(count) + " " +
-			styles.SummaryLabel.Render(label)
+		return styles.StatusCount.Foreground(color).Render(count) + " " +
+			styles.StatusLabel.Render(label)
 	}
 	fmt.Println("    " +
 		kpi("5", "UNRESOLVED", lipgloss.Color(string(styles.Red))) + "  " +
@@ -149,7 +149,7 @@ func main() {
 	}, w))
 	fmt.Println()
 
-	fmt.Println("  Status Bar (summary view):")
+	fmt.Println("  Status Bar (status view):")
 	fmt.Println(components.RenderStatusBar(components.StatusBarData{
 		Repo:       "indrasvat/my-project",
 		PR:         42,

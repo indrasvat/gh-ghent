@@ -18,8 +18,8 @@ Tests:
     4. Pipe backward compat: --watch alone has no review_settled
     5. TUI --await-review launch: watch view shows CI phase
     6. TUI review phase: screen shows "awaiting reviews" after CI passes
-    7. TUI settled transition: after debounce, transitions to summary dashboard
-    8. TUI summary content: KPI cards visible in summary view
+    7. TUI settled transition: after debounce, transitions to status dashboard
+    8. TUI status content: KPI cards visible in status view
 
 Verification Strategy:
     - Create a dedicated window (never current_terminal_window) for isolation
@@ -32,7 +32,7 @@ Verification Strategy:
 Screenshots:
     - ghent_await_review_ci_phase.png: Watch view during CI check phase
     - ghent_await_review_awaiting.png: Watch view in "awaiting reviews" phase
-    - ghent_await_review_summary.png: Summary dashboard after settlement
+    - ghent_await_review_status.png: Status dashboard after settlement
 
 Screenshot Inspection Checklist:
     - Colors: Tokyo Night theme, yellow for awaiting, green for passed
@@ -337,11 +337,11 @@ async def main(connection):
         # TESTS 2-3: Pipe mode --await-review
         # ============================================================
         print_test_header("Pipe --await-review (JSON output)", 2)
-        print("  Running gh ghent summary --await-review (takes ~30s for debounce)...")
+        print("  Running gh ghent status --await-review (takes ~30s for debounce)...")
 
         pipe_result = subprocess.run(
             [
-                "gh", "ghent", "summary", "--pr", PR, "-R", REPO,
+                "gh", "ghent", "status", "--pr", PR, "-R", REPO,
                 "--format", "json", "--no-tui",
                 "--await-review", "--review-timeout", "45s",
             ],
@@ -375,7 +375,7 @@ async def main(connection):
         print_test_header("Backward compat (--watch alone)", 4)
         compat_result = subprocess.run(
             [
-                "gh", "ghent", "summary", "--pr", PR, "-R", REPO,
+                "gh", "ghent", "status", "--pr", PR, "-R", REPO,
                 "--format", "json", "--no-tui", "--watch",
             ],
             capture_output=True, text=True, timeout=30,
@@ -399,7 +399,7 @@ async def main(connection):
         await session.async_send_text("clear\n")
         await asyncio.sleep(0.3)
         await session.async_send_text(
-            f"gh ghent summary --pr {PR} -R {REPO} --await-review --review-timeout 45s\n"
+            f"gh ghent status --pr {PR} -R {REPO} --await-review --review-timeout 45s\n"
         )
         # Wait for TUI to render (CI checks are already completed → fast)
         await asyncio.sleep(3)
@@ -439,30 +439,30 @@ async def main(connection):
             log_result("TUI: review-await phase visible", "FAIL", "never saw awaiting/settled")
 
         # ============================================================
-        # TEST 7: Summary transition after debounce
+        # TEST 7: Status transition after debounce
         # ============================================================
-        print_test_header("TUI summary transition", 7)
-        print("  Waiting for 30s debounce + summary transition...")
-        # Poll for summary dashboard indicators
-        found_summary = False
+        print_test_header("TUI status transition", 7)
+        print("  Waiting for 30s debounce + status transition...")
+        # Poll for status dashboard indicators
+        found_status = False
         for attempt in range(45):  # up to ~45s total
             screen_text = await get_screen_text(session)
             if any(kw in screen_text.lower() for kw in ["unresolved", "approved", "merge", "review comments", "ci checks"]):
-                found_summary = True
+                found_status = True
                 break
             await asyncio.sleep(1)
 
-        if found_summary:
-            ss = await capture_screenshot(window, "ghent_await_review_summary")
-            log_result("TUI: summary dashboard visible", "PASS", screenshot=ss)
+        if found_status:
+            ss = await capture_screenshot(window, "ghent_await_review_status")
+            log_result("TUI: status dashboard visible", "PASS", screenshot=ss)
         else:
-            await dump_screen(session, "no_summary")
-            log_result("TUI: summary dashboard visible", "FAIL", "no summary indicators after wait")
+            await dump_screen(session, "no_status")
+            log_result("TUI: status dashboard visible", "FAIL", "no status indicators after wait")
 
         # ============================================================
-        # TEST 8: Summary KPI content
+        # TEST 8: Status KPI content
         # ============================================================
-        print_test_header("TUI summary KPI cards", 8)
+        print_test_header("TUI status KPI cards", 8)
         screen_text = await get_screen_text(session)
         has_kpi = any(kw in screen_text.lower() for kw in ["pass", "fail", "unresolved", "approved", "ready", "not ready"])
         if has_kpi:

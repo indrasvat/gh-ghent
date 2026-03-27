@@ -41,8 +41,8 @@ func launchTUI(startView tui.View, opts ...tuiOption) error {
 	if cfg.reviewFetchFn != nil {
 		app.SetReviewWatch(cfg.reviewFetchFn, cfg.reviewTimeout, cfg.reviewBaselineHash)
 	}
-	if cfg.summaryTransition {
-		app.SetSummaryTransition(true)
+	if cfg.statusTransition {
+		app.SetStatusTransition(true)
 	}
 
 	// CRITICAL: Set terminal background BEFORE Bubble Tea starts (pitfall 7.1).
@@ -82,7 +82,7 @@ type tuiConfig struct {
 	reviewFetchFn      tui.ReviewPollFunc
 	reviewTimeout      time.Duration
 	reviewBaselineHash string
-	summaryTransition  bool
+	statusTransition   bool
 }
 
 type tuiOption func(*tuiConfig)
@@ -134,6 +134,6 @@ func withAwaitReview(fn tui.ReviewPollFunc, timeout time.Duration, baselineHash 
 	}
 }
 
-func withSummaryTransition(enabled bool) tuiOption {
-	return func(c *tuiConfig) { c.summaryTransition = enabled }
+func withStatusTransition(enabled bool) tuiOption {
+	return func(c *tuiConfig) { c.statusTransition = enabled }
 }

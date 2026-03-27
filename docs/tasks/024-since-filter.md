@@ -7,7 +7,7 @@
 
 ## Parallelizable With
 - Task 6.2: --group-by flag (independent)
-- Task 6.3: Summary enhancements (independent)
+- Task 6.3: Status enhancements (independent)
 - Task 6.4: Batch resolve (independent)
 
 ## Problem
@@ -24,7 +24,7 @@ AI agents running in loops need to see only what changed since their last check.
 - `internal/cli/flags.go` — Add `--since` to GlobalFlags
 - `internal/cli/comments.go` — Pass since filter to fetcher
 - `internal/cli/checks.go` — Pass since filter to fetcher
-- `internal/cli/summary.go` — Pass since filter
+- `internal/cli/status.go` — Pass since filter
 - `internal/github/threads.go` — Filter threads by `createdAt` >= since
 - `internal/github/checks.go` — Filter check runs by `completed_at` >= since
 
@@ -38,7 +38,7 @@ AI agents running in loops need to see only what changed since their last check.
 ### Step 2: Implement client-side filtering
 - Comments: filter threads where newest comment `createdAt` >= since
 - Checks: filter check runs where `completed_at` >= since (or `started_at` for running)
-- Summary: apply to both
+- Status: apply to both
 
 ### Step 3: Update formatters
 - Include `since` filter metadata in output (so agent knows the filter applied)

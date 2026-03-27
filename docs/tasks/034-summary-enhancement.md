@@ -1,15 +1,15 @@
-# Task 034: Summary Enhancement (--logs, --watch, --quiet)
+# Task 034: Status Enhancement (--logs, --watch, --quiet)
 
 | Field | Value |
 |-------|-------|
 | **Status** | DONE |
-| **Phase** | 10 (Summary Enhancement) |
+| **Phase** | 10 (Status Enhancement) |
 | **Priority** | P1 |
-| **Depends on** | 009 (summary), 006 (checks --logs), 010 (watch mode) |
+| **Depends on** | 009 (status), 006 (checks --logs), 010 (watch mode) |
 
 ## Objective
 
-Enhance `gh ghent summary` to be a complete single-command entry point for PR monitoring:
+Enhance `gh ghent status` to be a complete single-command entry point for PR monitoring:
 - `--logs`: Include failing job log excerpts and annotations in summary output
 - `--watch`: Poll CI until complete, then output full summary
 - `--quiet`: Silent exit on merge-ready, full output on not-ready
@@ -17,10 +17,10 @@ Enhance `gh ghent summary` to be a complete single-command entry point for PR mo
 
 ## Implementation
 
-### summary.go
+### status.go
 - Added `--logs`, `--watch`, `--quiet` flag variables
 - `--watch` TTY path: launches ViewWatch TUI (reuses checks.go pattern)
-- `--watch` non-TTY: WatchChecks to stderr, then falls through to full summary fetch
+- `--watch` non-TTY: WatchChecks to stderr, then falls through to full status fetch
 - `--logs` (or `--watch` implies): log-fetch loop for failing checks via FetchJobLog + ExtractErrorLines
 - `--quiet`: if merge-ready, return nil (exit 0, no output); else fall through to full output
 
@@ -32,12 +32,12 @@ Enhance `gh ghent summary` to be a complete single-command entry point for PR mo
 - **xml.go FormatCompactSummary**: Added FailedChecks to xmlCompactSummary
 
 ### Documentation
-- README.md: Updated summary flags table and agent workflow example
-- SKILL.md: Restructured with summary-first approach, new description with trigger phrases
-- command-reference.md: Updated summary section with new flags, watch/quiet mode docs, enriched schemas
-- agent-workflows.md: Updated CI monitor workflow to use summary --watch --logs
-- ci-monitor.md: Updated walkthrough with summary --watch --logs approach
-- feature-showcase-hero.html: Replaced checks --verbose with summary --logs, added summary --watch and --quiet rows
+- README.md: Updated status flags table and agent workflow example
+- SKILL.md: Restructured with status-first approach, new description with trigger phrases
+- command-reference.md: Updated status section with new flags, watch/quiet mode docs, enriched schemas
+- agent-workflows.md: Updated CI monitor workflow to use status --watch --logs
+- ci-monitor.md: Updated walkthrough with status --watch --logs approach
+- feature-showcase-hero.html: Replaced checks --verbose with status --logs, added status --watch and --quiet rows
 
 ## Tests Added
 
@@ -61,7 +61,7 @@ make lint     # 0 issues
 
 ### L3
 ```bash
-gh ghent summary -R indrasvat/peek-it --pr 2 --logs --format json | jq '.checks.checks[] | select(.conclusion=="failure") | .log_excerpt'
-gh ghent summary -R indrasvat/doot --pr 1 --quiet; echo "exit: $?"
-gh ghent summary -R indrasvat/tbgs --pr 1 --format json | jq '.comments.unresolved_count'
+gh ghent status -R indrasvat/peek-it --pr 2 --logs --format json | jq '.checks.checks[] | select(.conclusion=="failure") | .log_excerpt'
+gh ghent status -R indrasvat/doot --pr 1 --quiet; echo "exit: $?"
+gh ghent status -R indrasvat/tbgs --pr 1 --format json | jq '.comments.unresolved_count'
 ```

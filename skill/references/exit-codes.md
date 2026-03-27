@@ -6,7 +6,7 @@ gh-ghent uses structured exit codes so agents can branch logic without parsing o
 
 | Command | Exit 0 | Exit 1 | Exit 2 | Exit 3 |
 |---------|--------|--------|--------|--------|
-| `summary` | PR is merge-ready | Not merge-ready | Auth/rate-limit/not-found error | — |
+| `status` | PR is merge-ready | Not merge-ready | Auth/rate-limit/not-found error | — |
 | `comments` | No unresolved threads | Has unresolved threads | Auth/rate-limit/not-found error | — |
 | `checks` | All checks pass | At least one failure | Auth/rate-limit/not-found error | Checks still pending |
 | `resolve` | All threads resolved successfully | Partial failure (some resolved) | Total failure (none resolved) | — |
@@ -27,7 +27,7 @@ Exit code 2 always means an infrastructure error, not a PR state issue:
 
 ### Check if PR is merge-ready
 ```bash
-if gh ghent summary --pr 42 --format json --no-tui > /dev/null 2>&1; then
+if gh ghent status --pr 42 --format json --no-tui > /dev/null 2>&1; then
   echo "PR is ready to merge"
 else
   echo "PR is not ready"
@@ -74,7 +74,7 @@ done
 
 ### Guard against errors
 ```bash
-output=$(gh ghent summary --pr 42 --format json --no-tui 2>&1)
+output=$(gh ghent status --pr 42 --format json --no-tui 2>&1)
 exit_code=$?
 
 if [ $exit_code -eq 2 ]; then

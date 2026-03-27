@@ -8,8 +8,8 @@ import (
 	"github.com/indrasvat/gh-ghent/internal/domain"
 )
 
-func TestSummaryEmptyView(t *testing.T) {
-	m := summaryModel{}
+func TestStatusEmptyView(t *testing.T) {
+	m := statusModel{}
 	m.setSize(100, 30)
 	view := m.View()
 	if !strings.Contains(view, "No review threads") {
@@ -23,8 +23,8 @@ func TestSummaryEmptyView(t *testing.T) {
 	}
 }
 
-func TestSummaryKPICards(t *testing.T) {
-	m := summaryModel{
+func TestStatusKPICards(t *testing.T) {
+	m := statusModel{
 		comments: &domain.CommentsResult{UnresolvedCount: 3, ResolvedCount: 1},
 		checks:   &domain.ChecksResult{PassCount: 4, FailCount: 1},
 		reviews: []domain.Review{
@@ -55,15 +55,15 @@ func TestSummaryKPICards(t *testing.T) {
 	}
 }
 
-func TestSummaryMergeReady(t *testing.T) {
+func TestStatusMergeReady(t *testing.T) {
 	tests := []struct {
 		name     string
-		model    summaryModel
+		model    statusModel
 		expected bool
 	}{
 		{
 			name: "ready: no unresolved, checks pass, approved",
-			model: summaryModel{
+			model: statusModel{
 				comments: &domain.CommentsResult{UnresolvedCount: 0},
 				checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass},
 				reviews:  []domain.Review{{State: domain.ReviewApproved}},
@@ -72,7 +72,7 @@ func TestSummaryMergeReady(t *testing.T) {
 		},
 		{
 			name: "not ready: unresolved threads",
-			model: summaryModel{
+			model: statusModel{
 				comments: &domain.CommentsResult{UnresolvedCount: 2},
 				checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass},
 				reviews:  []domain.Review{{State: domain.ReviewApproved}},
@@ -81,7 +81,7 @@ func TestSummaryMergeReady(t *testing.T) {
 		},
 		{
 			name: "not ready: checks failing",
-			model: summaryModel{
+			model: statusModel{
 				comments: &domain.CommentsResult{UnresolvedCount: 0},
 				checks:   &domain.ChecksResult{OverallStatus: domain.StatusFail},
 				reviews:  []domain.Review{{State: domain.ReviewApproved}},
@@ -90,7 +90,7 @@ func TestSummaryMergeReady(t *testing.T) {
 		},
 		{
 			name: "not ready: changes requested",
-			model: summaryModel{
+			model: statusModel{
 				comments: &domain.CommentsResult{UnresolvedCount: 0},
 				checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass},
 				reviews:  []domain.Review{{State: domain.ReviewChangesRequested}},
@@ -99,7 +99,7 @@ func TestSummaryMergeReady(t *testing.T) {
 		},
 		{
 			name: "not ready: no approval",
-			model: summaryModel{
+			model: statusModel{
 				comments: &domain.CommentsResult{UnresolvedCount: 0},
 				checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass},
 				reviews:  []domain.Review{{State: domain.ReviewCommented}},
@@ -108,7 +108,7 @@ func TestSummaryMergeReady(t *testing.T) {
 		},
 		{
 			name: "ready: nil reviews skips approval check",
-			model: summaryModel{
+			model: statusModel{
 				comments: &domain.CommentsResult{UnresolvedCount: 0},
 				checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass},
 				reviews:  nil,
@@ -118,7 +118,7 @@ func TestSummaryMergeReady(t *testing.T) {
 		// Solo mode tests.
 		{
 			name: "solo: empty reviews is merge-ready",
-			model: summaryModel{
+			model: statusModel{
 				comments: &domain.CommentsResult{UnresolvedCount: 0},
 				checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass},
 				reviews:  []domain.Review{},
@@ -128,7 +128,7 @@ func TestSummaryMergeReady(t *testing.T) {
 		},
 		{
 			name: "solo: commented-only reviews is merge-ready",
-			model: summaryModel{
+			model: statusModel{
 				comments: &domain.CommentsResult{UnresolvedCount: 0},
 				checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass},
 				reviews:  []domain.Review{{State: domain.ReviewCommented}},
@@ -138,7 +138,7 @@ func TestSummaryMergeReady(t *testing.T) {
 		},
 		{
 			name: "solo: changes requested still blocks",
-			model: summaryModel{
+			model: statusModel{
 				comments: &domain.CommentsResult{UnresolvedCount: 0},
 				checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass},
 				reviews:  []domain.Review{{State: domain.ReviewChangesRequested}},
@@ -158,8 +158,8 @@ func TestSummaryMergeReady(t *testing.T) {
 	}
 }
 
-func TestSummaryMergeReadyBadge(t *testing.T) {
-	ready := summaryModel{
+func TestStatusMergeReadyBadge(t *testing.T) {
+	ready := statusModel{
 		comments: &domain.CommentsResult{UnresolvedCount: 0},
 		checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass},
 		reviews:  []domain.Review{{State: domain.ReviewApproved}},
@@ -169,7 +169,7 @@ func TestSummaryMergeReadyBadge(t *testing.T) {
 		t.Errorf("badge = %q, want READY", badge)
 	}
 
-	notReady := summaryModel{
+	notReady := statusModel{
 		comments: &domain.CommentsResult{UnresolvedCount: 2},
 	}
 	badge, _ = notReady.mergeReadyBadge()
@@ -178,8 +178,8 @@ func TestSummaryMergeReadyBadge(t *testing.T) {
 	}
 }
 
-func TestSummaryThreadsSection(t *testing.T) {
-	m := summaryModel{
+func TestStatusThreadsSection(t *testing.T) {
+	m := statusModel{
 		comments: &domain.CommentsResult{
 			Threads: []domain.ReviewThread{
 				{Path: "main.go", Line: 10, Comments: []domain.Comment{{Author: "alice", Body: "fix"}}},
@@ -206,7 +206,7 @@ func TestSummaryThreadsSection(t *testing.T) {
 	}
 }
 
-func TestSummaryThreadsTruncation(t *testing.T) {
+func TestStatusThreadsTruncation(t *testing.T) {
 	threads := make([]domain.ReviewThread, 5)
 	for i := range threads {
 		threads[i] = domain.ReviewThread{
@@ -214,7 +214,7 @@ func TestSummaryThreadsTruncation(t *testing.T) {
 			Comments: []domain.Comment{{Author: "reviewer", Body: "comment"}},
 		}
 	}
-	m := summaryModel{
+	m := statusModel{
 		comments: &domain.CommentsResult{Threads: threads, UnresolvedCount: 5},
 	}
 	m.setSize(120, 30)
@@ -225,8 +225,8 @@ func TestSummaryThreadsTruncation(t *testing.T) {
 	}
 }
 
-func TestSummaryChecksSection(t *testing.T) {
-	m := summaryModel{
+func TestStatusChecksSection(t *testing.T) {
+	m := statusModel{
 		checks: &domain.ChecksResult{
 			Checks: []domain.CheckRun{
 				{Name: "lint", Status: "completed", Conclusion: "failure",
@@ -255,8 +255,8 @@ func TestSummaryChecksSection(t *testing.T) {
 	}
 }
 
-func TestSummaryApprovalsSection(t *testing.T) {
-	m := summaryModel{
+func TestStatusApprovalsSection(t *testing.T) {
+	m := statusModel{
 		reviews: []domain.Review{
 			{Author: "alice", State: domain.ReviewApproved, SubmittedAt: time.Now()},
 			{Author: "bob", State: domain.ReviewChangesRequested, SubmittedAt: time.Now()},
@@ -282,7 +282,7 @@ func TestSummaryApprovalsSection(t *testing.T) {
 	}
 }
 
-func TestSummaryReviewIcons(t *testing.T) {
+func TestStatusReviewIcons(t *testing.T) {
 	tests := []struct {
 		state    domain.ReviewState
 		wantIcon string
@@ -305,7 +305,7 @@ func TestSummaryReviewIcons(t *testing.T) {
 	}
 }
 
-func TestSummaryCardColorForCount(t *testing.T) {
+func TestStatusCardColorForCount(t *testing.T) {
 	green := cardColorForCount(0, true)
 	red := cardColorForCount(3, true)
 	if green == red {
@@ -313,7 +313,7 @@ func TestSummaryCardColorForCount(t *testing.T) {
 	}
 }
 
-func TestSummaryCheckNames(t *testing.T) {
+func TestStatusCheckNames(t *testing.T) {
 	checks := []domain.CheckRun{
 		{Name: "build", Status: "completed", Conclusion: "success"},
 		{Name: "test", Status: "completed", Conclusion: "success"},
@@ -329,8 +329,8 @@ func TestSummaryCheckNames(t *testing.T) {
 	}
 }
 
-func TestSummaryAppIntegration(t *testing.T) {
-	app := NewApp("owner/repo", 42, ViewSummary)
+func TestStatusAppIntegration(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app.SetComments(&domain.CommentsResult{
 		Threads: []domain.ReviewThread{
 			{Path: "main.go", Line: 10, Comments: []domain.Comment{{Author: "alice", Body: "fix"}}},
@@ -364,14 +364,14 @@ func TestSummaryAppIntegration(t *testing.T) {
 		t.Error("missing 'Approvals' section")
 	}
 
-	// Help bar should show summary-specific bindings.
+	// Help bar should show status-specific bindings.
 	if !strings.Contains(view, "comments") || !strings.Contains(view, "checks") {
-		t.Error("missing summary key bindings in help bar")
+		t.Error("missing status key bindings in help bar")
 	}
 }
 
-func TestSummaryReadyAppIntegration(t *testing.T) {
-	app := NewApp("owner/repo", 42, ViewSummary)
+func TestStatusReadyAppIntegration(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app.SetComments(&domain.CommentsResult{UnresolvedCount: 0})
 	app.SetChecks(&domain.ChecksResult{OverallStatus: domain.StatusPass, PassCount: 5})
 	app.SetReviews([]domain.Review{{Author: "alice", State: domain.ReviewApproved}})
@@ -388,38 +388,38 @@ func TestSummaryReadyAppIntegration(t *testing.T) {
 	}
 }
 
-func TestSummaryQuickNav(t *testing.T) {
-	app := NewApp("owner/repo", 42, ViewSummary)
+func TestStatusQuickNav(t *testing.T) {
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app = sendWindowSize(app, 120, 30)
 
 	// 'c' should jump to comments.
 	appC := sendKey(app, "c")
 	if appC.ActiveView() != ViewCommentsList {
-		t.Errorf("'c' from summary: expected ViewCommentsList, got %v", appC.ActiveView())
+		t.Errorf("'c' from status: expected ViewCommentsList, got %v", appC.ActiveView())
 	}
 
 	// 'k' should jump to checks.
 	appK := sendKey(app, "k")
 	if appK.ActiveView() != ViewChecksList {
-		t.Errorf("'k' from summary: expected ViewChecksList, got %v", appK.ActiveView())
+		t.Errorf("'k' from status: expected ViewChecksList, got %v", appK.ActiveView())
 	}
 
 	// 'r' should jump to resolve.
 	appR := sendKey(app, "r")
 	if appR.ActiveView() != ViewResolve {
-		t.Errorf("'r' from summary: expected ViewResolve, got %v", appR.ActiveView())
+		t.Errorf("'r' from status: expected ViewResolve, got %v", appR.ActiveView())
 	}
 }
 
-func TestSummaryZeroWidth(t *testing.T) {
-	m := summaryModel{}
+func TestStatusZeroWidth(t *testing.T) {
+	m := statusModel{}
 	view := m.View()
 	if view != "" {
 		t.Errorf("expected empty view at zero width, got %q", view)
 	}
 }
 
-func TestSummaryApprovalsCapped(t *testing.T) {
+func TestStatusApprovalsCapped(t *testing.T) {
 	reviews := make([]domain.Review, 20)
 	for i := range reviews {
 		reviews[i] = domain.Review{
@@ -428,7 +428,7 @@ func TestSummaryApprovalsCapped(t *testing.T) {
 			SubmittedAt: time.Now(),
 		}
 	}
-	m := summaryModel{reviews: reviews}
+	m := statusModel{reviews: reviews}
 	m.setSize(120, 30)
 	view := m.View()
 
@@ -442,7 +442,7 @@ func TestSummaryApprovalsCapped(t *testing.T) {
 	}
 }
 
-func TestSummaryApprovalsPriorityOrder(t *testing.T) {
+func TestStatusApprovalsPriorityOrder(t *testing.T) {
 	reviews := []domain.Review{
 		{Author: "commenter1", State: domain.ReviewCommented, SubmittedAt: time.Now()},
 		{Author: "approver1", State: domain.ReviewApproved, SubmittedAt: time.Now()},
@@ -450,7 +450,7 @@ func TestSummaryApprovalsPriorityOrder(t *testing.T) {
 		{Author: "commenter2", State: domain.ReviewCommented, SubmittedAt: time.Now()},
 		{Author: "approver2", State: domain.ReviewApproved, SubmittedAt: time.Now()},
 	}
-	m := summaryModel{reviews: reviews}
+	m := statusModel{reviews: reviews}
 	m.setSize(120, 30)
 	section := m.renderApprovalsSection()
 	lines := strings.Split(section, "\n")
@@ -479,12 +479,12 @@ func TestSummaryApprovalsPriorityOrder(t *testing.T) {
 	}
 }
 
-func TestSummaryApprovalsSmallList(t *testing.T) {
+func TestStatusApprovalsSmallList(t *testing.T) {
 	reviews := []domain.Review{
 		{Author: "alice", State: domain.ReviewApproved, SubmittedAt: time.Now()},
 		{Author: "bob", State: domain.ReviewCommented, SubmittedAt: time.Now()},
 	}
-	m := summaryModel{reviews: reviews}
+	m := statusModel{reviews: reviews}
 	m.setSize(120, 30)
 	view := m.View()
 
@@ -500,9 +500,9 @@ func TestSummaryApprovalsSmallList(t *testing.T) {
 	}
 }
 
-func TestSummarySoloApprovalsSection(t *testing.T) {
+func TestStatusSoloApprovalsSection(t *testing.T) {
 	// Solo mode with no reviews should show solo message.
-	m := summaryModel{solo: true}
+	m := statusModel{solo: true}
 	m.setSize(120, 30)
 	view := m.View()
 
@@ -518,9 +518,9 @@ func TestSummarySoloApprovalsSection(t *testing.T) {
 	}
 }
 
-func TestSummarySoloApprovalsWithReviews(t *testing.T) {
+func TestStatusSoloApprovalsWithReviews(t *testing.T) {
 	// Solo mode with existing reviews should still render them normally.
-	m := summaryModel{
+	m := statusModel{
 		solo: true,
 		reviews: []domain.Review{
 			{Author: "alice", State: domain.ReviewCommented},
@@ -538,9 +538,9 @@ func TestSummarySoloApprovalsWithReviews(t *testing.T) {
 	}
 }
 
-func TestSummarySoloKPICard(t *testing.T) {
+func TestStatusSoloKPICard(t *testing.T) {
 	// Solo mode with no approvals should show "—" not "0".
-	m := summaryModel{
+	m := statusModel{
 		solo:     true,
 		comments: &domain.CommentsResult{UnresolvedCount: 0},
 		checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass, PassCount: 3},
@@ -553,9 +553,9 @@ func TestSummarySoloKPICard(t *testing.T) {
 	}
 }
 
-func TestSummarySoloWithErrorsNotGreen(t *testing.T) {
+func TestStatusSoloWithErrorsNotGreen(t *testing.T) {
 	// Solo + hasErrors (review fetch failed) should NOT show green approvals.
-	m := summaryModel{
+	m := statusModel{
 		solo:      true,
 		hasErrors: true,
 		comments:  &domain.CommentsResult{UnresolvedCount: 0},
@@ -570,9 +570,9 @@ func TestSummarySoloWithErrorsNotGreen(t *testing.T) {
 	}
 }
 
-func TestSummarySoloBadge(t *testing.T) {
+func TestStatusSoloBadge(t *testing.T) {
 	// Solo + clean checks + no threads + no reviews = READY.
-	app := NewApp("owner/repo", 42, ViewSummary)
+	app := NewApp("owner/repo", 42, ViewStatus)
 	app.SetSolo(true)
 	app.SetComments(&domain.CommentsResult{UnresolvedCount: 0})
 	app.SetChecks(&domain.ChecksResult{OverallStatus: domain.StatusPass, PassCount: 3})
@@ -588,8 +588,8 @@ func TestSummarySoloBadge(t *testing.T) {
 	}
 }
 
-func TestSummaryScrolling(t *testing.T) {
-	m := summaryModel{
+func TestStatusScrolling(t *testing.T) {
+	m := statusModel{
 		comments: &domain.CommentsResult{UnresolvedCount: 3},
 		checks:   &domain.ChecksResult{PassCount: 5},
 	}
@@ -623,8 +623,8 @@ func TestSummaryScrolling(t *testing.T) {
 	}
 }
 
-func TestSummaryScrollClamp(t *testing.T) {
-	m := summaryModel{}
+func TestStatusScrollClamp(t *testing.T) {
+	m := statusModel{}
 	m.setSize(120, 100) // Very tall — content fits without scroll.
 	m.scrollOffset = 999
 	view := m.View()
@@ -634,8 +634,8 @@ func TestSummaryScrollClamp(t *testing.T) {
 	}
 }
 
-func TestSummaryLoadingView(t *testing.T) {
-	m := summaryModel{loading: true}
+func TestStatusLoadingView(t *testing.T) {
+	m := statusModel{loading: true}
 	m.setSize(120, 30)
 	view := m.View()
 	if !strings.Contains(view, "Loading PR data") {
@@ -643,8 +643,8 @@ func TestSummaryLoadingView(t *testing.T) {
 	}
 }
 
-func TestSummaryLoadingClearsOnData(t *testing.T) {
-	m := summaryModel{loading: true}
+func TestStatusLoadingClearsOnData(t *testing.T) {
+	m := statusModel{loading: true}
 	m.setSize(120, 30)
 
 	// Once comments arrive, loading view should not show.
@@ -659,9 +659,9 @@ func TestSummaryLoadingClearsOnData(t *testing.T) {
 	}
 }
 
-func TestSummaryHasErrorsBlocksMergeReady(t *testing.T) {
+func TestStatusHasErrorsBlocksMergeReady(t *testing.T) {
 	// Even with perfect data, hasErrors should block merge readiness.
-	m := summaryModel{
+	m := statusModel{
 		comments:  &domain.CommentsResult{UnresolvedCount: 0},
 		checks:    &domain.ChecksResult{OverallStatus: domain.StatusPass},
 		reviews:   []domain.Review{{State: domain.ReviewApproved}},
@@ -676,8 +676,8 @@ func TestSummaryHasErrorsBlocksMergeReady(t *testing.T) {
 	}
 }
 
-func TestSummaryScrollDownClampsToMaxScroll(t *testing.T) {
-	m := summaryModel{
+func TestStatusScrollDownClampsToMaxScroll(t *testing.T) {
+	m := statusModel{
 		comments: &domain.CommentsResult{UnresolvedCount: 1},
 		checks:   &domain.ChecksResult{PassCount: 2},
 	}
@@ -695,8 +695,8 @@ func TestSummaryScrollDownClampsToMaxScroll(t *testing.T) {
 	}
 }
 
-func TestSummaryRecomputeMaxScrollOnDataChange(t *testing.T) {
-	m := summaryModel{}
+func TestStatusRecomputeMaxScrollOnDataChange(t *testing.T) {
+	m := statusModel{}
 	m.setSize(120, 5)
 
 	// Initially no data — maxScroll should be computed.

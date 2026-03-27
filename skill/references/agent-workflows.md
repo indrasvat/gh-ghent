@@ -48,13 +48,13 @@ done
 
 ## 2. Monitor CI Until Green
 
-Poll CI checks until they complete, then get full summary with failure diagnostics.
+Poll CI checks until they complete, then get full status with failure diagnostics.
 
 ```bash
-# Recommended: summary --watch gets everything after CI completes
-gh ghent summary --pr 42 --watch --logs --format json --no-tui 2>/dev/null | jq
-# Watch status → stderr, full summary with logs → stdout.
-# After CI completes, parse failures from the summary:
+# Recommended: status --watch gets everything after CI completes
+gh ghent status --pr 42 --watch --logs --format json --no-tui 2>/dev/null | jq
+# Watch progress → stderr, full status with logs → stdout.
+# After CI completes, parse failures from the status output:
 # jq '.checks.checks[] | select(.log_excerpt) | {name, conclusion, log_excerpt, annotations}'
 
 # Alternative: checks --watch for CI-only monitoring
@@ -62,13 +62,13 @@ gh ghent checks --pr 42 --watch --format json --no-tui
 # Exit 0 = all pass, 1 = failure, 3 = still pending after timeout.
 ```
 
-### Extract failure details from summary
+### Extract failure details from status
 
 ```bash
 # Get annotations and log excerpts for failed checks
-SUMMARY=$(gh ghent summary --pr 42 --logs --format json --no-tui)
-echo "$SUMMARY" | jq -r '.checks.checks[] | select(.log_excerpt) | .annotations[]? | "\(.path):\(.start_line) [\(.annotation_level)] \(.message)"'
-echo "$SUMMARY" | jq -r '.checks.checks[] | select(.log_excerpt) | "--- \(.name) [\(.conclusion)] ---\n\(.log_excerpt)"'
+STATUS=$(gh ghent status --pr 42 --logs --format json --no-tui)
+echo "$STATUS" | jq -r '.checks.checks[] | select(.log_excerpt) | .annotations[]? | "\(.path):\(.start_line) [\(.annotation_level)] \(.message)"'
+echo "$STATUS" | jq -r '.checks.checks[] | select(.log_excerpt) | "--- \(.name) [\(.conclusion)] ---\n\(.log_excerpt)"'
 ```
 
 ### Standalone checks with logs
@@ -87,11 +87,11 @@ Complete cycle: assess state, fix comments, fix CI, resolve, verify.
 PR=42
 
 # Step 1: Assess current state
-SUMMARY=$(gh ghent summary --pr $PR --compact --format json --no-tui)
-echo "$SUMMARY" | jq '{merge_ready: .is_merge_ready, unresolved: .unresolved, checks: .check_status}'
+STATUS=$(gh ghent status --pr $PR --compact --format json --no-tui)
+echo "$STATUS" | jq '{merge_ready: .is_merge_ready, unresolved: .unresolved, checks: .check_status}'
 
 # Step 2: Fix review comments (if any)
-UNRESOLVED=$(echo "$SUMMARY" | jq '.unresolved')
+UNRESOLVED=$(echo "$STATUS" | jq '.unresolved')
 if [ "$UNRESOLVED" -gt 0 ]; then
   THREADS=$(gh ghent comments --pr $PR --format json --no-tui)
   # ... read each thread, apply fixes ...
@@ -99,7 +99,7 @@ if [ "$UNRESOLVED" -gt 0 ]; then
 fi
 
 # Step 3: Fix CI failures (if any)
-CHECK_STATUS=$(echo "$SUMMARY" | jq -r '.check_status')
+CHECK_STATUS=$(echo "$STATUS" | jq -r '.check_status')
 if [ "$CHECK_STATUS" = "failure" ]; then
   gh ghent checks --pr $PR --format json --no-tui --logs | \
     jq -r '.checks[] | select(.log_excerpt or (.conclusion | IN("failure","timed_out","cancelled"))) | .annotations[]? | "\(.path):\(.start_line) \(.message)"'
@@ -111,7 +111,7 @@ sleep 10
 gh ghent checks --pr $PR --watch --format json --no-tui
 
 # Step 5: Final verification
-if gh ghent summary --pr $PR --format json --no-tui > /dev/null 2>&1; then
+if gh ghent status --pr $PR --format json --no-tui > /dev/null 2>&1; then
   echo "PR is merge-ready!"
 else
   echo "Still needs work"

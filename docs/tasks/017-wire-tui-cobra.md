@@ -32,7 +32,7 @@ The Bubble Tea TUI needs to be wired to the Cobra command layer so that TTY dete
 - `internal/cli/comments.go` — If TTY: launch TUI with ViewCommentsList; else: pipe mode
 - `internal/cli/checks.go` — If TTY: launch TUI with ViewChecksList; else: pipe mode
 - `internal/cli/resolve.go` — If TTY: launch TUI with ViewResolve; else: pipe mode
-- `internal/cli/summary.go` — If TTY: launch TUI with ViewSummary; else: pipe mode
+- `internal/cli/status.go` — If TTY: launch TUI with ViewStatus; else: pipe mode
 - `internal/tui/app.go` — Add constructor: `NewApp(startView, data, opts)` with starting data
 
 ## Execution Steps
@@ -126,7 +126,7 @@ feat(tui): wire Bubble Tea TUI to Cobra commands with dual-mode routing
 |------|--------|---------|
 | Pipe mode (--no-tui) | PASS | `gh ghent comments -R indrasvat/tbgs --pr 1 --format json --no-tui` outputs JSON |
 | Pipe mode (piped) | PASS | `gh ghent checks -R indrasvat/doot --pr 1 --format json \| jq '.overall_status'` → "pass" |
-| Summary pipe | PASS | `gh ghent summary -R indrasvat/tbgs --pr 1 --format json \| jq '.is_merge_ready'` → false |
+| Status pipe | PASS | `gh ghent status -R indrasvat/tbgs --pr 1 --format json \| jq '.is_merge_ready'` → false |
 
 ### L4: iterm2-driver (`test_ghent_layout.py`) — 6/6 PASS
 

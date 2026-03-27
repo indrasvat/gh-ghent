@@ -183,16 +183,16 @@ func (f *XMLFormatter) FormatResolveResults(w io.Writer, result *domain.ResolveR
 	return err
 }
 
-func (f *XMLFormatter) FormatSummary(w io.Writer, result *domain.SummaryResult) error {
-	out := xmlSummary{
+func (f *XMLFormatter) FormatStatus(w io.Writer, result *domain.StatusResult) error {
+	out := xmlStatus{
 		PRNumber:     result.PRNumber,
 		IsMergeReady: result.IsMergeReady,
-		Comments: xmlSummaryComments{
+		Comments: xmlStatusComments{
 			TotalCount:      result.Comments.TotalCount,
 			ResolvedCount:   result.Comments.ResolvedCount,
 			UnresolvedCount: result.Comments.UnresolvedCount,
 		},
-		Checks: xmlSummaryChecks{
+		Checks: xmlStatusChecks{
 			OverallStatus: string(result.Checks.OverallStatus),
 			PassCount:     result.Checks.PassCount,
 			FailCount:     result.Checks.FailCount,
@@ -276,8 +276,8 @@ func (f *XMLFormatter) FormatSummary(w io.Writer, result *domain.SummaryResult) 
 	return err
 }
 
-func (f *XMLFormatter) FormatCompactSummary(w io.Writer, result *domain.SummaryResult) error {
-	out := xmlCompactSummary{
+func (f *XMLFormatter) FormatCompactStatus(w io.Writer, result *domain.StatusResult) error {
+	out := xmlCompactStatus{
 		PRNumber:     result.PRNumber,
 		IsMergeReady: result.IsMergeReady,
 		PRAge:        result.PRAge,
@@ -498,12 +498,12 @@ type xmlResolveError struct {
 	Message  string `xml:",chardata"`
 }
 
-type xmlSummary struct {
-	XMLName       xml.Name             `xml:"summary"`
+type xmlStatus struct {
+	XMLName       xml.Name             `xml:"status"`
 	PRNumber      int                  `xml:"pr_number,attr"`
 	IsMergeReady  bool                 `xml:"is_merge_ready,attr"`
-	Comments      xmlSummaryComments   `xml:"comments"`
-	Checks        xmlSummaryChecks     `xml:"checks"`
+	Comments      xmlStatusComments    `xml:"comments"`
+	Checks        xmlStatusChecks      `xml:"checks"`
 	Reviews       []xmlReview          `xml:"review,omitempty"`
 	ReviewSettled *xmlReviewSettlement `xml:"review_settled,omitempty"`
 }
@@ -514,14 +514,14 @@ type xmlReviewSettlement struct {
 	WaitSeconds   int    `xml:"wait_seconds,attr"`
 }
 
-type xmlSummaryComments struct {
+type xmlStatusComments struct {
 	TotalCount      int         `xml:"total_count,attr"`
 	ResolvedCount   int         `xml:"resolved_count,attr"`
 	UnresolvedCount int         `xml:"unresolved_count,attr"`
 	Threads         []xmlThread `xml:"thread,omitempty"`
 }
 
-type xmlSummaryChecks struct {
+type xmlStatusChecks struct {
 	OverallStatus string        `xml:"overall_status,attr"`
 	PassCount     int           `xml:"pass_count,attr"`
 	FailCount     int           `xml:"fail_count,attr"`
@@ -537,8 +537,8 @@ type xmlReview struct {
 	Body        string `xml:"body,omitempty"`
 }
 
-type xmlCompactSummary struct {
-	XMLName      xml.Name           `xml:"compact_summary"`
+type xmlCompactStatus struct {
+	XMLName      xml.Name           `xml:"compact_status"`
 	PRNumber     int                `xml:"pr_number,attr"`
 	IsMergeReady bool               `xml:"is_merge_ready,attr"`
 	PRAge        string             `xml:"pr_age,attr,omitempty"`

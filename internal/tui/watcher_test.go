@@ -665,10 +665,10 @@ func TestWatcherReviewTickIgnoredWhenNotAwaiting(t *testing.T) {
 	}
 }
 
-func TestWatcherSummaryTransitionOnPass(t *testing.T) {
+func TestWatcherStatusTransitionOnPass(t *testing.T) {
 	m := newWatcherModel(10 * time.Second)
 	m.setSize(100, 30)
-	m.summaryTransition = true
+	m.statusTransition = true
 	// No awaitReview — should go straight to done with watchDoneMsg.
 
 	checks := makeChecksResult([]domain.CheckRun{
@@ -681,7 +681,7 @@ func TestWatcherSummaryTransitionOnPass(t *testing.T) {
 		t.Errorf("state = %d, want watchStateDone", m.state)
 	}
 	if cmd == nil {
-		t.Error("expected watchDoneMsg cmd for summary transition")
+		t.Error("expected watchDoneMsg cmd for status transition")
 	}
 }
 

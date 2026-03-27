@@ -26,8 +26,8 @@ Automated test pressed every advertised key and measured response. **10/10 FAILE
 | 6 | Comments Expanded | `y` | copy ID | DEAD KEY — no clipboard update |
 | 7 | Comments Expanded | `o` | open in browser | DEAD KEY — no browser launch |
 | 8 | Checks List | `R` | re-run failed | DEAD KEY — no response |
-| 9 | Summary | `o` | open PR | DEAD KEY — no browser launch |
-| 10 | Summary | `R` | re-run failed | DEAD KEY — no response |
+| 9 | Status | `o` | open PR | DEAD KEY — no browser launch |
+| 10 | Status | `R` | re-run failed | DEAD KEY — no response |
 
 ### Views with NO issues (all advertised keys work):
 - **Checks Log View** — esc, j/k, o, q all work ✓
@@ -57,9 +57,9 @@ The keys were added to the help bar during TUI design (matching the mockup in
 - `ChecksListKeys()` (helpbar.go:83-93) advertises `R`
 - `checksListModel.Update()` (checks.go:93-119) handles j/k/enter/l/o but NOT `R`
 
-**Summary (`o`, `R`):**
-- `SummaryKeys()` (helpbar.go:129-137) advertises both
-- `app.handleKey()` (app.go:334-358) handles c/k/r/j/down/up for summary but NOT `o`/`R`
+**Status (`o`, `R`):**
+- `StatusKeys()` (helpbar.go:129-137) advertises both
+- `app.handleKey()` (app.go:334-358) handles c/k/r/j/down/up for status but NOT `o`/`R`
 
 ## Implementation Plan
 
@@ -76,7 +76,7 @@ These can be implemented entirely within the TUI layer.
 | `o` | Comments List, Expanded | Open comment URL in browser | `openInBrowser(comment.URL)` — pattern exists in checks.go |
 | `r` | Comments List | Switch to resolve view | `a.activeView = ViewResolve` — pattern exists in summary shortcuts |
 | `f` | Comments List | Filter threads by file path | Toggle file filter mode (new sub-model or simple filter) |
-| `o` | Summary | Open PR in browser | `openInBrowser(prURL)` — need PR URL from API or construct it |
+| `o` | Status | Open PR in browser | `openInBrowser(prURL)` — need PR URL from API or construct it |
 
 **Tier 2 — Require API calls or new functionality:**
 These need GitHub API integration or more complex state management.
@@ -84,7 +84,7 @@ These need GitHub API integration or more complex state management.
 | Key | View(s) | Action | Implementation |
 |-----|---------|--------|----------------|
 | `r` | Comments Expanded | Resolve current thread | Call resolveFunc with current thread ID |
-| `R` | Checks List, Summary | Re-run failed checks | GitHub REST: `POST repos/{owner}/{repo}/actions/runs/{id}/rerun-failed-jobs` |
+| `R` | Checks List, Status | Re-run failed checks | GitHub REST: `POST repos/{owner}/{repo}/actions/runs/{id}/rerun-failed-jobs` |
 
 ### Step 1: Implement `y` (copy thread ID) — Comments List + Expanded
 
@@ -148,15 +148,15 @@ Two possible approaches:
 - User selects a file to filter
 - Requires new modal sub-model
 
-### Step 6: Implement `o` (open PR) — Summary
+### Step 6: Implement `o` (open PR) — Status
 
 **Files:** `internal/tui/app.go`
 
 1. Construct PR URL from repo + PR number: `https://github.com/{repo}/pull/{pr}`
-2. In `app.handleKey()`, for `ViewSummary`, handle `o`:
+2. In `app.handleKey()`, for `ViewStatus`, handle `o`:
    - Call `openInBrowser(prURL)` with constructed URL
 
-### Step 7: Implement `R` (re-run failed) — Checks List + Summary
+### Step 7: Implement `R` (re-run failed) — Checks List + Status
 
 **Files:** `internal/tui/checks.go`, `internal/tui/app.go`, `internal/github/client.go`
 
@@ -186,7 +186,7 @@ Consider implementing `R` as Task 034 if scope becomes too large.
 2. **Comments List `f` → filter toggle:** Press `f` → verify items filtered to single file
 3. **Comments List `y` → clipboard cmd:** Press `y` → verify returned command is clipboard copy
 4. **Comments Expanded `o` → browser cmd:** Press `o` → verify returned command opens URL
-5. **Summary `o` → browser cmd:** Press `o` in ViewSummary → verify opens PR URL
+5. **Status `o` → browser cmd:** Press `o` in ViewStatus → verify opens PR URL
 6. **Comments `r` expanded → resolve cmd:** Press `r` in expanded → verify resolve triggered
 
 **File:** `internal/tui/comments_test.go` (new tests)
@@ -218,8 +218,8 @@ gh ghent comments -R indrasvat/tbgs --pr 1
 gh ghent checks -R indrasvat/peek-it --pr 2
 # Press R → verify re-run feedback (may fail due to permissions — that's OK)
 
-# Summary — test o/R keys
-gh ghent summary -R indrasvat/tbgs --pr 1
+# Status — test o/R keys
+gh ghent status -R indrasvat/tbgs --pr 1
 # Press o → verify browser opens PR #1
 # Press R → verify re-run feedback
 ```
@@ -259,8 +259,8 @@ Additional L4 tests to write after implementation:
 | 6 | Expanded `y` copy thread ID | PASS | `pbpaste` returns `PRRT_kwDOQQ76Ts5iIWqn` (verified prefix) |
 | 7 | Expanded `o` open in browser | PASS | Browser triggered, TUI remains responsive |
 | 8 | Checks `R` re-run failed | PASS | `gh run rerun` triggered (async, TUI responsive) |
-| 9 | Summary `o` open PR | PASS | Browser triggered, TUI remains responsive |
-| 10 | Summary `R` re-run failed | PASS | `gh run rerun` triggered (async, TUI responsive) |
+| 9 | Status `o` open PR | PASS | Browser triggered, TUI remains responsive |
+| 10 | Status `R` re-run failed | PASS | `gh run rerun` triggered (async, TUI responsive) |
 | 11 | Regression: existing keys | PASS | j/k nav OK, enter→expand OK, tab→checks OK |
 
 **Screenshots reviewed:** 26 screenshots in `.claude/screenshots/kb_*.png`
@@ -268,7 +268,7 @@ Additional L4 tests to write after implementation:
 - `kb_comments_r_resolve`: Resolve view with checkboxes, thread IDs, "resolve mode" label
 - `kb_expanded_initial`: Diff hunk with `@@`, colored code, author names
 - `kb_checks_R_after`: Failed checks with annotations, "R re-run failed" in help bar
-- `kb_summary_o_after`: Summary dashboard with KPI cards, browser launched
+- `kb_summary_o_after`: Status dashboard with KPI cards, browser launched
 - `kb_regression`: Tab switch to checks view confirmed
 
 **Findings:**

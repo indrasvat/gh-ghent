@@ -7,7 +7,7 @@
 
 ## Parallelizable With
 - Task 6.1: --since filter (independent)
-- Task 6.3: Summary enhancements (independent)
+- Task 6.3: Status enhancements (independent)
 - Task 6.4: Batch resolve (independent)
 
 ## Problem

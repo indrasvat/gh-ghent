@@ -124,8 +124,8 @@ func ResolveKeys() []KeyBinding {
 	}
 }
 
-// SummaryKeys returns key bindings for the summary dashboard.
-func SummaryKeys() []KeyBinding {
+// StatusKeys returns key bindings for the status dashboard.
+func StatusKeys() []KeyBinding {
 	return []KeyBinding{
 		{"c", "comments"},
 		{"k", "checks"},

@@ -8,17 +8,17 @@
 # ///
 
 """
-ghent Summary Dashboard Visual Test: Comprehensive automated verification
-of the TUI summary view with KPI cards, sections, and merge readiness.
+ghent Status Dashboard Visual Test: Comprehensive automated verification
+of the TUI status view with KPI cards, sections, and merge readiness.
 
 Tests:
     1. Build: Verify gh-ghent builds and installs
-    2. Launch (NOT READY): Summary TUI with unresolved threads (tbgs PR #1)
+    2. Launch (NOT READY): Status TUI with unresolved threads (tbgs PR #1)
     3. KPI Cards: Unresolved, Passed, Failed, Approvals labels visible
     4. Merge Badge: "NOT READY" badge visible
     5. Sections: Review Threads, CI Checks, Approvals headers
     6. Thread Preview: File paths visible in thread section
-    7. Help Bar: Summary-specific keys (c, k, r, q)
+    7. Help Bar: Status-specific keys (c, k, r, q)
     8. Ready Repo: Launch with doot PR #1 → status bar shows "READY"
     9. Not Ready (failing checks): peek-it PR #2
 
@@ -30,7 +30,7 @@ Verification Strategy:
     - Take screenshots at every visual milestone
 
 Usage:
-    uv run .claude/automations/test_ghent_summary.py
+    uv run .claude/automations/test_ghent_status.py
 """
 
 import iterm2
@@ -73,7 +73,7 @@ def print_summary() -> int:
     total = results["passed"] + results["failed"] + results["unverified"]
     duration = (results["end_time"] - results["start_time"]).total_seconds()
     print(f"\n{'=' * 60}")
-    print("TEST SUMMARY — Summary Dashboard")
+    print("TEST SUMMARY — Status Dashboard")
     print(f"{'=' * 60}")
     print(f"Duration:   {duration:.1f}s")
     print(f"Total:      {total}")
@@ -176,7 +176,7 @@ async def main(connection):
     results["start_time"] = datetime.now()
 
     print(f"\n{'#' * 60}")
-    print("# ghent Summary Dashboard — Visual Test Suite")
+    print("# ghent Status Dashboard — Visual Test Suite")
     print(f"{'#' * 60}")
 
     app = await iterm2.async_get_app(connection)
@@ -201,13 +201,13 @@ async def main(connection):
             await dump_screen(session, "build_failure")
             return print_summary()
 
-        # ── TEST 2: Launch Summary TUI (NOT READY — tbgs) ────────
-        print_test_header("Launch Summary TUI (indrasvat/tbgs PR #1)", 2)
-        await session.async_send_text("gh ghent summary -R indrasvat/tbgs --pr 1 2>&1\n")
+        # ── TEST 2: Launch Status TUI (NOT READY — tbgs) ────────
+        print_test_header("Launch Status TUI (indrasvat/tbgs PR #1)", 2)
+        await session.async_send_text("gh ghent status -R indrasvat/tbgs --pr 1 2>&1\n")
         await asyncio.sleep(10.0)
 
         screen_text = await get_all_screen_text(session)
-        screenshot = capture_screenshot("ghent_summary_launch")
+        screenshot = capture_screenshot("ghent_status_launch")
 
         launch_indicators = {
             "review_threads": "Review Threads" in screen_text,
@@ -218,10 +218,10 @@ async def main(connection):
         tui_launched = sum(launch_indicators.values()) >= 2
 
         if tui_launched:
-            log_result("Launch Summary TUI", "PASS",
+            log_result("Launch Status TUI", "PASS",
                        f"indicators={launch_indicators}", screenshot=screenshot)
         else:
-            log_result("Launch Summary TUI", "FAIL",
+            log_result("Launch Status TUI", "FAIL",
                        f"indicators={launch_indicators}")
             await dump_screen(session, "launch_fail")
             return print_summary()
@@ -282,7 +282,7 @@ async def main(connection):
             log_result("Thread Preview", "FAIL", "no thread preview content")
 
         # ── TEST 7: Help Bar ─────────────────────────────────────
-        print_test_header("Help Bar (summary-specific bindings)", 7)
+        print_test_header("Help Bar (status-specific bindings)", 7)
         has_comments_key = "comments" in screen_text
         has_checks_key = "checks" in screen_text
         has_quit = "quit" in screen_text
@@ -300,23 +300,23 @@ async def main(connection):
 
         # ── TEST 8: Ready Repo (doot PR #1) ──────────────────────
         print_test_header("Ready Repo (indrasvat/doot PR #1)", 8)
-        await session.async_send_text("gh ghent summary -R indrasvat/doot --pr 1 2>&1\n")
+        await session.async_send_text("gh ghent status -R indrasvat/doot --pr 1 2>&1\n")
         await asyncio.sleep(10.0)
 
         ready_text = await get_all_screen_text(session)
-        screenshot = capture_screenshot("ghent_summary_ready")
+        screenshot = capture_screenshot("ghent_status_ready")
 
         # doot has 0 unresolved, checks pass, but no approval → may still be NOT READY
         # Check if "READY" appears (either READY or NOT READY)
         has_ready = "READY" in ready_text
-        has_summary_content = "CI Checks" in ready_text or "Review Threads" in ready_text or "Approvals" in ready_text
+        has_status_content = "CI Checks" in ready_text or "Review Threads" in ready_text or "Approvals" in ready_text
 
-        if has_summary_content:
+        if has_status_content:
             log_result("Ready Repo", "PASS",
-                       f"summary rendered, READY in text={has_ready}", screenshot=screenshot)
+                       f"status rendered, READY in text={has_ready}", screenshot=screenshot)
         else:
             log_result("Ready Repo", "UNVERIFIED",
-                       f"summary content not clearly visible", screenshot=screenshot)
+                       "status content not clearly visible", screenshot=screenshot)
             await dump_screen(session, "ready_repo")
 
         # Exit TUI
@@ -325,11 +325,11 @@ async def main(connection):
 
         # ── TEST 9: Not Ready (failing checks — peek-it) ────────
         print_test_header("Not Ready Repo (indrasvat/peek-it PR #2)", 9)
-        await session.async_send_text("gh ghent summary -R indrasvat/peek-it --pr 2 2>&1\n")
+        await session.async_send_text("gh ghent status -R indrasvat/peek-it --pr 2 2>&1\n")
         await asyncio.sleep(10.0)
 
         notready_text = await get_all_screen_text(session)
-        screenshot = capture_screenshot("ghent_summary_not_ready")
+        screenshot = capture_screenshot("ghent_status_not_ready")
 
         has_not_ready_badge = "NOT READY" in notready_text
         has_fail_indicator = "failed" in notready_text.lower() or "FAILED" in notready_text or "✗" in notready_text

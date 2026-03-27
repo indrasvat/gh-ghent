@@ -47,7 +47,7 @@ so `gh ghent` works immediately. The symlink means every `make build` updates wh
 ```
 cmd/ghent/main.go            → cli.Execute()
 internal/
-├── cli/                     # Cobra commands (root, comments, checks, resolve, reply, summary)
+├── cli/                     # Cobra commands (root, comments, checks, resolve, reply, status)
 ├── domain/                  # Types + interfaces (ReviewThread, CheckRun, ports)
 ├── github/                  # GitHub API adapter (GraphQL + REST via go-gh)
 ├── tui/                     # Bubble Tea interactive TUI
@@ -55,7 +55,7 @@ internal/
 │   ├── comments.go          # Comments list + expanded thread
 │   ├── checks.go            # Checks list + log viewer
 │   ├── resolve.go           # Multi-select resolve
-│   ├── summary.go           # Dashboard KPI + sections
+│   ├── status.go            # Dashboard KPI + sections
 │   ├── watcher.go           # Watch mode (spinner, progress, event log)
 │   ├── components/          # statusbar, helpbar, diffhunk
 │   └── styles/              # Tokyo Night theme, Lipgloss definitions
@@ -152,7 +152,7 @@ Run `make install` first to register with gh, then test against these repos:
 |------|-----|---------|--------|---------|
 | `indrasvat/tbgs` | #1 | 2 unresolved (`PRRT_kwDOQQ76Ts5iIWqn`, `PRRT_kwDOQQ76Ts5iIWqx`) | pass (3) | comments, resolve, reply |
 | `indrasvat/peek-it` | #2 | 1 unresolved | failure (2) | checks with annotations |
-| `indrasvat/doot` | #1 | 1 resolved | pass (1) | checks pass, summary merge-ready |
+| `indrasvat/doot` | #1 | 1 resolved | pass (1) | checks pass, status merge-ready |
 | `indrasvat/visarga` | #1 | 0 | failure (1 fail, 3 skip) | checks failure |
 | `indrasvat/querylastic` | #1 | 0 | failure (2) | checks with annotations |
 | `indrasvat/context-lens` | #1 | 0 | failure (2 fail, 4 pass) | checks mixed |
@@ -218,6 +218,24 @@ Follow these steps for every feature. Each step has a gate — don't skip ahead.
 
 - **NEVER push directly to main.** All changes go through feature branches and PRs — no exceptions, including docs-only changes.
 - `docs/PROGRESS.md` and `docs/LEARNINGS.md` are updated as part of the feature branch, not as a separate post-merge commit.
+
+## Hero Image (README showcase)
+
+Source: `docs/feature-showcase-hero.html` → Output: `docs/feature-showcase.png`
+
+```bash
+# 1. Edit the HTML (update commands, descriptions, ordering)
+# 2. Open in agent-browser, set viewport to match card size, screenshot
+npx agent-browser open "file://$(pwd)/docs/feature-showcase-hero.html"
+sleep 0.5
+npx agent-browser eval "JSON.stringify(document.querySelector('.card').getBoundingClientRect())"
+# Use width+48 x height+48 (card + 24px padding each side)
+npx agent-browser set viewport <w> <h>
+npx agent-browser screenshot --full /tmp/showcase.png
+cp /tmp/showcase.png docs/feature-showcase.png
+```
+
+Key: set viewport to card dimensions + body padding (24px each side) so the card fills the frame with no background bleed. Do NOT use `magick -trim` on gradient backgrounds — it can't detect uniform edges.
 
 ## Learnings
 

@@ -65,7 +65,7 @@ func TestPredefinedKeyBindings(t *testing.T) {
 		{"ChecksListKeys", ChecksListKeys, 5},
 		{"ChecksWatchKeys", ChecksWatchKeys, 3},
 		{"ResolveKeys", ResolveKeys, 5},
-		{"SummaryKeys", SummaryKeys, 4},
+		{"StatusKeys", StatusKeys, 4},
 	}
 
 	for _, tt := range sets {

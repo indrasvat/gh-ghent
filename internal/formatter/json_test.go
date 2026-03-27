@@ -180,8 +180,8 @@ func TestJSONFormatterNoANSI(t *testing.T) {
 	}
 }
 
-func sampleSummaryResult() *domain.SummaryResult {
-	return &domain.SummaryResult{
+func sampleStatusResult() *domain.StatusResult {
+	return &domain.StatusResult{
 		PRNumber: 42,
 		Comments: domain.CommentsResult{
 			PRNumber:        42,
@@ -235,12 +235,12 @@ func sampleSummaryResult() *domain.SummaryResult {
 	}
 }
 
-func TestJSONSummaryValid(t *testing.T) {
+func TestJSONStatusValid(t *testing.T) {
 	var buf bytes.Buffer
 	f := &JSONFormatter{}
 
-	if err := f.FormatSummary(&buf, sampleSummaryResult()); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, sampleStatusResult()); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
 	var parsed map[string]any
@@ -249,12 +249,12 @@ func TestJSONSummaryValid(t *testing.T) {
 	}
 }
 
-func TestJSONSummaryFields(t *testing.T) {
+func TestJSONStatusFields(t *testing.T) {
 	var buf bytes.Buffer
 	f := &JSONFormatter{}
 
-	if err := f.FormatSummary(&buf, sampleSummaryResult()); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, sampleStatusResult()); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
 	var parsed map[string]any
@@ -298,15 +298,15 @@ func TestJSONSummaryFields(t *testing.T) {
 	}
 }
 
-func TestJSONSummaryMergeReady(t *testing.T) {
+func TestJSONStatusMergeReady(t *testing.T) {
 	var buf bytes.Buffer
 	f := &JSONFormatter{}
 
-	result := sampleSummaryResult()
+	result := sampleStatusResult()
 	result.IsMergeReady = true
 
-	if err := f.FormatSummary(&buf, result); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, result); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
 	var parsed map[string]any
@@ -319,12 +319,12 @@ func TestJSONSummaryMergeReady(t *testing.T) {
 	}
 }
 
-func TestJSONCompactSummaryValid(t *testing.T) {
+func TestJSONCompactStatusValid(t *testing.T) {
 	var buf bytes.Buffer
 	f := &JSONFormatter{}
 
-	if err := f.FormatCompactSummary(&buf, sampleSummaryResult()); err != nil {
-		t.Fatalf("FormatCompactSummary: %v", err)
+	if err := f.FormatCompactStatus(&buf, sampleStatusResult()); err != nil {
+		t.Fatalf("FormatCompactStatus: %v", err)
 	}
 
 	var parsed map[string]any
@@ -333,12 +333,12 @@ func TestJSONCompactSummaryValid(t *testing.T) {
 	}
 }
 
-func TestJSONCompactSummaryFlat(t *testing.T) {
+func TestJSONCompactStatusFlat(t *testing.T) {
 	var buf bytes.Buffer
 	f := &JSONFormatter{}
 
-	if err := f.FormatCompactSummary(&buf, sampleSummaryResult()); err != nil {
-		t.Fatalf("FormatCompactSummary: %v", err)
+	if err := f.FormatCompactStatus(&buf, sampleStatusResult()); err != nil {
+		t.Fatalf("FormatCompactStatus: %v", err)
 	}
 
 	var parsed map[string]any
@@ -394,16 +394,16 @@ func TestJSONCompactSummaryFlat(t *testing.T) {
 	}
 }
 
-func TestJSONCompactSummaryShorterThanFull(t *testing.T) {
+func TestJSONCompactStatusShorterThanFull(t *testing.T) {
 	f := &JSONFormatter{}
-	result := sampleSummaryResult()
+	result := sampleStatusResult()
 
 	var fullBuf, compactBuf bytes.Buffer
-	if err := f.FormatSummary(&fullBuf, result); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&fullBuf, result); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
-	if err := f.FormatCompactSummary(&compactBuf, result); err != nil {
-		t.Fatalf("FormatCompactSummary: %v", err)
+	if err := f.FormatCompactStatus(&compactBuf, result); err != nil {
+		t.Fatalf("FormatCompactStatus: %v", err)
 	}
 
 	if compactBuf.Len() >= fullBuf.Len() {
@@ -411,9 +411,9 @@ func TestJSONCompactSummaryShorterThanFull(t *testing.T) {
 	}
 }
 
-func TestJSONCompactSummaryNoThreads(t *testing.T) {
+func TestJSONCompactStatusNoThreads(t *testing.T) {
 	f := &JSONFormatter{}
-	result := &domain.SummaryResult{
+	result := &domain.StatusResult{
 		PRNumber: 99,
 		Comments: domain.CommentsResult{},
 		Checks: domain.ChecksResult{
@@ -422,8 +422,8 @@ func TestJSONCompactSummaryNoThreads(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := f.FormatCompactSummary(&buf, result); err != nil {
-		t.Fatalf("FormatCompactSummary: %v", err)
+	if err := f.FormatCompactStatus(&buf, result); err != nil {
+		t.Fatalf("FormatCompactStatus: %v", err)
 	}
 
 	var parsed map[string]any
@@ -437,10 +437,10 @@ func TestJSONCompactSummaryNoThreads(t *testing.T) {
 	}
 }
 
-// sampleSummaryWithFailures returns a SummaryResult with a failed check
+// sampleStatusWithFailures returns a StatusResult with a failed check
 // including annotations and log excerpt, for testing enriched output.
-func sampleSummaryWithFailures() *domain.SummaryResult {
-	return &domain.SummaryResult{
+func sampleStatusWithFailures() *domain.StatusResult {
+	return &domain.StatusResult{
 		PRNumber: 42,
 		Comments: domain.CommentsResult{
 			PRNumber:        42,
@@ -521,12 +521,12 @@ func sampleSummaryWithFailures() *domain.SummaryResult {
 	}
 }
 
-func TestJSONSummaryWithFailedChecks(t *testing.T) {
+func TestJSONStatusWithFailedChecks(t *testing.T) {
 	var buf bytes.Buffer
 	f := &JSONFormatter{}
 
-	if err := f.FormatSummary(&buf, sampleSummaryWithFailures()); err != nil {
-		t.Fatalf("FormatSummary: %v", err)
+	if err := f.FormatStatus(&buf, sampleStatusWithFailures()); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
 	}
 
 	var parsed map[string]any
@@ -562,12 +562,12 @@ func TestJSONSummaryWithFailedChecks(t *testing.T) {
 	}
 }
 
-func TestJSONCompactSummaryFailedChecks(t *testing.T) {
+func TestJSONCompactStatusFailedChecks(t *testing.T) {
 	var buf bytes.Buffer
 	f := &JSONFormatter{}
 
-	if err := f.FormatCompactSummary(&buf, sampleSummaryWithFailures()); err != nil {
-		t.Fatalf("FormatCompactSummary: %v", err)
+	if err := f.FormatCompactStatus(&buf, sampleStatusWithFailures()); err != nil {
+		t.Fatalf("FormatCompactStatus: %v", err)
 	}
 
 	var parsed map[string]any
@@ -607,13 +607,13 @@ func TestJSONCompactSummaryFailedChecks(t *testing.T) {
 	}
 }
 
-func TestJSONCompactSummaryNoFailedChecksWhenAllPass(t *testing.T) {
+func TestJSONCompactStatusNoFailedChecksWhenAllPass(t *testing.T) {
 	var buf bytes.Buffer
 	f := &JSONFormatter{}
 
 	// Use the original sample which has all passing checks.
-	if err := f.FormatCompactSummary(&buf, sampleSummaryResult()); err != nil {
-		t.Fatalf("FormatCompactSummary: %v", err)
+	if err := f.FormatCompactStatus(&buf, sampleStatusResult()); err != nil {
+		t.Fatalf("FormatCompactStatus: %v", err)
 	}
 
 	var parsed map[string]any
@@ -627,10 +627,10 @@ func TestJSONCompactSummaryNoFailedChecksWhenAllPass(t *testing.T) {
 	}
 }
 
-func TestJSONCompactSummaryBodyTruncation(t *testing.T) {
+func TestJSONCompactStatusBodyTruncation(t *testing.T) {
 	f := &JSONFormatter{}
 	longBody := strings.Repeat("x", 100)
-	result := &domain.SummaryResult{
+	result := &domain.StatusResult{
 		PRNumber: 1,
 		Comments: domain.CommentsResult{
 			Threads: []domain.ReviewThread{
@@ -648,8 +648,8 @@ func TestJSONCompactSummaryBodyTruncation(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := f.FormatCompactSummary(&buf, result); err != nil {
-		t.Fatalf("FormatCompactSummary: %v", err)
+	if err := f.FormatCompactStatus(&buf, result); err != nil {
+		t.Fatalf("FormatCompactStatus: %v", err)
 	}
 
 	var parsed map[string]any

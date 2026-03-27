@@ -14,7 +14,7 @@ import (
 	"github.com/indrasvat/gh-ghent/internal/tui"
 )
 
-func newSummaryCmd() *cobra.Command {
+func newStatusCmd() *cobra.Command {
 	var (
 		compact       bool
 		withLogs      bool
@@ -26,7 +26,7 @@ func newSummaryCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "summary",
+		Use:   "status",
 		Short: "PR status dashboard",
 		Long: `Show a combined status dashboard for a pull request.
 
@@ -36,7 +36,7 @@ shows KPI cards and section summaries. In pipe mode, outputs all
 sections in a single structured response.
 
 Use --logs to include failing job log excerpts in output.
-Use --watch to poll until all checks complete, then output full summary.
+Use --watch to poll until all checks complete, then output full status.
 Use --await-review to additionally wait for review activity to settle after CI.
 Use --quiet for silent exit on merge-ready (exit 0), full output on not-ready (exit 1).
 
@@ -45,28 +45,28 @@ With --solo, the approval requirement is skipped (for single-maintainer repos).
 
 Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 		Example: `  # Interactive dashboard
-  gh ghent summary --pr 42
+  gh ghent status --pr 42
 
   # Agent: check merge readiness
-  gh ghent summary --pr 42 --format json | jq '.is_merge_ready'
+  gh ghent status --pr 42 --format json --no-tui | jq '.is_merge_ready'
 
   # Full status with failure diagnostics
-  gh ghent summary --pr 42 --logs --format json
+  gh ghent status --pr 42 --logs --format json --no-tui
 
   # Wait for CI, get full report
-  gh ghent summary --pr 42 --watch --format json
+  gh ghent status --pr 42 --watch --format json --no-tui
 
   # Silent merge-readiness gate
-  gh ghent summary --pr 42 --quiet
+  gh ghent status --pr 42 --quiet
 
   # Compact one-line-per-thread digest
-  gh ghent summary --pr 42 --compact --format json
+  gh ghent status --pr 42 --compact --format json
 
   # Wait for CI + bot reviews to settle
-  gh ghent summary --pr 42 --await-review --format json
+  gh ghent status --pr 42 --await-review --format json
 
   # Custom review timeout
-  gh ghent summary --pr 42 --await-review --review-timeout 3m`,
+  gh ghent status --pr 42 --await-review --review-timeout 3m`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if Flags.PR == 0 {
 				return fmt.Errorf("--pr flag is required")
@@ -87,9 +87,9 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 
 			var reviewSettlement *domain.ReviewSettlement
 
-			// Watch mode: poll until CI terminal status, then output full summary.
+			// Watch mode: poll until CI terminal status, then output full status.
 			if watch {
-				// TTY → launch watch TUI with optional review-await and summary transition.
+				// TTY → launch watch TUI with optional review-await and status transition.
 				if Flags.IsTTY {
 					repoStr := owner + "/" + repo
 					sinceFilter := Flags.Since
@@ -100,7 +100,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 					opts := []tuiOption{
 						withRepo(repoStr), withPR(Flags.PR), withSolo(Flags.Solo),
 						withWatchFetch(fetchFn, ghub.DefaultPollInterval),
-						withSummaryTransition(true),
+						withStatusTransition(true),
 						withAsyncFetch(
 							func() (*domain.CommentsResult, error) {
 								result, err := client.FetchThreads(ctx, owner, repo, Flags.PR)
@@ -137,7 +137,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 					return launchTUI(tui.ViewWatch, opts...)
 				}
 
-				// Non-TTY: watch status → stderr, final summary → stdout.
+				// Non-TTY: watch progress → stderr, final status → stdout.
 				f, fErr := formatter.New(Flags.Format)
 				if fErr != nil {
 					return fErr
@@ -206,7 +206,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 					break
 				}
 
-				// Fall through to fetch full summary data below.
+				// Fall through to fetch full status data below.
 			}
 
 			// TTY (non-watch) → launch TUI immediately with async fetch.
@@ -214,7 +214,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 				repoStr := owner + "/" + repo
 				sinceFilter := Flags.Since // capture for closures
 				botsOnlyFilter := botsOnly // capture for closure
-				return launchTUI(tui.ViewSummary,
+				return launchTUI(tui.ViewStatus,
 					withRepo(repoStr), withPR(Flags.PR), withSolo(Flags.Solo),
 					withAsyncFetch(
 						func() (*domain.CommentsResult, error) {
@@ -318,7 +318,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 
 			now := time.Now()
 
-			result := &domain.SummaryResult{
+			result := &domain.StatusResult{
 				PRNumber:      Flags.PR,
 				Comments:      *threads,
 				Checks:        *checks,
@@ -336,11 +336,11 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			}
 
 			if compact {
-				if err := f.FormatCompactSummary(os.Stdout, result); err != nil {
+				if err := f.FormatCompactStatus(os.Stdout, result); err != nil {
 					return fmt.Errorf("format output: %w", err)
 				}
 			} else {
-				if err := f.FormatSummary(os.Stdout, result); err != nil {
+				if err := f.FormatStatus(os.Stdout, result); err != nil {
 					return fmt.Errorf("format output: %w", err)
 				}
 			}
@@ -357,7 +357,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 	cmd.Flags().BoolVar(&compact, "compact", false, "one-line-per-thread compact digest (optimized for agents)")
 	cmd.Flags().BoolVar(&withLogs, "logs", false, "include failing job log excerpts in output")
 	cmd.Flags().BoolVar(&quiet, "quiet", false, "silent on merge-ready (exit 0), full output on not-ready (exit 1)")
-	cmd.Flags().BoolVar(&watch, "watch", false, "poll until all checks complete, then output full summary")
+	cmd.Flags().BoolVar(&watch, "watch", false, "poll until all checks complete, then output full status")
 	cmd.Flags().BoolVar(&awaitReview, "await-review", false, "after CI completes, wait for review activity to settle (implies --watch)")
 	cmd.Flags().DurationVar(&reviewTimeout, "review-timeout", 5*time.Minute, "hard timeout for --await-review")
 	cmd.Flags().BoolVar(&botsOnly, "bots-only", false, "show only bot-originated threads in comments section")

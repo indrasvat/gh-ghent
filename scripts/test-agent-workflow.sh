@@ -88,7 +88,7 @@ for fmt in json xml md; do
     fi
 done
 
-# NOTE: Checks, resolve, reply, and summary workflow tests will be added
+# NOTE: Checks, resolve, reply, and status workflow tests will be added
 # as those commands are implemented (Tasks 2.2-2.6).
 
 # --- Summary ---

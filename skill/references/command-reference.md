@@ -284,7 +284,7 @@ echo "Acknowledged. Fixed in abc123." | gh ghent reply --pr 42 --thread PRRT_abc
 
 ---
 
-## `gh ghent summary`
+## `gh ghent status`
 
 Combined PR status dashboard with merge-readiness assessment.
 
@@ -294,7 +294,7 @@ Combined PR status dashboard with merge-readiness assessment.
 |------|------|---------|-------------|
 | `--compact` | bool | `false` | One-line-per-thread compact digest (optimized for agents) |
 | `--logs` | bool | `false` | Include failing job log excerpts and annotations in output |
-| `--watch` | bool | `false` | Poll until all checks complete, then output full summary |
+| `--watch` | bool | `false` | Poll until all checks complete, then output full status |
 | `--await-review` | bool | `false` | After CI completes, wait for review activity to settle (implies `--watch`) |
 | `--review-timeout` | duration | `5m` | Hard timeout for `--await-review` |
 | `--quiet` | bool | `false` | Silent on merge-ready (exit 0), full output on not-ready (exit 1) |
@@ -317,8 +317,8 @@ but `CHANGES_REQUESTED` still blocks. Useful for personal repos with no collabor
 
 ### Watch Mode (--watch)
 
-In non-TTY mode, watch status streams to **stderr** and the final summary to **stdout**.
-This lets you pipe the summary directly: `gh ghent summary --pr 42 --watch --format json 2>/dev/null | jq`
+In non-TTY mode, watch progress streams to **stderr** and the final status output to **stdout**.
+This lets you pipe the result directly: `gh ghent status --pr 42 --watch --format json 2>/dev/null | jq`
 
 In TTY mode, launches the interactive watch TUI.
 
@@ -344,7 +344,7 @@ activity is ever detected (e.g., no bot configured, or bot gave silent approval 
 (max 3 restarts).
 
 In non-TTY mode, review watch status streams to stderr alongside CI watch status.
-The final summary includes a `review_settled` field:
+The final status output includes a `review_settled` field:
 
 ```json
 {
@@ -359,7 +359,7 @@ The final summary includes a `review_settled` field:
 Phase is `"settled"` (debounce) or `"timeout"` (hard timeout reached).
 
 In TTY mode, the watcher shows "awaiting reviews" with idle/timeout counters,
-then transitions to the summary dashboard when reviews settle.
+then transitions to the status dashboard when reviews settle.
 
 Works with any reviewer — Codex, CodeRabbit, Copilot, human reviewers, or any bot
 that leaves review comments.
@@ -367,9 +367,9 @@ that leaves review comments.
 ### Quiet Mode (--quiet)
 
 - Merge-ready: exit 0, no output (silence = success)
-- Not merge-ready: exit 1, full summary output
+- Not merge-ready: exit 1, full status output
 
-Ideal for CI gates: `gh ghent summary --pr 42 --quiet || echo "Not ready"`
+Ideal for CI gates: `gh ghent status --pr 42 --quiet || echo "Not ready"`
 
 ### Full JSON Output Schema
 

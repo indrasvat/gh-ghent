@@ -118,9 +118,9 @@ feat(tui): add app shell with view switching and key routing
 - Tab cycling: comments → checks → comments (wraps)
 - Shift+Tab: reverse cycling
 - Enter: comments→expand, checks→log drill-in
-- Esc: expand→list, log→list, summary→prevView, resolve→prevView
+- Esc: expand→list, log→list, status→prevView, resolve→prevView
 - Quit: q sends tea.Quit command
-- Summary shortcuts: c→comments, k→checks, r→resolve
+- Status shortcuts: c→comments, k→checks, r→resolve
 - View rendering: status bar with "ghent", placeholder content, help bar
 - Status bar: comment counts (5 unresolved, 2 resolved), check counts (4 passed, 1 failed, HEAD SHA)
 - Help bar: changes per view (expand vs view logs)

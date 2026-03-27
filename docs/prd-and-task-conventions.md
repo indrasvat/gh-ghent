@@ -134,7 +134,7 @@ make test-all           # All levels
 ```
 cmd/ghent/main.go            → cli.Execute()
 internal/
-├── cli/                     # Cobra commands (root, comments, checks, resolve, summary)
+├── cli/                     # Cobra commands (root, comments, checks, resolve, status)
 ├── domain/                  # Types + interfaces (ReviewThread, CheckRun, ports)
 ├── github/                  # GitHub API adapter (GraphQL + REST via go-gh)
 ├── tui/                     # Bubble Tea interactive TUI
@@ -142,7 +142,7 @@ internal/
 │   ├── comments.go          # Comments list + expanded thread
 │   ├── checks.go            # Checks list + log viewer
 │   ├── resolve.go           # Multi-select resolve
-│   ├── summary.go           # Dashboard KPI + sections
+│   ├── status.go            # Dashboard KPI + sections
 │   ├── watcher.go           # Watch mode (spinner, progress, event log)
 │   ├── components/          # statusbar, helpbar, diffhunk
 │   └── styles/              # Tokyo Night theme, Lipgloss definitions
@@ -351,7 +351,7 @@ The PRD should be structured so agents **never need to read the whole thing**. E
 ### 6.4 `gh ghent resolve`
 ...
 
-### 6.5 `gh ghent summary`
+### 6.5 `gh ghent status`
 ...
 
 ### 6.6 Watch Mode
@@ -380,7 +380,7 @@ The PRD should be structured so agents **never need to read the whole thing**. E
 | 2.2: `gh ghent checks` | Phase 1 | 2.1 |
 | 2.3: `gh ghent checks --logs` | 2.2 | — |
 | 2.4: `gh ghent resolve` | 2.1 | 2.3 |
-| 2.5: `gh ghent summary` | 2.1, 2.2 | — |
+| 2.5: `gh ghent status` | 2.1, 2.2 | — |
 
 ### Phase 3: CLI Polish
 | Task | Depends On | Parallel With |
@@ -407,13 +407,13 @@ The PRD should be structured so agents **never need to read the whole thing**. E
 | 5.2: Comments expanded view | 5.1 | — |
 | 5.3: Checks view + log viewer | 4.4 | 5.1, 5.4 |
 | 5.4: Resolve view (multi-select) | 4.4 | 5.1, 5.3 |
-| 5.5: Summary dashboard | 5.1, 5.3 | — |
+| 5.5: Status dashboard | 5.1, 5.3 | — |
 | 5.6: Watch mode TUI | 5.3 | — |
 
 ### Phase 6: Agent Optimization (Future)
 - [ ] Task 6.1: --since flag
 - [ ] Task 6.2: --group-by flag
-- [ ] Task 6.3: Summary enhancements
+- [ ] Task 6.3: Status enhancements
 - [ ] Task 6.4: Batch resolve
 ```
 
@@ -647,7 +647,7 @@ PROGRESS.md serves two purposes:
 - [ ] Task 2.2: `gh ghent checks`
 - [ ] Task 2.3: `gh ghent checks --logs`
 - [ ] Task 2.4: `gh ghent resolve`
-- [ ] Task 2.5: `gh ghent summary`
+- [ ] Task 2.5: `gh ghent status`
 
 ### Phase 3: CLI Polish
 - [ ] Task 3.1: Watch mode (pipe)
@@ -787,7 +787,7 @@ ghent operates in two modes based on TTY detection:
 - `--no-tui` flag forces pipe mode even in TTY (for agents in pseudo-TTY)
 - Detection: `go-gh/v2/pkg/term.FromEnv().IsTerminalOutput()`
 
-The TUI mockups (`docs/tui-mockups.html`) are the authoritative visual spec — 7 views covering comments, expanded thread, checks, watch, resolve, summary, and pipe mode.
+The TUI mockups (`docs/tui-mockups.html`) are the authoritative visual spec — 7 views covering comments, expanded thread, checks, watch, resolve, status, and pipe mode.
 
 All yukti/vivecaka TUI pitfalls apply directly. See `docs/testing-strategy.md` §7.
 

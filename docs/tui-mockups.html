@@ -542,7 +542,7 @@
     <div class="tab" onclick="showView('checks')">checks</div>
     <div class="tab" onclick="showView('checks-watch')">checks --watch</div>
     <div class="tab" onclick="showView('resolve')">resolve</div>
-    <div class="tab" onclick="showView('summary')">summary</div>
+    <div class="tab" onclick="showView('status')">status</div>
     <div class="tab" onclick="showView('pipe')">pipe mode</div>
   </div>
 
@@ -1107,17 +1107,17 @@
   </div>
 
   <!-- ============ VIEW 6: SUMMARY ============ -->
-  <div id="view-summary" class="term-window">
+  <div id="view-status" class="term-window">
     <div class="term-titlebar">
       <div class="term-dot term-dot--red"></div>
       <div class="term-dot term-dot--yellow"></div>
       <div class="term-dot term-dot--green"></div>
-      <div class="term-title">gh ghent summary</div>
+      <div class="term-title">gh ghent status</div>
     </div>
     <div class="term-body">
 
       <div class="prompt-line">
-        <span class="prompt">$</span> <span class="cmd">gh ghent summary</span> <span class="flag">--pr</span> <span class="val">42</span>
+        <span class="prompt">$</span> <span class="cmd">gh ghent status</span> <span class="flag">--pr</span> <span class="val">42</span>
       </div>
 
       <div class="status-bar">
@@ -1234,14 +1234,14 @@
     </div>
   </div>
 
-  <div class="mockup-note" id="note-summary" style="display:none;">
+  <div class="mockup-note" id="note-status" style="display:none;">
     <strong>Summary View.</strong> A dashboard overview of the entire PR state.
     Uses Lipgloss <code>JoinVertical</code> to stack sections and <code>JoinHorizontal</code> for the KPI cards row.
     Each section is a Lipgloss bordered box with a title bar.
     The "NOT READY" / "READY" badge in the status bar reflects the merge readiness check.
     Compact mode: shows top items per section with "... and N more" truncation.
     Quick-nav keys (c/k/r) jump directly to the full views for each section.
-    This is the ideal single-command view for AI agents using <code>gh ghent summary --format json</code>.
+    This is the ideal single-command view for AI agents using <code>gh ghent status --format json</code>.
   </div>
 
   <!-- ============ VIEW 7: PIPE MODE ============ -->
@@ -1375,7 +1375,7 @@
       'checks': 2,
       'checks-watch': 3,
       'resolve': 4,
-      'summary': 5,
+      'status': 5,
       'pipe': 6
     };
     if (nameMap[name] !== undefined) {

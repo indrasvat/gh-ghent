@@ -1,4 +1,4 @@
-# Task 2.6: Summary Command (`gh ghent summary`)
+# Task 2.6: Status Command (`gh ghent status`)
 
 ## Status: DONE
 
@@ -11,11 +11,11 @@
 
 ## Problem
 
-ghent needs `gh ghent summary` to aggregate all PR data (threads, checks, approvals) into a single output. This is the most agent-useful command — one call gives full PR context. Exit code 0 means merge-ready. Pipe mode only in this phase; TUI dashboard comes in Phase 5.
+ghent needs `gh ghent status` to aggregate all PR data (threads, checks, approvals) into a single output. This is the most agent-useful command — one call gives full PR context. Exit code 0 means merge-ready. Pipe mode only in this phase; TUI dashboard comes in Phase 5.
 
 ## PRD Reference
 
-- §6.6 (Summary Command) — flags, pipe mode, exit codes, acceptance criteria FR-SUM-01 through FR-SUM-05
+- §6.6 (Status Command) — flags, pipe mode, exit codes, acceptance criteria FR-SUM-01 through FR-SUM-05
 - §5.4 (Key Design Decisions) — errgroup for parallel fetch
 
 ## Research References
@@ -32,7 +32,7 @@ ghent needs `gh ghent summary` to aggregate all PR data (threads, checks, approv
 
 ## Files to Modify
 
-- `internal/cli/summary.go` — Replace stub with real RunE implementation
+- `internal/cli/status.go` — Replace stub with real RunE implementation
 - `internal/github/client.go` — Add approval fetching (reviews query)
 - `internal/github/threads.go` — May need to expose resolved thread counts
 - `internal/formatter/formatter.go` — Add FormatSummary to interface
@@ -61,7 +61,7 @@ ghent needs `gh ghent summary` to aggregate all PR data (threads, checks, approv
 - Markdown: KPI line + sections with counts
 
 ### Step 5: Wire command
-- `summary.go` RunE: parallel fetch → aggregate → merge readiness → format → stdout
+- `status.go` RunE: parallel fetch → aggregate → merge readiness → format → stdout
 
 ### Step 6: Unit + integration tests
 - **L1**: Parallel fetch with partial failure
@@ -85,19 +85,19 @@ make test
 make build
 
 # NOT merge-ready: has unresolved threads + passing checks
-./bin/gh-ghent summary -R indrasvat/tbgs --pr 1 --format json | jq .
+./bin/gh-ghent status -R indrasvat/tbgs --pr 1 --format json | jq .
 # Expected: is_merge_ready=false (2 unresolved threads)
 
 # NOT merge-ready: no threads but failing checks
-./bin/gh-ghent summary -R indrasvat/visarga --pr 1 --format json | jq '{merge_ready: .is_merge_ready, unresolved: .comments.unresolved_count, checks_status: .checks.overall_status}'
+./bin/gh-ghent status -R indrasvat/visarga --pr 1 --format json | jq '{merge_ready: .is_merge_ready, unresolved: .comments.unresolved_count, checks_status: .checks.overall_status}'
 # Expected: is_merge_ready=false (checks failing)
 
 # Passing checks, resolved threads (doot — 1 resolved thread, checks pass)
-./bin/gh-ghent summary -R indrasvat/doot --pr 1 --format json | jq '.is_merge_ready'
+./bin/gh-ghent status -R indrasvat/doot --pr 1 --format json | jq '.is_merge_ready'
 # Expected: true (0 unresolved, checks pass)
 
 # Markdown summary
-./bin/gh-ghent summary -R indrasvat/peek-it --pr 2 --format md
+./bin/gh-ghent status -R indrasvat/peek-it --pr 2 --format md
 ```
 
 **Real repo test matrix:**
@@ -112,8 +112,8 @@ make build
 ### L5: Agent Workflow
 ```bash
 # Agent checks if PR is merge-ready via exit code
-./bin/gh-ghent summary -R indrasvat/doot --pr 1 --format json; echo "exit: $?"    # 0 (ready)
-./bin/gh-ghent summary -R indrasvat/tbgs --pr 1 --format json; echo "exit: $?"    # 1 (not ready)
+./bin/gh-ghent status -R indrasvat/doot --pr 1 --format json; echo "exit: $?"    # 0 (ready)
+./bin/gh-ghent status -R indrasvat/tbgs --pr 1 --format json; echo "exit: $?"    # 1 (not ready)
 ```
 
 ## Completion Criteria

@@ -222,7 +222,7 @@ async def main(connection):
                        "NOT READY" in screen_text and
                        "HEAD:" in screen_text)
         if has_variants:
-            log_result("Status Bar Variants", "PASS", "comments/checks/summary bars all render")
+            log_result("Status Bar Variants", "PASS", "comments/checks/status bars all render")
         else:
             missing = []
             if "5 unresolved" not in screen_text:
