@@ -108,22 +108,22 @@
   - **XML FormatCompactSummary:** Added FailedChecks to xmlCompactSummary struct.
 - **Documentation:** README (flags table + agent workflow), SKILL.md (restructured status-first with trigger phrases), command-reference.md (new flags + schemas), agent-workflows.md (CI monitor → status --watch --logs), ci-monitor.md (updated walkthrough), feature-showcase-hero.html (3 new status rows replacing checks --verbose).
 - **Test count:** 549 → 560 (11 new tests). `make ci-fast` clean with race detector. `make lint` 0 issues.
-- **Files modified:** summary.go, markdown.go, json.go, xml.go, markdown_test.go, json_test.go, xml_test.go, README.md, SKILL.md, command-reference.md, agent-workflows.md, ci-monitor.md, feature-showcase-hero.html, PROGRESS.md + new task file 034.
+- **Files modified:** status.go, markdown.go, json.go, xml.go, markdown_test.go, json_test.go, xml_test.go, README.md, SKILL.md, command-reference.md, agent-workflows.md, ci-monitor.md, feature-showcase-hero.html, PROGRESS.md + new task file 034.
 
 ### 2026-02-24 (Phase 9: Bug Fixes — Task 033 Dead Keybindings)
 - **Task 033 (Dead keybindings):** Fixed all 10 advertised-but-unimplemented TUI keybindings across 4 views.
   - **Comments list:** `f` (filter by file cycling), `y` (copy thread ID to clipboard), `o` (open comment in browser), `r` (switch to resolve view)
   - **Comments expanded:** `r` (resolve current thread via API), `y` (copy thread ID), `o` (open in browser)
   - **Checks list:** `R` (re-run failed checks via `gh run rerun`)
-  - **Summary:** `o` (open PR in browser), `R` (re-run failed checks)
+  - **Status:** `o` (open PR in browser), `R` (re-run failed checks)
 - **New files:** `internal/tui/clipboard.go` — clipboard helper (`pbcopy`/`xclip`/`xsel`), following `openInBrowser()` pattern
 - **Modified files:** `comments.go` (y/o/f handlers + filter state + `cycleFilter()` + `computeUniquePaths()`), `app.go` (r/o/R app-level handlers + `clipboardCopyMsg`/`rerunResultMsg` msg cases + filter indicator in status bar), `checks.go` (`extractRunID()` + `rerunFailedChecks()` + `rerunResultMsg`), `keymap.go` (OpenPR + Rerun bindings)
 - **Test count:** 489 → 549 (60 new tests). `make ci-fast` clean with race detector.
 - **L4:** `.claude/automations/test_ghent_keybindings.py` rewritten with exhaustive content-specific assertions: 11/11 PASS (10 keybinding tests + 1 regression). Clipboard verified via `pbpaste` (PRRT_ prefix), filter cycling verified with badge + item count + clear, resolve view switch verified with multi-indicator (checkboxes, help bar), roundtrip Esc confirmed.
 
-### 2026-02-24 (Phase 9: Bug Fixes — Task 032 Summary Overflow, Async Startup, Esc Nav)
+### 2026-02-24 (Phase 9: Bug Fixes — Task 032 Status Overflow, Async Startup, Esc Nav)
 - **P3 (Esc navigation):** Generalized Esc handler in `handleKey()` — returns to `prevView` from any list view, not just resolve/status. Initialized `prevView = initialView` in `NewApp()`. 3 new tests.
-- **P1 (Summary overflow):** Capped approvals at `maxReviewsShow = 5` with priority sort (CHANGES_REQUESTED > APPROVED > COMMENTED) and "... and N more" overflow indicator. Added viewport scrolling with `scrollOffset` and j/↓/↑ keys. 7 new tests.
+- **P1 (Status overflow):** Capped approvals at `maxReviewsShow = 5` with priority sort (CHANGES_REQUESTED > APPROVED > COMMENTED) and "... and N more" overflow indicator. Added viewport scrolling with `scrollOffset` and j/↓/↑ keys. 7 new tests.
 - **P2 (Async loading):** Added `FetchCommentsFunc`/`FetchChecksFunc`/`FetchReviewsFunc` types, `commentsLoadedMsg`/`checksLoadedMsg`/`reviewsLoadedMsg` messages, `SetAsyncFetch()` method. `Init()` fires parallel `tea.Cmd`s, `Update()` handles progressive rendering. Loading view shows "Loading PR data..." until first data arrives. Modified `cli/status.go` TTY path to launch TUI immediately with async fetch closures. Pipe mode retains blocking errgroup. 6 new tests.
 - **Stress-tested** against oven-sh/bun extreme PRs: #24063 (61 reviews, 101 threads), #27327 (68 threads, 25 reviews, 59 checks), #27338 (46 threads), #27264 (6/6 unresolved), #27056 (42 reviews). All render correctly with overflow indicators.
 - **Performance:** TUI first-frame dropped from 1.3–6.5s → <0.5s (instant). Pipe-mode latency unchanged (API-bound).
@@ -186,7 +186,7 @@
 - 16 unit tests in resolve_test.go + 1 new app_test.go test for Esc routing.
 - L4: 12/12 PASS (test_ghent_resolve.py against indrasvat/tbgs PR #1)
 - Verification: 384 tests pass, lint clean, vet clean (`make ci-fast` ✓)
-- Next: Task 5.5 Summary Dashboard
+- Next: Task 5.5 Status Dashboard
 
 ### 2026-02-23 (Task 5.3 — TUI Views: Checks)
 - **Task 5.3 (Checks view + log viewer):** Created `internal/tui/checks.go` — `checksListModel` with custom scrollable list, status icons (✓/✗/⟳/◌), auto-expanded annotations for failed checks with error count header and file:line detail. `checksLogModel` line-based viewport with check header, annotations, log excerpt display. Helper functions: `checkIsFailed`, `checkStatusIcon`, `renderCheckStatusText`, `formatCheckDuration`, `openInBrowser`. Wired to `app.go` with `selectCheckMsg` pattern and WindowSizeMsg propagation. Pre-fetch logs for failed checks in `cli/checks.go` before TUI launch. Added `ChecksLogKeys()` to helpbar. 16 unit tests. L4: 15/15 PASS (peek-it fail, doot pass, context-lens mixed).
@@ -203,7 +203,7 @@
 ### 2026-02-22 (Tasks 4.1, 4.2, 4.3 — TUI Foundation)
 - **Task 4.1 (Tokyo Night theme):** Created `internal/tui/styles/theme.go` (17 color constants), `styles.go` (all Lipgloss style definitions), `styles_test.go`. `cmd/theme-demo/main.go` visual harness. L4 test: 8/8 PASS.
 - **Task 4.2 (Shared components):** Created `internal/tui/components/` — statusbar.go, helpbar.go, diffhunk.go with tests. 6 predefined key binding sets per view. Extended theme-demo. L4 test: 6/6 PASS.
-- **Task 4.3 (App shell):** Created `internal/tui/app.go` — root Bubble Tea model with View enum (7 views), key routing (Tab cycle, Enter drill-in, Esc back, status shortcuts c/k/r), WindowSizeMsg propagation to all sub-models. `keymap.go` — bubbles/key bindings. `cmd/shell-demo/main.go` — interactive demo. 23 unit tests, L4 test: 6/6 PASS. No switch shadowing (pitfall #5), termenv background set/reset.
+- **Task 4.3 (App shell):** Created `internal/tui/app.go` — root Bubble Tea model with View enum (7 views), key routing (Tab cycle, Enter drill-in, Esc back, status view shortcuts c/k/r), WindowSizeMsg propagation to all sub-models. `keymap.go` — bubbles/key bindings. `cmd/shell-demo/main.go` — interactive demo. 23 unit tests, L4 test: 6/6 PASS. No switch shadowing (pitfall #5), termenv background set/reset.
 - **Task 4.4 (Wire TUI to Cobra):** Created `internal/cli/tui.go` — `launchTUI()` helper with functional options (withRepo, withPR, withComments, withChecks, withReviews). Modified `comments.go`, `checks.go`, `status.go`, `resolve.go` — if `Flags.IsTTY` → launch TUI with pre-fetched data, else pipe mode. Resolve: TTY without --thread/--all → interactive TUI, else pipe mode. Watch mode stays pipe-only. L3: all pipe mode tests pass. L4 test: 6/6 PASS (TUI launch, Tab switching, --no-tui, piped output, checks TUI).
 - Added charmbracelet/bubbletea v1.3.10, bubbles v1.0.0 dependencies
 - **Phase 4 complete** — TUI foundation wired to Cobra, dual-mode routing works

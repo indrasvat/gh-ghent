@@ -8,7 +8,7 @@
 ## Parallelizable With
 - Task 6.1: --since filter (independent)
 - Task 6.2: --group-by flag (independent)
-- Task 6.3: Summary enhancements (independent)
+- Task 6.3: Status enhancements (independent)
 
 ## Problem
 

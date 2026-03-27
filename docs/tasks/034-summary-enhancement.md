@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | **Status** | DONE |
-| **Phase** | 10 (Summary Enhancement) |
+| **Phase** | 10 (Status Enhancement) |
 | **Priority** | P1 |
 | **Depends on** | 009 (status), 006 (checks --logs), 010 (watch mode) |
 

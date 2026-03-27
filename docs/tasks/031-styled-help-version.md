@@ -89,7 +89,7 @@ Plain, machine-parseable, single line. No ANSI codes.
     gh ghent comments --pr 42 --format json --no-tui
 
     # Quick merge-readiness check
-    gh ghent summary --pr 42 --format json | jq '.is_merge_ready'
+    gh ghent status --pr 42 --format json | jq '.is_merge_ready'
 
     # Watch CI until done, fail-fast on failure
     gh ghent checks --pr 42 --watch
@@ -251,7 +251,7 @@ gh ghent comments --help
 gh ghent checks --help
 gh ghent resolve --help
 gh ghent reply --help
-gh ghent summary --help
+gh ghent status --help
 
 # Pipe mode (verify no ANSI codes)
 gh ghent --version | cat -v     # no escape sequences

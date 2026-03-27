@@ -10,14 +10,14 @@
 
 ## Problem
 
-ghent needs a Cobra command tree with root, comments, checks, resolve, reply, and summary subcommands. All global flags must be wired, including TTY detection for dual-mode (TUI vs pipe) routing.
+ghent needs a Cobra command tree with root, comments, checks, resolve, reply, and status subcommands. All global flags must be wired, including TTY detection for dual-mode (TUI vs pipe) routing.
 
 ## PRD Reference
 
 - §5.1 (Architecture) — cli/ directory structure
 - §5.2 (Dual-Mode Data Flow) — TTY detection, TUI vs pipe routing
 - §6.1 (Root Command) — global flags, version, repo resolution, TTY detection, `--no-tui`
-- §6.2-6.6 — Subcommand flag definitions (comments, checks, resolve, reply, summary)
+- §6.2-6.6 — Subcommand flag definitions (comments, checks, resolve, reply, status)
 
 ## Research References
 
@@ -31,7 +31,7 @@ ghent needs a Cobra command tree with root, comments, checks, resolve, reply, an
 - `internal/cli/checks.go` — Checks subcommand stub
 - `internal/cli/resolve.go` — Resolve subcommand stub
 - `internal/cli/reply.go` — Reply subcommand stub
-- `internal/cli/summary.go` — Summary subcommand stub
+- `internal/cli/status.go` — Status subcommand stub
 - `internal/cli/flags.go` — GlobalFlags struct (repo, format, verbose, noTUI)
 - `internal/version/version.go` — Version, Commit, Date + Print function
 
@@ -76,13 +76,13 @@ make build
 ./bin/gh-ghent --version
 ./bin/gh-ghent --help
 ./bin/gh-ghent comments --help
-./bin/gh-ghent summary --help
+./bin/gh-ghent status --help
 ./bin/gh-ghent comments --pr 1   # "not implemented" error
 ```
 
 ## Completion Criteria
 
-1. `--help` lists comments, checks, resolve, reply, summary subcommands
+1. `--help` lists comments, checks, resolve, reply, status subcommands
 2. Each subcommand has its specific flags
 3. `--no-tui` flag recognized
 4. TTY detection wired (IsTTY set in PersistentPreRunE)

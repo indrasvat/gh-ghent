@@ -157,7 +157,7 @@ back chain works consistently.
    - Create summaryModel with mixed review states → verify CHANGES_REQUESTED appears
      before APPROVED before COMMENTED.
 
-6. **Summary scrolling:**
+6. **Status scrolling:**
    - Create summaryModel with content exceeding height → verify scroll offset changes
      with j/k keys.
 
@@ -494,14 +494,14 @@ Note: Do NOT actually resolve — just test UI interaction.
 # Send 'esc' to cancel
 ```
 
-#### Test 12: Summary — merged PR with CHANGES_REQUESTED (edge case)
+#### Test 12: Status — merged PR with CHANGES_REQUESTED (edge case)
 
 ```python
 """
-Test: Summary for merged PR that had CHANGES_REQUESTED + unresolved threads.
+Test: Status for merged PR that had CHANGES_REQUESTED + unresolved threads.
 Repo: oven-sh/bun PR #27019 (merged with CHANGES_REQUESTED, 3 unresolved threads)
 Verify:
-  - Summary renders without error
+  - Status renders without error
   - is_merge_ready shows NOT READY (despite being merged)
   - Threads section shows 3 unresolved
   - Approvals section shows CHANGES_REQUESTED review
@@ -598,7 +598,7 @@ missing 56-61 Buildkite statuses. This should be tracked as a follow-up:
 
 - [x] KPI cards always visible at top of status for any PR size
 - [x] Approvals section capped with overflow indicator
-- [x] Summary view scrollable with j/↓/↑ when content exceeds viewport
+- [x] Status view scrollable with j/↓/↑ when content exceeds viewport
 - [x] TUI appears within ~1s for any PR (loading state shown)
 - [x] Data populates progressively as API calls complete
 - [x] Esc returns to status from comments/checks views

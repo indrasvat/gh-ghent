@@ -130,7 +130,7 @@ feat(tui): add shared components — status bar, help bar, diff hunk
 
 ### Screenshots Reviewed
 
-- `ghent_components_statusbar_20260222_233236.png` — Three status bar variants. Comments view shows "5 unresolved · 2 resolved". Checks view shows "HEAD: a1b2c3d" + "4 passed · 1 failed". Summary view shows PR title + "NOT READY" badge in red. All properly left/right aligned.
+- `ghent_components_statusbar_20260222_233236.png` — Three status bar variants. Comments view shows "5 unresolved · 2 resolved". Checks view shows "HEAD: a1b2c3d" + "4 passed · 1 failed". Status view shows PR title + "NOT READY" badge in red. All properly left/right aligned.
 - `ghent_components_helpbar_20260222_233236.png` — Help bars for comments, checks, resolve views. Blue key highlights, dim action descriptions. Proper spacing between items.
 - `ghent_components_diffhunk_20260222_233236.png` — Full diff hunk with green additions, red deletions, purple @@ header, dim context. Compact mode shows 3 lines + "..." truncation indicator.
 

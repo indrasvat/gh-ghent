@@ -19,7 +19,7 @@ ghent needs domain types (ReviewThread, CheckRun, Annotation, ReplyResult, etc.)
 - §6.2 (Comments) — ReviewThread and Comment field requirements, output structure
 - §6.3 (Checks) — CheckRun and Annotation field requirements, output structure
 - §6.5 (Reply) — ReplyResult field requirements, output structure
-- §6.6 (Summary) — combined data requirements
+- §6.6 (Status) — combined data requirements
 
 ## Research References
 

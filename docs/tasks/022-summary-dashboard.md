@@ -25,7 +25,7 @@ The status dashboard is the TUI landing view: KPI cards (unresolved count, check
 
 ## Files to Create
 
-- `internal/tui/summary.go` — Summary dashboard model
+- `internal/tui/summary.go` — Status dashboard model
 - `internal/tui/summary_test.go` — KPI rendering, quick-nav tests
 - `.claude/automations/test_ghent_summary.py` — iterm2-driver L4 visual test (canonical template from `docs/testing-strategy.md` §5)
 

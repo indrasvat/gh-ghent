@@ -64,8 +64,8 @@ The Codex review spawned three parallel sub-agents plus a second-pass audit to c
 
 - **SEVERITY:** IMPORTANT
 - **FILE(S):** `docs/PRD.md` (lines 226-234), `docs/tui-mockups.html` (7 tabs), `docs/PROGRESS.md` (lines 54-61)
-- **ISSUE:** PRD section 5.3 lists only five views (`ViewComments`, `ViewChecks`, `ViewResolve`, `ViewSummary`, `ViewWatch`). The TUI mockups HTML file has seven tabs: comments list, comments expanded, checks, checks log viewer, resolve, summary, and pipe mode. The "expanded thread view" and "pipe mode view" are absent from the architecture section. Phase 5 task planning also describes more views than the architecture accounts for.
-- **RECOMMENDATION:** Update PRD section 5.3 to enumerate all views from the mockups: (1) comments list, (2) comments expanded thread, (3) checks list, (4) checks log viewer, (5) resolve multi-select, (6) summary dashboard, (7) pipe mode/non-TTY output. Map each to its file/handler so the architecture is a complete spec.
+- **ISSUE:** PRD section 5.3 lists only five views (`ViewComments`, `ViewChecks`, `ViewResolve`, `ViewSummary`, `ViewWatch`). The TUI mockups HTML file has seven tabs: comments list, comments expanded, checks, checks log viewer, resolve, status, and pipe mode. The "expanded thread view" and "pipe mode view" are absent from the architecture section. Phase 5 task planning also describes more views than the architecture accounts for.
+- **RECOMMENDATION:** Update PRD section 5.3 to enumerate all views from the mockups: (1) comments list, (2) comments expanded thread, (3) checks list, (4) checks log viewer, (5) resolve multi-select, (6) status dashboard, (7) pipe mode/non-TTY output. Map each to its file/handler so the architecture is a complete spec.
 
 ### I4. Check Run Status Enumeration Includes Invalid Values
 

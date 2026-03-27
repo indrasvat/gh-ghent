@@ -83,7 +83,7 @@ Current workflow requires agents to scrape `gh pr view` output or make raw API c
 | Failing job logs | No | No | **Yes** |
 | Resolve threads from CLI | No | No | **Yes** |
 | Reply to review threads | No | No | **Yes** |
-| Summary dashboard | No | No | **Yes** |
+| Status dashboard | No | No | **Yes** |
 | Machine-readable output | `--json` | `--json` | **`--format json\|xml\|md`** |
 | Watch mode with fail-fast | No | `--watch` (basic) | **Yes** |
 
@@ -729,7 +729,7 @@ Goal: All interactive views working per mockups.
 | 5.2 | Comments expanded view — viewport, diff hunk, nested replies, n/p nav | 5.1 | — |
 | 5.3 | Checks view — check list, auto-expanded annotations, Enter for log viewer | 4.4 | 5.1, 5.4 |
 | 5.4 | Resolve view — multi-select checkboxes, confirmation bar, spinner | 4.4 | 5.1, 5.3 |
-| 5.5 | Summary dashboard — KPI cards, section summaries, quick-nav (c/k/r) | 5.1, 5.3 | — |
+| 5.5 | Status dashboard — KPI cards, section summaries, quick-nav (c/k/r) | 5.1, 5.3 | — |
 | 5.6 | Watch mode TUI — spinner, progress bar, event log, fail-fast | 5.3 | — |
 
 **PRD sections needed:** §6.2-6.6 (command TUI behavior)
@@ -740,7 +740,7 @@ Goal: All interactive views working per mockups.
 
 - [ ] Task 6.1: `--since` flag — only show comments/checks after a timestamp
 - [ ] Task 6.2: `--group-by` flag — group by file, author, or status
-- [ ] Task 6.3: Summary mode enhancements — one-line-per-thread digest
+- [ ] Task 6.3: Status mode enhancements — one-line-per-thread digest
 - [ ] Task 6.4: Batch resolve — resolve by file pattern or author
 
 ---

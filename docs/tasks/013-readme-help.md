@@ -36,7 +36,7 @@ ghent needs a user-facing README with installation instructions, usage examples 
 - `internal/cli/checks.go` — Polish help text, add Example field
 - `internal/cli/resolve.go` — Polish help text, add Example field
 - `internal/cli/reply.go` — Polish help text, add Example field
-- `internal/cli/summary.go` — Polish help text, add Example field
+- `internal/cli/status.go` — Polish help text, add Example field
 
 ## Execution Steps
 
@@ -123,7 +123,7 @@ docs: add README and polish --help text for all commands
 | Comments exit code | PASS | exit 1 (has unresolved) |
 | Comments no ANSI | PASS | |
 | Checks JSON valid | PASS | |
-| Summary JSON valid | PASS | |
+| Status JSON valid | PASS | |
 | Error is actionable | PASS | Mentions --pr flag |
 
 Screenshots reviewed:

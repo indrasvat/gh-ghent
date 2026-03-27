@@ -85,7 +85,7 @@ Key decisions:
 - `checks` — flags, annotations, log excerpts, watch mode
 - `resolve` — single/batch/filter/dry-run/unresolve
 - `reply` — body/body-file/stdin, thread validation
-- `summary` — parallel fetch, merge readiness, compact mode
+- `status` — parallel fetch, merge readiness, compact mode
 - Global flags: `--repo`, `--format`, `--pr`, `--since`, `--no-tui`, `--verbose`, `--debug`
 
 **`references/agent-workflows.md`** — Opinionated, step-by-step patterns:
@@ -97,7 +97,7 @@ Key decisions:
 
 **`references/exit-codes.md`** — Machine-readable exit code table:
 - Per-command exit codes with semantic meaning
-- How to use exit codes for branching (`if gh ghent summary ...; then merge; fi`)
+- How to use exit codes for branching (`if gh ghent status ...; then merge; fi`)
 - Error exit codes (2 = auth/rate/notfound)
 
 **`examples/review-cycle.md`** — Annotated walkthrough:
@@ -129,7 +129,7 @@ Key decisions:
 1. Read CLAUDE.md (full project context, all commands, flags, architecture)
 2. Read `docs/PRD.md` §5.2 (dual-mode operation), §6 (all commands)
 3. Read `internal/cli/root.go` (global flags)
-4. Read `internal/cli/comments.go`, `checks.go`, `resolve.go`, `reply.go`, `summary.go` (all command flags)
+4. Read `internal/cli/comments.go`, `checks.go`, `resolve.go`, `reply.go`, `status.go` (all command flags)
 5. Read `internal/domain/types.go` (output schemas)
 6. Read `internal/cli/errors.go` (exit codes)
 
@@ -225,7 +225,7 @@ test $(wc -l < skill/SKILL.md) -lt 500
 - [ ] Commands match actual implementation (verify against source)
 
 ### Agent Simulation
-- [ ] An agent reading only SKILL.md can run `gh ghent summary --pr N --format json`
+- [ ] An agent reading only SKILL.md can run `gh ghent status --pr N --format json`
 - [ ] An agent reading SKILL.md + agent-workflows.md can complete a full review cycle
 - [ ] Exit code table matches actual implementation in `cli/errors.go` and each command's RunE
 

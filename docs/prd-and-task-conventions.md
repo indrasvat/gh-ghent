@@ -407,13 +407,13 @@ The PRD should be structured so agents **never need to read the whole thing**. E
 | 5.2: Comments expanded view | 5.1 | — |
 | 5.3: Checks view + log viewer | 4.4 | 5.1, 5.4 |
 | 5.4: Resolve view (multi-select) | 4.4 | 5.1, 5.3 |
-| 5.5: Summary dashboard | 5.1, 5.3 | — |
+| 5.5: Status dashboard | 5.1, 5.3 | — |
 | 5.6: Watch mode TUI | 5.3 | — |
 
 ### Phase 6: Agent Optimization (Future)
 - [ ] Task 6.1: --since flag
 - [ ] Task 6.2: --group-by flag
-- [ ] Task 6.3: Summary enhancements
+- [ ] Task 6.3: Status enhancements
 - [ ] Task 6.4: Batch resolve
 ```
 
