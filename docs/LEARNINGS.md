@@ -22,6 +22,10 @@
 - **2026-03-25 (await-review):** Debounce on zero activity is wrong for review-await — a bot may take 2-4 min before posting its first comment (Codex shows 👀 during this time). Only debounce after at least one fingerprint change; use hard timeout as the safety valve for zero-activity cases
 - **2026-03-25 (await-review):** When sorting parallel slices (IDs + metadata), sort as struct entries — `sort.Strings(ids)` alone mis-pairs the metadata slices. Codex P1 caught this.
 - **2026-03-25 (await-review):** Take a baseline activity fingerprint BEFORE CI watch starts, not after — activity that happens during CI (fast bot reviews) is invisible if the initial probe is taken post-CI. Compare baseline vs post-CI to detect it.
+- **2026-03-26 (bot-sweep):** GitHub GraphQL `author { __typename }` returns `"Bot"` for all GitHub App bots — this is the authoritative bot detection signal, superior to login-string matching. GraphQL author.login omits the `[bot]` suffix that REST includes.
+- **2026-03-26 (bot-sweep):** GitHub's `resolveReviewThread` mutation is idempotent — resolving an already-resolved thread succeeds silently. No special "already resolved" handling needed.
+- **2026-03-26 (bot-sweep):** Compute merge-readiness BEFORE applying display filters (--bots-only) — filtering mutates thread counts, which would make the PR appear merge-ready when unresolved human threads are hidden.
+- **2026-03-26 (bot-sweep):** Codex bot review comments use `**<sub><sub>![P1 Badge]...` markup with "Useful? React with 👍 / 👎" footer. CodeRabbit uses `_⚠️ Potential issue_ | _🔴 Critical_` severity markers with `<!-- fingerprinting:... -->` HTML comments.
 
 ## Cobra CLI
 

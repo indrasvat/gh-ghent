@@ -29,6 +29,12 @@ Exit codes: 0 = no unresolved threads, 1 = has unresolved threads.`,
   # JSON for agents (thread IDs, file:line, bodies)
   gh ghent comments --pr 42 --format json --no-tui
 
+  # Only bot-originated threads (for bot sweep workflow)
+  gh ghent comments --pr 42 --bots-only --unanswered --format json
+
+  # Only human review threads
+  gh ghent comments --pr 42 --humans-only --format json
+
   # Count unresolved threads
   gh ghent comments --pr 42 --format json | jq '.unresolved_count'
 
@@ -54,6 +60,20 @@ Exit codes: 0 = no unresolved threads, 1 = has unresolved threads.`,
 
 			// Apply --since filter (no-op if not set).
 			FilterThreadsBySince(result, Flags.Since)
+
+			// Apply bot/unanswered filters.
+			botsOnly, _ := cmd.Flags().GetBool("bots-only")
+			humansOnly, _ := cmd.Flags().GetBool("humans-only")
+			unanswered, _ := cmd.Flags().GetBool("unanswered")
+
+			if botsOnly && humansOnly {
+				return fmt.Errorf("--bots-only and --humans-only are mutually exclusive")
+			}
+
+			FilterThreadsByBot(result, botsOnly, humansOnly)
+			if unanswered {
+				FilterThreadsByUnanswered(result)
+			}
 
 			// TTY → launch TUI; non-TTY / --no-tui → pipe mode.
 			if Flags.IsTTY {
@@ -93,6 +113,9 @@ Exit codes: 0 = no unresolved threads, 1 = has unresolved threads.`,
 	}
 
 	cmd.Flags().String("group-by", "", "group threads by: file, author, status")
+	cmd.Flags().BoolP("bots-only", "b", false, "show only bot-originated threads")
+	cmd.Flags().BoolP("humans-only", "H", false, "show only human-originated threads")
+	cmd.Flags().BoolP("unanswered", "a", false, "show only threads with no replies")
 
 	return cmd
 }

@@ -7,11 +7,11 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 11: Review Await |
-| **Current Task** | --await-review DONE. Released v0.6.0. |
+| **Current Phase** | Phase 12: Bot Sweep |
+| **Current Task** | Bot-aware filtering + reply-resolve combo DONE. PR #11. |
 | **Blocker** | None |
-| **Last Action** | --await-review flag, activity probe, baseline fingerprint, TUI summary transition, 616 tests. |
-| **Last Updated** | 2026-03-25 |
+| **Last Action** | Bot detection via __typename, --bots-only/--humans-only/--unanswered flags, reply --resolve, SKILL.md rewrite. 680 tests. |
+| **Last Updated** | 2026-03-26 |
 
 ## How to Resume
 

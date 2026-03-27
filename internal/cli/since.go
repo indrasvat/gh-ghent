@@ -80,19 +80,7 @@ func FilterThreadsBySince(result *domain.CommentsResult, since time.Time) {
 	}
 	result.Threads = filtered
 
-	// Recount based on filtered threads.
-	unresolved := 0
-	resolved := 0
-	for _, t := range result.Threads {
-		if t.IsResolved {
-			resolved++
-		} else {
-			unresolved++
-		}
-	}
-	result.UnresolvedCount = unresolved
-	result.ResolvedCount = resolved
-	result.TotalCount = len(result.Threads)
+	recountThreads(result)
 }
 
 // threadNewestAfter returns true if the thread's newest comment is at or after t.

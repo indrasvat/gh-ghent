@@ -22,6 +22,7 @@ func newSummaryCmd() *cobra.Command {
 		watch         bool
 		awaitReview   bool
 		reviewTimeout time.Duration
+		botsOnly      bool
 	)
 
 	cmd := &cobra.Command{
@@ -92,6 +93,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 				if Flags.IsTTY {
 					repoStr := owner + "/" + repo
 					sinceFilter := Flags.Since
+					botsOnlyFilter := botsOnly
 					fetchFn := func() (*domain.ChecksResult, error) {
 						return client.FetchChecks(ctx, owner, repo, Flags.PR)
 					}
@@ -104,6 +106,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 								result, err := client.FetchThreads(ctx, owner, repo, Flags.PR)
 								if err == nil {
 									FilterThreadsBySince(result, sinceFilter)
+									FilterThreadsByBot(result, botsOnlyFilter, false)
 								}
 								return result, err
 							},
@@ -210,6 +213,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			if !watch && Flags.IsTTY {
 				repoStr := owner + "/" + repo
 				sinceFilter := Flags.Since // capture for closures
+				botsOnlyFilter := botsOnly // capture for closure
 				return launchTUI(tui.ViewSummary,
 					withRepo(repoStr), withPR(Flags.PR), withSolo(Flags.Solo),
 					withAsyncFetch(
@@ -217,6 +221,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 							result, err := client.FetchThreads(ctx, owner, repo, Flags.PR)
 							if err == nil {
 								FilterThreadsBySince(result, sinceFilter)
+								FilterThreadsByBot(result, botsOnlyFilter, false)
 							}
 							return result, err
 						},
@@ -299,8 +304,12 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 				}
 			}
 
-			// Merge readiness logic. If review fetch failed, not merge-ready.
+			// Merge readiness MUST be computed BEFORE --bots-only filter,
+			// otherwise filtering out human threads hides unresolved counts.
 			mergeReady := !reviewFetchFailed && IsMergeReady(threads, checks, reviews, Flags.Solo)
+
+			// Apply --bots-only filter to threads section (display only).
+			FilterThreadsByBot(threads, botsOnly, false)
 
 			// --quiet: silent exit on merge-ready, full output on not-ready.
 			if quiet && mergeReady {
@@ -351,6 +360,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 	cmd.Flags().BoolVar(&watch, "watch", false, "poll until all checks complete, then output full summary")
 	cmd.Flags().BoolVar(&awaitReview, "await-review", false, "after CI completes, wait for review activity to settle (implies --watch)")
 	cmd.Flags().DurationVar(&reviewTimeout, "review-timeout", 5*time.Minute, "hard timeout for --await-review")
+	cmd.Flags().BoolVar(&botsOnly, "bots-only", false, "show only bot-originated threads in comments section")
 
 	return cmd
 }

@@ -15,15 +15,24 @@ func (f *MarkdownFormatter) FormatComments(w io.Writer, result *domain.CommentsR
 	if result.Since != "" {
 		fmt.Fprintf(w, "> Filtered: showing activity since %s\n\n", result.Since)
 	}
-	fmt.Fprintf(w, "**Unresolved:** %d | **Resolved:** %d | **Total:** %d\n",
+	fmt.Fprintf(w, "**Unresolved:** %d | **Resolved:** %d | **Total:** %d",
 		result.UnresolvedCount, result.ResolvedCount, result.TotalCount)
+	if result.BotThreadCount > 0 || result.UnansweredCount > 0 {
+		fmt.Fprintf(w, " | **Bot:** %d | **Unanswered:** %d",
+			result.BotThreadCount, result.UnansweredCount)
+	}
+	fmt.Fprintln(w)
 
 	for _, t := range result.Threads {
 		fmt.Fprintf(w, "\n---\n\n")
 		fmt.Fprintf(w, "## %s:%d\n\n", t.Path, t.Line)
 
 		for _, c := range t.Comments {
-			fmt.Fprintf(w, "**@%s** — %s\n\n", c.Author, c.CreatedAt.Format("2006-01-02 15:04"))
+			botBadge := ""
+			if c.IsBot {
+				botBadge = " [bot]"
+			}
+			fmt.Fprintf(w, "**@%s%s** — %s\n\n", c.Author, botBadge, c.CreatedAt.Format("2006-01-02 15:04"))
 			fmt.Fprintf(w, "> %s\n", c.Body)
 
 			if c.DiffHunk != "" {
@@ -47,7 +56,11 @@ func (f *MarkdownFormatter) FormatGroupedComments(w io.Writer, result *domain.Gr
 		for _, t := range g.Threads {
 			fmt.Fprintf(w, "### %s:%d\n\n", t.Path, t.Line)
 			for _, c := range t.Comments {
-				fmt.Fprintf(w, "**@%s** — %s\n\n", c.Author, c.CreatedAt.Format("2006-01-02 15:04"))
+				botBadge := ""
+				if c.IsBot {
+					botBadge = " [bot]"
+				}
+				fmt.Fprintf(w, "**@%s%s** — %s\n\n", c.Author, botBadge, c.CreatedAt.Format("2006-01-02 15:04"))
 				fmt.Fprintf(w, "> %s\n", c.Body)
 				if c.DiffHunk != "" {
 					fmt.Fprintf(w, "\n<details>\n<summary>Diff</summary>\n\n```diff\n%s\n```\n\n</details>\n", c.DiffHunk)
@@ -96,6 +109,17 @@ func (f *MarkdownFormatter) FormatReply(w io.Writer, result *domain.ReplyResult)
 	fmt.Fprintf(w, "**Thread:** %s\n", result.ThreadID)
 	fmt.Fprintf(w, "**URL:** %s\n\n", result.URL)
 	fmt.Fprintf(w, "> %s\n", result.Body)
+	if result.Resolved != nil {
+		fmt.Fprintf(w, "\n## Thread Resolved\n\n")
+		fmt.Fprintf(w, "**Action:** %s\n", result.Resolved.Action)
+		if result.Resolved.Path != "" {
+			fmt.Fprintf(w, "**File:** %s:%d\n", result.Resolved.Path, result.Resolved.Line)
+		}
+	}
+	if result.ResolveError != "" {
+		fmt.Fprintf(w, "\n## Resolve Failed\n\n")
+		fmt.Fprintf(w, "**Error:** %s\n", result.ResolveError)
+	}
 	return nil
 }
 
