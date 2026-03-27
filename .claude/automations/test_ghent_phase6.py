@@ -14,7 +14,7 @@ Tests:
     1. --since filter: Filters comments by timestamp, shows since metadata
     2. --group-by file: Groups comments by file path
     3. --group-by author: Groups comments by author
-    4. --compact summary: Flat compact digest with PR metadata
+    4. --compact status: Flat compact digest with PR metadata
     5. Batch resolve --dry-run: Shows what would be resolved
     6. Batch resolve --file: Filter by file glob
     7. --since with --group-by: Combined flags work together
@@ -27,7 +27,7 @@ Verification Strategy:
 Screenshots:
     - ghent_phase6_since.png: --since filter output
     - ghent_phase6_groupby.png: --group-by file output
-    - ghent_phase6_compact.png: --compact summary output
+    - ghent_phase6_compact.png: --compact status output
     - ghent_phase6_batchresolve.png: Batch resolve --dry-run output
 
 Screenshot Inspection Checklist:
@@ -177,10 +177,10 @@ async def run_test(connection):
 
     capture_quartz_screenshot("ghent_phase6_groupby")
 
-    # Test 4: --compact summary
+    # Test 4: --compact status
     print("\n--- Test 4: --compact Summary ---")
     await session.async_send_text(
-        f"{BINARY} summary -R indrasvat/tbgs --pr 1 --compact --format json "
+        f"{BINARY} status -R indrasvat/tbgs --pr 1 --compact --format json "
         "| python3 -c \"import sys,json; d=json.load(sys.stdin); "
         "print(f'COMPACT_OK ready={{d.get(\\\"is_merge_ready\\\")}} unresolved={{d.get(\\\"unresolved\\\")}} "
         "status={{d.get(\\\"check_status\\\")}} age={{d.get(\\\"pr_age\\\",\\\"none\\\")}}')\" 2>&1; "
@@ -188,10 +188,10 @@ async def run_test(connection):
     )
     await asyncio.sleep(10.0)
 
-    if await verify_screen_contains(session, "COMPACT_OK", "compact summary"):
-        log_result("--compact summary", "PASS", "Flat digest with metadata")
+    if await verify_screen_contains(session, "COMPACT_OK", "compact status"):
+        log_result("--compact status", "PASS", "Flat digest with metadata")
     else:
-        log_result("--compact summary", "FAIL", "Expected output not found")
+        log_result("--compact status", "FAIL", "Expected output not found")
 
     capture_quartz_screenshot("ghent_phase6_compact")
 

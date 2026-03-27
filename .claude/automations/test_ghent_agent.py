@@ -203,17 +203,17 @@ async def run_test(connection):
     # Test 3: Summary JSON
     print("\n--- Test 3: Summary JSON ---")
     await session.async_send_text(
-        f"{BINARY} summary -R indrasvat/tbgs --pr 1 --format json > /tmp/ghent_agent_summary.txt 2>&1; "
+        f"{BINARY} status -R indrasvat/tbgs --pr 1 --format json > /tmp/ghent_agent_status.txt 2>&1; "
         "echo SUMMARY_EXIT=$?\n"
     )
     await asyncio.sleep(8.0)
 
     await session.async_send_text(
-        "python3 -m json.tool /tmp/ghent_agent_summary.txt > /dev/null 2>&1 && echo SJSON_VALID || echo SJSON_INVALID\n"
+        "python3 -m json.tool /tmp/ghent_agent_status.txt > /dev/null 2>&1 && echo SJSON_VALID || echo SJSON_INVALID\n"
     )
     await asyncio.sleep(2.0)
 
-    if await verify_screen_contains(session, "SJSON_VALID", "summary json"):
+    if await verify_screen_contains(session, "SJSON_VALID", "status json"):
         log_result("Summary JSON valid", "PASS")
     else:
         log_result("Summary JSON valid", "SKIP", "Could not validate")

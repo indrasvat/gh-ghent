@@ -41,8 +41,8 @@ Waits for CI, then waits for bot reviewers to settle (5m timeout, exits early af
 Returns everything: threads with `is_bot`, checks with log excerpts, reviews, `is_merge_ready`.
 
 **Drop `--solo`** for org repos with required review policies.
-`--await-review` is the default — it only costs 30s of silence detection even without bot reviewers.
-**Drop `--await-review`** only in mid-development re-checks where you just want CI status.
+**Always include `--await-review`** after PR creation — it only adds 30s of silence detection even without bot reviewers.
+**Drop `--await-review`** only in mid-development re-checks where you just need CI status.
 **Drop `--logs`** on re-checks after fixing threads (only needed for CI failures).
 
 ## Response Shape (status)
