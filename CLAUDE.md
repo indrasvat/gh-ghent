@@ -219,6 +219,24 @@ Follow these steps for every feature. Each step has a gate — don't skip ahead.
 - **NEVER push directly to main.** All changes go through feature branches and PRs — no exceptions, including docs-only changes.
 - `docs/PROGRESS.md` and `docs/LEARNINGS.md` are updated as part of the feature branch, not as a separate post-merge commit.
 
+## Hero Image (README showcase)
+
+Source: `docs/feature-showcase-hero.html` → Output: `docs/feature-showcase.png`
+
+```bash
+# 1. Edit the HTML (update commands, descriptions, ordering)
+# 2. Open in agent-browser, set viewport to match card size, screenshot
+npx agent-browser open "file://$(pwd)/docs/feature-showcase-hero.html"
+sleep 0.5
+npx agent-browser eval "JSON.stringify(document.querySelector('.card').getBoundingClientRect())"
+# Use width+48 x height+48 (card + 24px padding each side)
+npx agent-browser set viewport <w> <h>
+npx agent-browser screenshot --full /tmp/showcase.png
+cp /tmp/showcase.png docs/feature-showcase.png
+```
+
+Key: set viewport to card dimensions + body padding (24px each side) so the card fills the frame with no background bleed. Do NOT use `magick -trim` on gradient backgrounds — it can't detect uniform edges.
+
 ## Learnings
 
 Moved to `docs/LEARNINGS.md`. Update that file as part of the feature branch (step 5 above).
