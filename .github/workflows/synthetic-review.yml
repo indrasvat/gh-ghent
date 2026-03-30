@@ -1,6 +1,9 @@
 name: Synthetic Review
 
 on:
+  push:
+    branches:
+      - "**"
   workflow_dispatch:
     inputs:
       pr_number:
@@ -21,15 +24,39 @@ permissions:
 
 jobs:
   review:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[synthetic-review]')
     runs-on: ubuntu-latest
     steps:
       - name: Post synthetic review
         uses: actions/github-script@v7
         with:
           script: |
-            const pull_number = Number(core.getInput("pr_number"));
-            const event = core.getInput("event");
-            const body = core.getInput("body");
+            const eventName = context.eventName;
+            const event = eventName === "workflow_dispatch"
+              ? core.getInput("event")
+              : "REQUEST_CHANGES";
+            const body = eventName === "workflow_dispatch"
+              ? core.getInput("body")
+              : "Synthetic review from github-actions[bot] for ghent stale-review testing.";
+
+            let pull_number;
+            if (eventName === "workflow_dispatch") {
+              pull_number = Number(core.getInput("pr_number"));
+            } else {
+              const branch = context.ref.replace("refs/heads/", "");
+              const pulls = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                head: `${context.repo.owner}:${branch}`,
+                state: "open",
+              });
+
+              if (!pulls.data.length) {
+                core.setFailed(`No open pull request found for branch ${branch}`);
+                return;
+              }
+              pull_number = pulls.data[0].number;
+            }
 
             const review = await github.rest.pulls.createReview({
               owner: context.repo.owner,
