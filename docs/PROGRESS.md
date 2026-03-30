@@ -8,9 +8,9 @@
 | Field | Value |
 |-------|-------|
 | **Current Phase** | Phase 14: Stale Review Dismissal |
-| **Current Task** | Task 036 in progress: stale blocking review dismissal for issue #15 has been validated and planned; implementation not started yet. |
+| **Current Task** | Task 036 DONE: stale blocking review dismissal implemented, verified, and dogfooded on PR #16. |
 | **Blocker** | None |
-| **Last Action** | Validated that review-thread resolution does not clear blocking review verdicts, confirmed GitHub supports explicit review dismissal, and drafted the PRD/task plan for a `dismiss` command plus stale-review surfacing in `status`. |
+| **Last Action** | End-to-end dogfood complete: a synthetic `github-actions[bot]` `CHANGES_REQUESTED` review was created on PR #16, made stale by a follow-up push, then dismissed successfully with `gh ghent dismiss`. |
 | **Last Updated** | 2026-03-30 |
 
 ## How to Resume
@@ -96,7 +96,7 @@
 > **Milestone: Review Monitor Hardening complete** — `status --await-review` is now the single blessed agent review loop with bounded confirmation and explicit provisional-vs-stable output semantics
 
 ### Phase 14: Stale Review Dismissal
-- [ ] Task 14.1: Dismiss stale blocking reviews + status surfacing → `docs/tasks/036-review-dismissal.md`
+- [x] Task 14.1: Dismiss stale blocking reviews + status surfacing → `docs/tasks/036-review-dismissal.md`
 
 ## Blockers
 
@@ -104,13 +104,25 @@
 
 ## Session Log
 
-### 2026-03-30 (Phase 14 planning — Task 036 spec)
-- **Task 036 spec drafted:** Created `docs/tasks/036-review-dismissal.md` and updated `docs/PRD.md` for issue #15.
-  - Confirmed the gap is real in ghent itself: `status` currently blocks on any historical `CHANGES_REQUESTED` review, while `resolve` only operates on threads and offers no review-verdict dismissal path.
-  - Confirmed via GitHub docs and local API research that review dismissal is a separate REST primitive and that GitHub's documented stale-review auto-dismiss behavior only applies to approvals on push, not stale `CHANGES_REQUESTED` reviews.
-  - Refined the product framing from "security bots" to the more correct abstraction: **stale blocking reviews**, with bot-only filtering as an optional narrowing tool.
-  - Planned three deliverables: review metadata enrichment (`commit SHA`, `IsStale`, bot classification), a new pipe-first `gh ghent dismiss` command, and `status`/skill updates that surface stale blockers without incorrectly reporting merge-ready.
-- **Implementation status:** Not started. This session produced the validated plan, branch, PRD changes, and task file only.
+### 2026-03-30 (Phase 14: Task 036 stale blocking review dismissal)
+- **Feature implementation:** Added stale-review metadata (`DatabaseID`, `AuthorType`, `IsBot`, `CommitID`, `IsStale`) to the review model and review fetch path.
+  - `internal/github/reviews.go` now fetches PR head SHA plus per-review commit SHA and author typing, then computes `IsStale`.
+  - `internal/github/dismiss.go` adds REST dismissal via `PUT /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/dismissals`.
+  - `internal/cli/dismiss.go` adds a new pipe-first `gh ghent dismiss` command with strict stale-only semantics, dry-run, author filter, bot filter, and partial-failure exit codes.
+- **Status / formatter / TUI updates:** `status` now exposes `stale_reviews`, marks stale blockers in Markdown/TUI, and suggests the exact dismiss command without changing conservative merge-readiness logic.
+  - Structured output now includes stale review helper data in JSON compact/full output and XML.
+  - The TUI approvals section now shows stale counts and `(stale)` labels for blocking stale reviews.
+- **Verification completed:**
+  - `make ci-fast` PASS
+  - `bash scripts/test-binary.sh` PASS (19/19), including live stale-review detection on `clayliddell/AgentVM#10`
+  - `bash scripts/test-agent-workflow.sh` PASS (11/11), including stale-review parsing + dismiss dry-run flow
+  - `uv run .claude/automations/test_ghent_dismiss.py` PASS (5/5) with reviewed screenshots for TUI status stale markers and dry-run output
+- **Dogfooding on this feature PR:** Opened draft PR `indrasvat/gh-ghent#16`.
+  - Confirmed GitHub rejects self-authored `REQUEST_CHANGES` reviews on your own PR with `422 Review Can not request changes on your own pull request`.
+  - Added `.github/workflows/synthetic-review.yml` as a reusable free test harness that posts reviews as `github-actions[bot]`.
+  - Triggered a synthetic blocking review on PR #16, pushed again to stale it, verified `gh ghent status` reported one stale blocker, then successfully ran:
+    - `gh ghent dismiss -R indrasvat/gh-ghent --pr 16 --message "superseded by current HEAD" --format json --no-tui`
+  - Post-dismiss verification showed `stale_reviews: []` and GitHub review state `DISMISSED`.
 
 ### 2026-03-29 (Phase 13: Review Monitor Hardening — Task 035)
 - **Task 035 (Smart await-review + skill hardening):** Implemented bounded review stabilization in both pipe mode and TUI.

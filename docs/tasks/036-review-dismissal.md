@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Status** | IN PROGRESS |
+| **Status** | DONE |
 | **Phase** | 14 (Stale Review Dismissal) |
 | **Priority** | P0 |
 | **Depends on** | 009 (status), 007 (resolve), 008 (reply), 030 (agent skill), 034 (status enhancement), 035 (await-review hardening) |
@@ -111,6 +111,10 @@ The gap is real for ghent, independent of the issue text:
 - `skill/references/command-reference.md`
 - `skill/references/agent-workflows.md`
 - `README.md`
+- `.claude/automations/test_ghent_dismiss.py`
+- `.github/workflows/synthetic-review.yml`
+- `scripts/test-binary.sh`
+- `scripts/test-agent-workflow.sh`
 - `docs/LEARNINGS.md`
 - `docs/PROGRESS.md`
 
@@ -199,6 +203,33 @@ gh ghent dismiss -R <owner>/<repo> --pr <n> --bots-only --message "Superseded by
 ```bash
 gh ghent status -R <owner>/<repo> --pr <n> --await-review --format json --no-tui | jq '{merge_ready: .is_merge_ready, stale_reviews: .stale_reviews}'
 ```
+
+## Verification Results
+
+- **L1:** `make ci-fast` PASS
+- **L3:** `bash scripts/test-binary.sh` PASS (19/19)
+  - control repos: `indrasvat/tbgs#1`, `indrasvat/doot#1`
+  - stale-review repo: `clayliddell/AgentVM#10`
+- **L4:** `uv run .claude/automations/test_ghent_dismiss.py` PASS (5/5)
+- **L5:** `bash scripts/test-agent-workflow.sh` PASS (11/11)
+- **Dogfood:** `indrasvat/gh-ghent#16`
+  - synthetic `github-actions[bot]` `REQUEST_CHANGES` review created by `.github/workflows/synthetic-review.yml`
+  - follow-up push made it stale
+  - `gh ghent status` surfaced the stale blocker
+  - `gh ghent dismiss` successfully dismissed it and `stale_reviews` returned to `[]`
+
+## Visual Test Results
+
+- Script: `.claude/automations/test_ghent_dismiss.py`
+- Reviewed screenshots:
+  - `.claude/screenshots/ghent_dismiss_status_tui_20260330_123411.png`
+  - `.claude/screenshots/ghent_dismiss_status_md_20260330_123417.png`
+  - `.claude/screenshots/ghent_dismiss_dry_run_md_20260330_123421.png`
+  - `.claude/screenshots/ghent_dismiss_dry_run_json_20260330_123425.png`
+- Findings:
+  - TUI approvals section clearly shows stale count and `(stale)` marker without layout breakage.
+  - Markdown status output recommends the exact dismiss command.
+  - Dry-run dismiss output renders cleanly in both Markdown and JSON forms.
 
 ## Completion Criteria
 
