@@ -11,7 +11,7 @@
 Exhaustive visual and live-PR verification for ghent --await-review.
 
 Real PR targets:
-    - indrasvat/yathaavat#1 : existing multi-bot review activity, should settle high
+    - indrasvat/yathaavat#1 : existing multi-bot review state, should settle medium
     - indrasvat/doot#1      : quiet PR, short timeout should remain provisional/low
 
 Scenarios covered:
@@ -19,13 +19,18 @@ Scenarios covered:
     2. Pipe mode timeout path returns review_monitor timeout/low
     3. Pipe mode settled path returns review_monitor settled/medium
     4. Compatibility alias review_settled still present
-    5. TUI initial watch screen renders "watching"
-    6. TUI review-await screen renders "awaiting reviews"
-    7. TUI tail confirmation renders "confirming review quiet"
-    8. TUI settled summary renders "Review activity settled"
-    9. TUI timeout summary renders "Review monitor provisional"
+    5. CLI markdown timeout path is captured visually in iTerm2
+    6. CLI markdown settled path is captured visually in iTerm2
+    7. TUI initial watch screen renders "watching"
+    8. TUI review-await screen renders "awaiting reviews"
+    9. TUI tail confirmation renders "confirming review quiet"
+    10. TUI settled summary renders "Review activity settled"
+    11. TUI timeout summary renders "Review monitor provisional"
+    12. No prefixed iTerm2 test sessions are left behind
 
 Screenshots:
+    - ghent_await_review_cli_timeout.png
+    - ghent_await_review_cli_settled.png
     - ghent_await_review_ci_phase.png
     - ghent_await_review_awaiting.png
     - ghent_await_review_tail_settled.png
@@ -224,6 +229,17 @@ async def cleanup_stale_windows(connection, *, prefix: str = SESSION_PREFIX) -> 
                     await cleanup_session(session)
 
 
+async def count_prefixed_sessions(connection, *, prefix: str = SESSION_PREFIX) -> int:
+    app = await iterm2.async_get_app(connection)
+    count = 0
+    for window in app.terminal_windows:
+        for tab in window.tabs:
+            for session in tab.sessions:
+                if session.name and session.name.startswith(prefix):
+                    count += 1
+    return count
+
+
 async def create_test_window(connection, *, name: str, x_pos: int) -> tuple[Any, Any]:
     window = await iterm2.Window.async_create(connection)
     if window is None:
@@ -267,8 +283,42 @@ async def create_test_window(connection, *, name: str, x_pos: int) -> tuple[Any,
     return window, session
 
 
+async def run_cli_visual_scenario(
+    connection,
+    *,
+    name: str,
+    x_pos: int,
+    screenshot_name: str,
+    command: str,
+    expected_text: str,
+) -> int:
+    window, session = await create_test_window(
+        connection,
+        name=name,
+        x_pos=x_pos,
+    )
+    try:
+        await session.async_send_text("clear\n")
+        await asyncio.sleep(0.2)
+        await session.async_send_text(command + "\n")
+
+        if not await wait_for_text(session, expected_text, timeout=SCREEN_TIMEOUT_SECONDS):
+            await dump_screen(session, f"{name} expected text not found")
+            return fail_and_return(name, f"expected text not found: {expected_text}")
+
+        if not await wait_for_text(session, "__GHENT_DONE__:0", timeout=SCREEN_TIMEOUT_SECONDS):
+            await dump_screen(session, f"{name} completion marker not found")
+            return fail_and_return(name, "completion marker missing or non-zero exit")
+
+        screenshot = await capture_screenshot(window, screenshot_name)
+        record(name, "PASS", f"captured CLI output containing '{expected_text}'", screenshot)
+        return 0
+    finally:
+        await cleanup_session(session)
+
+
 async def run_tui_settled_scenario(connection) -> int:
-    test_name = "TUI settled/high-confidence path"
+    test_name = "TUI settled review-monitor path"
     window, session = await create_test_window(
         connection,
         name=f"{SESSION_PREFIX}settled",
@@ -363,6 +413,74 @@ async def run_tui_timeout_scenario(connection) -> int:
         return 0
     finally:
         await cleanup_session(session)
+
+
+async def run_cli_visual_tests(connection) -> int:
+    timeout_command = (
+        f"cd {PROJECT_ROOT} && "
+        "tmp=$(mktemp) && "
+        "gh ghent status "
+        f"-R {TIMEOUT_REPO} --pr {TIMEOUT_PR} "
+        "--await-review --review-timeout 5s --solo --format md --no-tui "
+        "> \"$tmp\" && "
+        "python3 - \"$tmp\" <<'PY'\n"
+        "import pathlib\n"
+        "import sys\n"
+        "lines = pathlib.Path(sys.argv[1]).read_text().splitlines()\n"
+        "emit = False\n"
+        "for line in lines:\n"
+        "    if line.startswith('## Review Monitor'):\n"
+        "        emit = True\n"
+        "    elif emit and line.startswith('## '):\n"
+        "        break\n"
+        "    if emit:\n"
+        "        print(line)\n"
+        "PY\n"
+        "status=$?; rm -f \"$tmp\"; printf '\\n__GHENT_DONE__:%s\\n' \"$status\""
+    )
+    if await run_cli_visual_scenario(
+        connection,
+        name="CLI timeout visual path",
+        x_pos=80,
+        screenshot_name="ghent_await_review_cli_timeout",
+        command=timeout_command,
+        expected_text="Warning: additional bot reviews may still arrive after this timeout.",
+    ) != 0:
+        return 1
+
+    settled_command = (
+        f"cd {PROJECT_ROOT} && "
+        "tmp=$(mktemp) && "
+        "gh ghent status "
+        f"-R {SETTLED_REPO} --pr {SETTLED_PR} "
+        "--await-review --solo --format md --no-tui "
+        "> \"$tmp\" && "
+        "python3 - \"$tmp\" <<'PY'\n"
+        "import pathlib\n"
+        "import sys\n"
+        "lines = pathlib.Path(sys.argv[1]).read_text().splitlines()\n"
+        "emit = False\n"
+        "for line in lines:\n"
+        "    if line.startswith('## Review Monitor'):\n"
+        "        emit = True\n"
+        "    elif emit and line.startswith('## '):\n"
+        "        break\n"
+        "    if emit:\n"
+        "        print(line)\n"
+        "PY\n"
+        "status=$?; rm -f \"$tmp\"; printf '\\n__GHENT_DONE__:%s\\n' \"$status\""
+    )
+    if await run_cli_visual_scenario(
+        connection,
+        name="CLI settled visual path",
+        x_pos=1400,
+        screenshot_name="ghent_await_review_cli_settled",
+        command=settled_command,
+        expected_text="**Phase:** settled | **Confidence:** medium",
+    ) != 0:
+        return 1
+
+    return 0
 
 
 def run_pipe_tests() -> int:
@@ -464,20 +582,30 @@ def summarize_and_exit() -> int:
 
 async def main(connection) -> int:
     await cleanup_stale_windows(connection)
-
-    if install_binary() != 0:
-        return summarize_and_exit()
-
-    if run_pipe_tests() != 0:
-        return summarize_and_exit()
-
-    if await run_tui_settled_scenario(connection) != 0:
-        return summarize_and_exit()
-
-    if await run_tui_timeout_scenario(connection) != 0:
-        return summarize_and_exit()
-
-    return summarize_and_exit()
+    exit_code = 0
+    try:
+        if install_binary() != 0:
+            exit_code = 1
+        elif run_pipe_tests() != 0:
+            exit_code = 1
+        elif await run_cli_visual_tests(connection) != 0:
+            exit_code = 1
+        elif await run_tui_settled_scenario(connection) != 0:
+            exit_code = 1
+        elif await run_tui_timeout_scenario(connection) != 0:
+            exit_code = 1
+    finally:
+        await cleanup_stale_windows(connection)
+        remaining = await count_prefixed_sessions(connection)
+        if remaining == 0:
+            record("iTerm2 cleanup", "PASS", "no prefixed test sessions remain")
+        else:
+            record("iTerm2 cleanup", "FAIL", f"{remaining} prefixed test sessions remain")
+            exit_code = 1
+    summary_code = summarize_and_exit()
+    if summary_code != 0:
+        return summary_code
+    return exit_code
 
 
 if __name__ == "__main__":

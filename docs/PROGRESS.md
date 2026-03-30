@@ -118,7 +118,8 @@
   - L3 real PR checks PASS:
     - `indrasvat/doot#1` with `--review-timeout 5s` returns `review_monitor.phase=timeout`, `confidence=low`, `activity_count=0`
     - `indrasvat/yathaavat#1` returns `review_monitor.phase=settled`, `confidence=medium`, `tail_probes=2`, `activity_count=0`
-  - L4 PASS: `uv run .claude/automations/test_ghent_await_review.py` → 8/8 PASS, with reviewed screenshots for initial watch, awaiting review, tail confirmation, settled summary, and provisional timeout summary.
+  - L4 PASS: `uv run .claude/automations/test_ghent_await_review.py` → 11/11 PASS, with reviewed screenshots for CLI markdown timeout/settled output, TUI initial watch, awaiting review, tail confirmation, settled summary, and provisional timeout summary.
+  - Cleanup verified twice: the harness' own janitor reported zero surviving prefixed sessions, and an external `uv run --with iterm2 --with pyobjc python ...` check also returned `0` lingering `ghent-await-review-*` sessions.
 
 ### 2026-03-29 (Phase 13 planning — Task 035 spec)
 - **Task 035 spec drafted:** Created `docs/tasks/035-smart-await-review.md` for issue #13.

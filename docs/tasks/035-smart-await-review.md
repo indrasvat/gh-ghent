@@ -213,6 +213,8 @@ Create or update:
 
 Capture and review screenshots for:
 
+- `ghent_await_review_cli_timeout.png`
+- `ghent_await_review_cli_settled.png`
 - `ghent_await_review_ci_phase.png`
 - `ghent_await_review_awaiting.png`
 - `ghent_await_review_summary.png`
@@ -295,9 +297,10 @@ uv run .claude/automations/test_ghent_await_review.py
 ```
 
 Result:
-- 8/8 PASS on 2026-03-29
+- 11/11 PASS on 2026-03-29
 - real PR targets: `indrasvat/yathaavat#1` and `indrasvat/doot#1`
 - screenshots captured and manually reviewed from the latest run
+- harness now asserts that no prefixed iTerm2 test sessions remain after teardown
 
 ## Completion Criteria
 
@@ -310,7 +313,9 @@ Result:
 ## Visual Test Results
 
 - Reviewed `/Users/indrasvat/code/github.com/gh-ghent/.claude/screenshots/ghent_await_review_ci_phase_20260329_172511.png`: initial watch screen renders correctly with `watching`, elapsed/poll metadata, and event-log placeholder; no blank-frame or paint glitch remains.
+- Reviewed `/Users/indrasvat/code/github.com/gh-ghent/.claude/screenshots/ghent_await_review_cli_timeout_20260329_181458.png`: CLI markdown path cleanly shows the `## Review Monitor` block, low-confidence timeout state, warning text, and a `__GHENT_DONE__:0` completion marker in a normal terminal session.
+- Reviewed `/Users/indrasvat/code/github.com/gh-ghent/.claude/screenshots/ghent_await_review_cli_settled_20260329_181705.png`: CLI markdown path cleanly shows the settled review-monitor block with `confidence medium`, `activity 0`, and a successful completion marker, without dropping into TUI mode.
 - Reviewed `/Users/indrasvat/code/github.com/gh-ghent/.claude/screenshots/ghent_await_review_awaiting_20260329_172512.png` and `/Users/indrasvat/code/github.com/gh-ghent/.claude/screenshots/ghent_await_review_tail_settled_20260329_172543.png`: the intermediate states are visually distinct, with `awaiting reviews` transitioning to `confirming review quiet` and the event log showing the new stabilization message.
 - Reviewed `/Users/indrasvat/code/github.com/gh-ghent/.claude/screenshots/ghent_await_review_summary_20260329_175602.png`: historical settled state now shows an amber `Review activity settled` banner with `confidence medium`, `activity 0`, and tail metadata instead of incorrectly claiming high-confidence fresh activity.
 - Reviewed `/Users/indrasvat/code/github.com/gh-ghent/.claude/screenshots/ghent_await_review_timeout_warning_20260329_175610.png`: provisional state shows an amber `Review monitor provisional` banner with explicit warning text that more bot comments may still arrive and no phantom activity count.
-- Full L4 harness result: `uv run .claude/automations/test_ghent_await_review.py` → 8/8 PASS against real GitHub PRs.
+- Full L4 harness result: `uv run .claude/automations/test_ghent_await_review.py` → 11/11 PASS against real GitHub PRs and zero lingering `ghent-await-review-*` iTerm2 sessions.
