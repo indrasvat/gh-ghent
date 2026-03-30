@@ -1,26 +1,12 @@
 ---
 name: gh-ghent
 description: >
-  Structured access to GitHub PR review state for AI coding agents. This skill
-  should be used when the user needs to check PR merge readiness, diagnose CI
-  failures, read unresolved review comments, resolve review threads, monitor
-  CI status, or triage bot reviewer findings (Codex, CodeRabbit, Copilot,
-  Cursor Bugbot). Use when the user says "check my PR", "is my PR ready to
-  merge", "why is CI failing", "CI is red", "build broken", "what are the
-  review comments", "any feedback on my PR", "read PR comments", "address
-  review feedback", "resolve review threads", "PR status", "are checks
-  passing", "did CI pass", "check PR #N", "monitor CI", "wait for checks",
-  "what's failing", "review my PR", "wait for bot review", "wait for Codex",
-  "wait for CodeRabbit", "has the bot reviewed yet", "is the review done",
-  "sweep bot comments", "fix bot findings", "address bot reviews",
-  "what did the bots say", "any bot comments", "triage bot feedback",
-  or any request to inspect, diagnose, or act on GitHub pull request
-  review threads, CI check status, or merge readiness.
-  IMPORTANT - also trigger this skill immediately after creating a PR
-  (gh pr create, git push + PR URL) to monitor CI and review state.
-  Provides JSON/XML/Markdown output with file:line locations, error log
-  excerpts, and annotations from GitHub Actions.
-  Also handles stale blocking reviews via safe, stale-only dismissal.
+  Structured GitHub PR state for AI coding agents. Use for PR readiness,
+  CI failure diagnosis, unresolved review threads, bounded review waiting,
+  bot-review triage, and safe stale-review dismissal. Trigger immediately
+  after PR creation and again after every review-fix push. Default path is
+  `gh ghent status --await-review --logs --format json --no-tui`; only drop
+  to narrower commands when status already tells you what to do next.
 ---
 
 # gh-ghent — Agentic PR Monitoring
@@ -43,6 +29,12 @@ Use it:
 
 - immediately after PR creation
 - again after **every push** that addresses review or CI feedback
+
+Use narrower commands (`comments`, `checks`, `resolve`, `reply`, `dismiss`) only when:
+
+- the user asked for a narrow operation directly
+- `status` already identified the next specific action
+- `status` failed and you need targeted fallback inspection
 
 It waits for CI, performs bounded review monitoring, and returns everything in one response:
 
@@ -103,6 +95,7 @@ When review comments may still arrive:
 
 - use `gh ghent status --await-review ...`
 - after every fix push, use `gh ghent status --await-review ...` again
+- do **not** start with `comments` or `checks` if a full PR-state decision is needed
 - do **not** switch to `gh ghent checks --watch`
 - do **not** switch to `gh ghent status --watch`
 
@@ -110,7 +103,8 @@ Bare `--watch` is only for CI-only waiting when review state is irrelevant.
 
 ## Bot Sweep (when `unanswered_count > 0`)
 
-The status already contains the full threads — no second call needed.
+The `status` result already contains the full threads. Do not make a second
+`comments` call unless you need a narrower filtered view.
 
 1. Read threads from `comments.threads[]` where `comments[0].is_bot == true`
 2. Fix code → push
@@ -134,6 +128,8 @@ on a personal repo, retry with `--solo`.
 | `resolve` | Resolve/unresolve threads | `--thread`, `--all`, `--file`, `--author`, `--unresolve`, `--dry-run` |
 | `reply` | Reply to a thread | `--thread`, `--body`, `--body-file`, `--resolve` |
 | `dismiss` | Dismiss stale blocking reviews only | `--review`, `--author`, `--bots-only`, `--message`, `--dry-run` |
+
+Default for agents: start with `status`, not `comments` or `checks`.
 
 ## Exit Codes
 

@@ -10,7 +10,7 @@
 | **Current Phase** | Phase 14: Stale Review Dismissal |
 | **Current Task** | Task 036 DONE: stale blocking review dismissal implemented, review-hardened, verified, and dogfooded on PR #16. |
 | **Blocker** | None |
-| **Last Action** | Review follow-up complete: broad `dismiss` is now an idempotent no-op on zero matches, re-verified across L1/L3/L4/L5 and on PR #16 with the installed extension. |
+| **Last Action** | Final skill pass complete: `skill/SKILL.md` now pushes agents even harder toward the single blessed `status --await-review` path and narrower-command fallback only when warranted. |
 | **Last Updated** | 2026-03-30 |
 
 ## How to Resume
@@ -126,6 +126,9 @@
 - **Review-driven hardening:** Follow-up Claude + Gemini review identified one real gap in the initial command contract.
   - Broad `gh ghent dismiss` now exits `0` with an empty result set when no stale blockers match, while explicit `--review` misses still error.
   - Re-verified with `make ci-fast`, `bash scripts/test-binary.sh`, `bash scripts/test-agent-workflow.sh`, `uv run .claude/automations/test_ghent_dismiss.py`, and a live no-op invocation on `indrasvat/gh-ghent#16`.
+- **Final skill hardening:** Tightened `skill/SKILL.md` to keep the guidance focused on the single blessed `status --await-review --logs --format json --no-tui` path.
+  - The frontmatter is shorter and more trigger-oriented.
+  - The skill now states more explicitly that agents should only drop to `comments`, `checks`, `resolve`, `reply`, or `dismiss` when `status` or the user has already narrowed the task.
 
 ### 2026-03-29 (Phase 13: Review Monitor Hardening — Task 035)
 - **Task 035 (Smart await-review + skill hardening):** Implemented bounded review stabilization in both pipe mode and TUI.
