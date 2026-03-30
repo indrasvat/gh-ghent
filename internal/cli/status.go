@@ -307,6 +307,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 			// Merge readiness MUST be computed BEFORE --bots-only filter,
 			// otherwise filtering out human threads hides unresolved counts.
 			mergeReady := !reviewFetchFailed && IsMergeReady(threads, checks, reviews, Flags.Solo)
+			staleReviews := staleBlockingReviews(reviews)
 
 			// Apply --bots-only filter to threads section (display only).
 			FilterThreadsByBot(threads, botsOnly, false)
@@ -323,6 +324,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 				Comments:      *threads,
 				Checks:        *checks,
 				Reviews:       reviews,
+				StaleReviews:  staleReviews,
 				IsMergeReady:  mergeReady,
 				PRAge:         computePRAge(threads, reviews, now),
 				LastUpdate:    computeLastUpdate(threads, reviews, now),

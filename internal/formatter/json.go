@@ -30,6 +30,10 @@ func (f *JSONFormatter) FormatResolveResults(w io.Writer, result *domain.Resolve
 	return encodeJSON(w, result)
 }
 
+func (f *JSONFormatter) FormatDismissResults(w io.Writer, result *domain.DismissResults) error {
+	return encodeJSON(w, result)
+}
+
 func (f *JSONFormatter) FormatStatus(w io.Writer, result *domain.StatusResult) error {
 	return encodeJSON(w, result)
 }
@@ -52,6 +56,15 @@ func (f *JSONFormatter) FormatCompactStatus(w io.Writer, result *domain.StatusRe
 		Annotations []compactAnnotation `json:"annotations,omitempty"`
 		LogExcerpt  string              `json:"log_excerpt,omitempty"`
 	}
+	type compactReview struct {
+		ID         string `json:"id"`
+		DatabaseID int64  `json:"database_id,omitempty"`
+		Author     string `json:"author"`
+		IsBot      bool   `json:"is_bot,omitempty"`
+		State      string `json:"state"`
+		CommitID   string `json:"commit_id,omitempty"`
+		IsStale    bool   `json:"is_stale,omitempty"`
+	}
 	type compactStatus struct {
 		PRNumber      int                      `json:"pr_number"`
 		IsMergeReady  bool                     `json:"is_merge_ready"`
@@ -64,6 +77,7 @@ func (f *JSONFormatter) FormatCompactStatus(w io.Writer, result *domain.StatusRe
 		FailCount     int                      `json:"fail_count"`
 		Threads       []compactThread          `json:"threads,omitempty"`
 		FailedChecks  []compactFailedCheck     `json:"failed_checks,omitempty"`
+		StaleReviews  []compactReview          `json:"stale_reviews,omitempty"`
 		ReviewMonitor *domain.ReviewMonitor    `json:"review_monitor,omitempty"`
 		ReviewSettled *domain.ReviewSettlement `json:"review_settled,omitempty"`
 	}
@@ -116,6 +130,18 @@ func (f *JSONFormatter) FormatCompactStatus(w io.Writer, result *domain.StatusRe
 			})
 		}
 		compact.FailedChecks = append(compact.FailedChecks, fc)
+	}
+
+	for _, r := range result.StaleReviews {
+		compact.StaleReviews = append(compact.StaleReviews, compactReview{
+			ID:         r.ID,
+			DatabaseID: r.DatabaseID,
+			Author:     r.Author,
+			IsBot:      r.IsBot,
+			State:      string(r.State),
+			CommitID:   r.CommitID,
+			IsStale:    r.IsStale,
+		})
 	}
 
 	return encodeJSON(w, compact)

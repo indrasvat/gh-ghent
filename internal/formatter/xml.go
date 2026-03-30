@@ -183,6 +183,45 @@ func (f *XMLFormatter) FormatResolveResults(w io.Writer, result *domain.ResolveR
 	return err
 }
 
+func (f *XMLFormatter) FormatDismissResults(w io.Writer, result *domain.DismissResults) error {
+	out := xmlDismissResults{
+		SuccessCount: result.SuccessCount,
+		FailureCount: result.FailureCount,
+		DryRun:       result.DryRun,
+	}
+	for _, r := range result.Results {
+		out.Results = append(out.Results, xmlDismissResult{
+			ReviewID:    r.ReviewID,
+			DatabaseID:  r.DatabaseID,
+			Author:      r.Author,
+			IsBot:       r.IsBot,
+			State:       string(r.State),
+			CommitID:    r.CommitID,
+			IsStale:     r.IsStale,
+			Dismissed:   r.Dismissed,
+			Action:      r.Action,
+			Message:     r.Message,
+			SubmittedAt: formatXMLTime(r.SubmittedAt),
+		})
+	}
+	for _, e := range result.Errors {
+		out.Errors = append(out.Errors, xmlDismissError{
+			ReviewID: e.ReviewID,
+			Message:  e.Message,
+		})
+	}
+	if _, err := io.WriteString(w, xml.Header); err != nil {
+		return err
+	}
+	enc := xml.NewEncoder(w)
+	enc.Indent("", "  ")
+	if err := enc.Encode(out); err != nil {
+		return err
+	}
+	_, err := io.WriteString(w, "\n")
+	return err
+}
+
 func (f *XMLFormatter) FormatStatus(w io.Writer, result *domain.StatusResult) error {
 	out := xmlStatus{
 		PRNumber:     result.PRNumber,
@@ -271,10 +310,27 @@ func (f *XMLFormatter) FormatStatus(w io.Writer, result *domain.StatusResult) er
 	for _, r := range result.Reviews {
 		out.Reviews = append(out.Reviews, xmlReview{
 			ID:          r.ID,
+			DatabaseID:  r.DatabaseID,
 			Author:      r.Author,
+			IsBot:       r.IsBot,
 			State:       string(r.State),
+			CommitID:    r.CommitID,
+			IsStale:     r.IsStale,
 			Body:        r.Body,
-			SubmittedAt: r.SubmittedAt.Format(time.RFC3339),
+			SubmittedAt: formatXMLTime(r.SubmittedAt),
+		})
+	}
+	for _, r := range result.StaleReviews {
+		out.StaleReviews = append(out.StaleReviews, xmlReview{
+			ID:          r.ID,
+			DatabaseID:  r.DatabaseID,
+			Author:      r.Author,
+			IsBot:       r.IsBot,
+			State:       string(r.State),
+			CommitID:    r.CommitID,
+			IsStale:     r.IsStale,
+			Body:        r.Body,
+			SubmittedAt: formatXMLTime(r.SubmittedAt),
 		})
 	}
 	if _, err := io.WriteString(w, xml.Header); err != nil {
@@ -342,6 +398,19 @@ func (f *XMLFormatter) FormatCompactStatus(w io.Writer, result *domain.StatusRes
 			})
 		}
 		out.FailedChecks = append(out.FailedChecks, xc)
+	}
+	for _, r := range result.StaleReviews {
+		out.StaleReviews = append(out.StaleReviews, xmlReview{
+			ID:          r.ID,
+			DatabaseID:  r.DatabaseID,
+			Author:      r.Author,
+			IsBot:       r.IsBot,
+			State:       string(r.State),
+			CommitID:    r.CommitID,
+			IsStale:     r.IsStale,
+			Body:        r.Body,
+			SubmittedAt: formatXMLTime(r.SubmittedAt),
+		})
 	}
 
 	if _, err := io.WriteString(w, xml.Header); err != nil {
@@ -515,6 +584,34 @@ type xmlResolveError struct {
 	Message  string `xml:",chardata"`
 }
 
+type xmlDismissResults struct {
+	XMLName      xml.Name           `xml:"dismiss_results"`
+	SuccessCount int                `xml:"success_count,attr"`
+	FailureCount int                `xml:"failure_count,attr"`
+	DryRun       bool               `xml:"dry_run,attr,omitempty"`
+	Results      []xmlDismissResult `xml:"result"`
+	Errors       []xmlDismissError  `xml:"error,omitempty"`
+}
+
+type xmlDismissResult struct {
+	ReviewID    string `xml:"review_id,attr"`
+	DatabaseID  int64  `xml:"database_id,attr,omitempty"`
+	Author      string `xml:"author,attr"`
+	IsBot       bool   `xml:"is_bot,attr,omitempty"`
+	State       string `xml:"state,attr"`
+	CommitID    string `xml:"commit_id,attr,omitempty"`
+	IsStale     bool   `xml:"is_stale,attr"`
+	Dismissed   bool   `xml:"dismissed,attr"`
+	Action      string `xml:"action,attr"`
+	Message     string `xml:"message,attr,omitempty"`
+	SubmittedAt string `xml:"submitted_at,attr,omitempty"`
+}
+
+type xmlDismissError struct {
+	ReviewID string `xml:"review_id,attr"`
+	Message  string `xml:",chardata"`
+}
+
 type xmlStatus struct {
 	XMLName       xml.Name             `xml:"status"`
 	PRNumber      int                  `xml:"pr_number,attr"`
@@ -522,6 +619,7 @@ type xmlStatus struct {
 	Comments      xmlStatusComments    `xml:"comments"`
 	Checks        xmlStatusChecks      `xml:"checks"`
 	Reviews       []xmlReview          `xml:"review,omitempty"`
+	StaleReviews  []xmlReview          `xml:"stale_review,omitempty"`
 	ReviewMonitor *xmlReviewSettlement `xml:"review_monitor,omitempty"`
 	ReviewSettled *xmlReviewSettlement `xml:"review_settled,omitempty"`
 }
@@ -552,9 +650,13 @@ type xmlStatusChecks struct {
 
 type xmlReview struct {
 	ID          string `xml:"id,attr"`
+	DatabaseID  int64  `xml:"database_id,attr,omitempty"`
 	Author      string `xml:"author,attr"`
+	IsBot       bool   `xml:"is_bot,attr,omitempty"`
 	State       string `xml:"state,attr"`
-	SubmittedAt string `xml:"submitted_at,attr"`
+	CommitID    string `xml:"commit_id,attr,omitempty"`
+	IsStale     bool   `xml:"is_stale,attr,omitempty"`
+	SubmittedAt string `xml:"submitted_at,attr,omitempty"`
 	Body        string `xml:"body,omitempty"`
 }
 
@@ -571,6 +673,7 @@ type xmlCompactStatus struct {
 	FailCount    int                `xml:"fail_count,attr"`
 	Threads      []xmlCompactThread `xml:"thread,omitempty"`
 	FailedChecks []xmlCheckRun      `xml:"failed_check,omitempty"`
+	StaleReviews []xmlReview        `xml:"stale_review,omitempty"`
 }
 
 type xmlCompactThread struct {
@@ -578,4 +681,11 @@ type xmlCompactThread struct {
 	Line        int    `xml:"line,attr"`
 	Author      string `xml:"author,attr"`
 	BodyPreview string `xml:"body_preview"`
+}
+
+func formatXMLTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format(time.RFC3339)
 }

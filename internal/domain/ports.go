@@ -31,6 +31,11 @@ type ReviewFetcher interface {
 	FetchReviews(ctx context.Context, owner, repo string, pr int) ([]Review, error)
 }
 
+// ReviewDismisser dismisses stale blocking pull request reviews.
+type ReviewDismisser interface {
+	DismissReview(ctx context.Context, owner, repo string, pr int, review Review, message string) (*DismissResult, error)
+}
+
 // ActivityProber probes lightweight review activity for settlement detection.
 type ActivityProber interface {
 	ProbeActivity(ctx context.Context, owner, repo string, pr int) (*ActivitySnapshot, error)
@@ -43,6 +48,7 @@ type Formatter interface {
 	FormatChecks(w io.Writer, result *ChecksResult) error
 	FormatReply(w io.Writer, result *ReplyResult) error
 	FormatResolveResults(w io.Writer, result *ResolveResults) error
+	FormatDismissResults(w io.Writer, result *DismissResults) error
 	FormatStatus(w io.Writer, result *StatusResult) error
 	FormatCompactStatus(w io.Writer, result *StatusResult) error
 	FormatWatchStatus(w io.Writer, status *WatchStatus) error

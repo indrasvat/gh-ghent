@@ -3,6 +3,8 @@
 set -euo pipefail
 
 BINARY="bin/gh-ghent"
+STALE_REPO="${GHENT_STALE_REPO:-clayliddell/AgentVM}"
+STALE_PR="${GHENT_STALE_PR:-10}"
 PASS=0
 FAIL=0
 
@@ -31,11 +33,13 @@ echo "--- Version ---"
 check "$BINARY --version" "version"
 
 echo "--- Help ---"
-check "$BINARY --help | grep -q comments" "help lists comments"
-check "$BINARY --help | grep -q checks" "help lists checks"
-check "$BINARY --help | grep -q resolve" "help lists resolve"
-check "$BINARY --help | grep -q reply" "help lists reply"
-check "$BINARY --help | grep -q status" "help lists status"
+ROOT_HELP=$("$BINARY" --help 2>&1)
+if echo "$ROOT_HELP" | grep -q "comments"; then pass "help lists comments"; else fail "help lists comments"; fi
+if echo "$ROOT_HELP" | grep -q "checks"; then pass "help lists checks"; else fail "help lists checks"; fi
+if echo "$ROOT_HELP" | grep -q "resolve"; then pass "help lists resolve"; else fail "help lists resolve"; fi
+if echo "$ROOT_HELP" | grep -q "reply"; then pass "help lists reply"; else fail "help lists reply"; fi
+if echo "$ROOT_HELP" | grep -q "dismiss"; then pass "help lists dismiss"; else fail "help lists dismiss"; fi
+if echo "$ROOT_HELP" | grep -q "status"; then pass "help lists status"; else fail "help lists status"; fi
 
 echo "--- Subcommand help ---"
 COMMENTS_HELP=$("$BINARY" comments --help 2>&1)
@@ -90,6 +94,36 @@ if echo "$MD_OUTPUT" | grep -q "Review"; then
     pass "comments markdown has content"
 else
     fail "comments markdown empty or missing header"
+fi
+
+# Status: stale review detection on a public PR with stale blockers
+echo "  Testing status stale review detection (${STALE_REPO} #${STALE_PR})..."
+STATUS_OUTPUT=$("$BINARY" status -R "$STALE_REPO" --pr "$STALE_PR" --format json 2>&1) || true
+if echo "$STATUS_OUTPUT" | python3 -m json.tool > /dev/null 2>&1; then
+    pass "status JSON valid"
+    STALE_COUNT=$(echo "$STATUS_OUTPUT" | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('stale_reviews', [])))")
+    if [ "$STALE_COUNT" -ge 1 ]; then
+        pass "status found stale blocking reviews ($STALE_COUNT)"
+    else
+        fail "status expected stale blocking reviews, got $STALE_COUNT"
+    fi
+else
+    fail "status JSON invalid for stale-review repo"
+fi
+
+# Dismiss: dry-run only, should enumerate stale blockers and never require maintainer access
+echo "  Testing dismiss dry-run (${STALE_REPO} #${STALE_PR})..."
+DISMISS_OUTPUT=$("$BINARY" dismiss -R "$STALE_REPO" --pr "$STALE_PR" --dry-run --format json 2>&1) || true
+if echo "$DISMISS_OUTPUT" | python3 -m json.tool > /dev/null 2>&1; then
+    pass "dismiss dry-run JSON valid"
+    ACTION=$(echo "$DISMISS_OUTPUT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['results'][0]['action'] if d.get('results') else '')")
+    if [ "$ACTION" = "would_dismiss" ]; then
+        pass "dismiss dry-run action"
+    else
+        fail "dismiss dry-run expected would_dismiss, got '$ACTION'"
+    fi
+else
+    fail "dismiss dry-run JSON invalid"
 fi
 
 # --- Summary ---

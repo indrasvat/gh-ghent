@@ -10,7 +10,7 @@ import (
 func TestRootHasSubcommands(t *testing.T) {
 	cmd := NewRootCmd()
 
-	want := []string{"checks", "comments", "reply", "resolve", "status"}
+	want := []string{"checks", "comments", "dismiss", "reply", "resolve", "status"}
 	var got []string
 	for _, sub := range cmd.Commands() {
 		got = append(got, sub.Name())
@@ -104,6 +104,20 @@ func TestReplyLocalFlags(t *testing.T) {
 	for _, flag := range []string{"thread", "body", "body-file"} {
 		if reply.Flags().Lookup(flag) == nil {
 			t.Errorf("reply missing local flag %q", flag)
+		}
+	}
+}
+
+func TestDismissLocalFlags(t *testing.T) {
+	cmd := NewRootCmd()
+	dismiss, _, err := cmd.Find([]string{"dismiss"})
+	if err != nil {
+		t.Fatalf("finding dismiss subcommand: %v", err)
+	}
+
+	for _, flag := range []string{"review", "author", "bots-only", "message", "dry-run"} {
+		if dismiss.Flags().Lookup(flag) == nil {
+			t.Errorf("dismiss missing local flag %q", flag)
 		}
 	}
 }

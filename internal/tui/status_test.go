@@ -229,8 +229,10 @@ func TestStatusChecksSection(t *testing.T) {
 	m := statusModel{
 		checks: &domain.ChecksResult{
 			Checks: []domain.CheckRun{
-				{Name: "lint", Status: "completed", Conclusion: "failure",
-					Annotations: []domain.Annotation{{Path: "api.go", StartLine: 5, Title: "errcheck"}}},
+				{
+					Name: "lint", Status: "completed", Conclusion: "failure",
+					Annotations: []domain.Annotation{{Path: "api.go", StartLine: 5, Title: "errcheck"}},
+				},
 				{Name: "build", Status: "completed", Conclusion: "success"},
 				{Name: "test", Status: "completed", Conclusion: "success"},
 			},
@@ -259,7 +261,7 @@ func TestStatusApprovalsSection(t *testing.T) {
 	m := statusModel{
 		reviews: []domain.Review{
 			{Author: "alice", State: domain.ReviewApproved, SubmittedAt: time.Now()},
-			{Author: "bob", State: domain.ReviewChangesRequested, SubmittedAt: time.Now()},
+			{Author: "bob", State: domain.ReviewChangesRequested, IsStale: true, SubmittedAt: time.Now()},
 		},
 	}
 	m.setSize(120, 30)
@@ -280,27 +282,34 @@ func TestStatusApprovalsSection(t *testing.T) {
 	if !strings.Contains(view, "changes requested") {
 		t.Error("missing 'changes requested' status")
 	}
+	if !strings.Contains(view, "(stale)") {
+		t.Error("missing stale marker for blocking review")
+	}
+	if !strings.Contains(view, "2 reviews · 1 stale") {
+		t.Error("missing stale count in approvals header")
+	}
 }
 
 func TestStatusReviewIcons(t *testing.T) {
 	tests := []struct {
-		state    domain.ReviewState
+		review   domain.Review
 		wantIcon string
 		wantText string
 	}{
-		{domain.ReviewApproved, "✓", "approved"},
-		{domain.ReviewChangesRequested, "✗", "changes requested"},
-		{domain.ReviewCommented, "○", "commented"},
-		{domain.ReviewDismissed, "—", "dismissed"},
-		{domain.ReviewPending, "◌", "pending"},
+		{review: domain.Review{State: domain.ReviewApproved}, wantIcon: "✓", wantText: "approved"},
+		{review: domain.Review{State: domain.ReviewChangesRequested}, wantIcon: "✗", wantText: "changes requested"},
+		{review: domain.Review{State: domain.ReviewChangesRequested, IsStale: true}, wantIcon: "✗", wantText: "stale"},
+		{review: domain.Review{State: domain.ReviewCommented}, wantIcon: "○", wantText: "commented"},
+		{review: domain.Review{State: domain.ReviewDismissed}, wantIcon: "—", wantText: "dismissed"},
+		{review: domain.Review{State: domain.ReviewPending}, wantIcon: "◌", wantText: "pending"},
 	}
 	for _, tt := range tests {
-		icon, text := reviewIcon(tt.state)
+		icon, text := reviewIcon(tt.review)
 		if !strings.Contains(icon, tt.wantIcon) {
-			t.Errorf("reviewIcon(%s) icon = %q, want contains %q", tt.state, icon, tt.wantIcon)
+			t.Errorf("reviewIcon(%s) icon = %q, want contains %q", tt.review.State, icon, tt.wantIcon)
 		}
 		if !strings.Contains(text, tt.wantText) {
-			t.Errorf("reviewIcon(%s) text = %q, want contains %q", tt.state, text, tt.wantText)
+			t.Errorf("reviewIcon(%s) text = %q, want contains %q", tt.review.State, text, tt.wantText)
 		}
 	}
 }

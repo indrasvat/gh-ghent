@@ -28,6 +28,8 @@
 - **2026-03-26 (bot-sweep):** Codex bot review comments use `**<sub><sub>![P1 Badge]...` markup with "Useful? React with 👍 / 👎" footer. CodeRabbit uses `_⚠️ Potential issue_ | _🔴 Critical_` severity markers with `<!-- fingerprinting:... -->` HTML comments.
 - **2026-03-29 (task 035):** Review stabilization cannot rely only on fingerprint deltas after CI. If a PR already has review threads when review-wait begins, treat existing thread presence as observed activity or the smart waiter will incorrectly fall through to low-confidence timeout on otherwise stable PRs.
 - **2026-03-29 (task 035):** Historical review state and fresh review activity are different signals. Existing threads at watch start can justify a bounded quiet-check, but they must not increment `activity_count` or upgrade the result to `confidence=high`; only fingerprint changes during the watch window should do that.
+- **2026-03-30 (task 036):** GitHub's documented `dismiss_stale_reviews_on_push` rule only auto-dismisses **approvals** on new reviewable pushes. It does not clear stale `CHANGES_REQUESTED` reviews, so ghent must treat stale blockers as an explicit dismissal workflow, not a passive branch-protection side effect.
+- **2026-03-30 (task 036):** The stale-review feature should target **blocking review states**, not "bots" as the primary abstraction. GitHub's own Copilot review docs say Copilot always leaves `COMMENT` reviews, so bot-ness alone does not imply merge blocking.
 
 ## Cobra CLI
 

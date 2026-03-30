@@ -7,11 +7,11 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 13: Review Monitor Hardening |
-| **Current Task** | Task 035 complete: smart `--await-review` + skill hardening for issue #13 shipped and verified against real PRs. |
+| **Current Phase** | Phase 14: Stale Review Dismissal |
+| **Current Task** | Task 036 in progress: stale blocking review dismissal for issue #15 has been validated and planned; implementation not started yet. |
 | **Blocker** | None |
-| **Last Action** | Implemented smart review stabilization, hardened the ghent skill around a single `status --await-review` loop, and completed L1/L3/L4 verification with real PRs plus reviewed screenshots. |
-| **Last Updated** | 2026-03-29 |
+| **Last Action** | Validated that review-thread resolution does not clear blocking review verdicts, confirmed GitHub supports explicit review dismissal, and drafted the PRD/task plan for a `dismiss` command plus stale-review surfacing in `status`. |
+| **Last Updated** | 2026-03-30 |
 
 ## How to Resume
 
@@ -95,11 +95,22 @@
 
 > **Milestone: Review Monitor Hardening complete** — `status --await-review` is now the single blessed agent review loop with bounded confirmation and explicit provisional-vs-stable output semantics
 
+### Phase 14: Stale Review Dismissal
+- [ ] Task 14.1: Dismiss stale blocking reviews + status surfacing → `docs/tasks/036-review-dismissal.md`
+
 ## Blockers
 
 (None currently)
 
 ## Session Log
+
+### 2026-03-30 (Phase 14 planning — Task 036 spec)
+- **Task 036 spec drafted:** Created `docs/tasks/036-review-dismissal.md` and updated `docs/PRD.md` for issue #15.
+  - Confirmed the gap is real in ghent itself: `status` currently blocks on any historical `CHANGES_REQUESTED` review, while `resolve` only operates on threads and offers no review-verdict dismissal path.
+  - Confirmed via GitHub docs and local API research that review dismissal is a separate REST primitive and that GitHub's documented stale-review auto-dismiss behavior only applies to approvals on push, not stale `CHANGES_REQUESTED` reviews.
+  - Refined the product framing from "security bots" to the more correct abstraction: **stale blocking reviews**, with bot-only filtering as an optional narrowing tool.
+  - Planned three deliverables: review metadata enrichment (`commit SHA`, `IsStale`, bot classification), a new pipe-first `gh ghent dismiss` command, and `status`/skill updates that surface stale blockers without incorrectly reporting merge-ready.
+- **Implementation status:** Not started. This session produced the validated plan, branch, PRD changes, and task file only.
 
 ### 2026-03-29 (Phase 13: Review Monitor Hardening — Task 035)
 - **Task 035 (Smart await-review + skill hardening):** Implemented bounded review stabilization in both pipe mode and TUI.

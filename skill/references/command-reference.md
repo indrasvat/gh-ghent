@@ -276,6 +276,83 @@ Reply to a review thread. Designed primarily for AI agent use.
 }
 ```
 
+---
+
+## `gh ghent dismiss`
+
+Dismiss stale blocking reviews that no longer apply to the current PR head.
+
+### Flags
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--review` | string | Review node ID (`PRR_...`) or numeric review ID |
+| `--author` | string | Restrict to one review author |
+| `--bots-only` | bool | Restrict to stale blocking bot reviews |
+| `--message` | string | Dismissal message sent to GitHub (required unless `--dry-run`) |
+| `--dry-run` | bool | Preview matching stale blockers without dismissing |
+
+### Safety Contract
+
+- Only targets `CHANGES_REQUESTED` reviews
+- Only targets stale reviews whose `commit_id` differs from the current PR head
+- Never dismisses current reviews
+
+### Exit Codes
+
+- `0` — all selected stale blockers dismissed successfully (or dry-run success)
+- `1` — partial failure
+- `2` — total failure
+
+### JSON Output Schema
+
+```json
+{
+  "results": [
+    {
+      "review_id": "PRR_kwDO...",
+      "database_id": 12345678,
+      "author": "coderabbitai",
+      "is_bot": true,
+      "state": "DISMISSED",
+      "commit_id": "abc123def456",
+      "is_stale": true,
+      "dismissed": true,
+      "action": "dismissed",
+      "message": "superseded by current HEAD",
+      "submitted_at": "2026-03-30T12:00:00Z"
+    }
+  ],
+  "success_count": 1,
+  "failure_count": 0,
+  "dry_run": false
+}
+```
+
+When `--dry-run` is set, `action` is `"would_dismiss"` and `dismissed` is `false`.
+
+---
+
+## `gh ghent status`
+
+### Additional Review Fields
+
+`status` includes both the full `reviews` array and a helper `stale_reviews` array for automation:
+
+```json
+{
+  "reviews": [
+    {"id": "PRR_kwDO...", "author": "alice", "state": "APPROVED"},
+    {"id": "PRR_kwDO...", "author": "coderabbitai", "state": "CHANGES_REQUESTED", "commit_id": "abc123", "is_stale": true}
+  ],
+  "stale_reviews": [
+    {"id": "PRR_kwDO...", "database_id": 12345678, "author": "coderabbitai", "is_bot": true, "state": "CHANGES_REQUESTED", "commit_id": "abc123", "is_stale": true}
+  ]
+}
+```
+
+`stale_reviews` is the safe input set for `gh ghent dismiss`.
+
 ### Stdin Example
 
 ```bash

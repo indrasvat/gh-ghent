@@ -235,6 +235,48 @@ func sampleStatusResult() *domain.StatusResult {
 	}
 }
 
+func sampleStatusWithStaleReview() *domain.StatusResult {
+	result := sampleStatusResult()
+	stale := domain.Review{
+		ID:          "PRR_3",
+		DatabaseID:  103,
+		Author:      "coderabbitai",
+		IsBot:       true,
+		State:       domain.ReviewChangesRequested,
+		CommitID:    "deadbeefcafebabe",
+		IsStale:     true,
+		SubmittedAt: time.Date(2026, 2, 20, 14, 0, 0, 0, time.UTC),
+	}
+	result.Reviews = append(result.Reviews, stale)
+	result.StaleReviews = []domain.Review{stale}
+	return result
+}
+
+func sampleDismissResults() *domain.DismissResults {
+	return &domain.DismissResults{
+		Results: []domain.DismissResult{
+			{
+				ReviewID:    "PRR_3",
+				DatabaseID:  103,
+				Author:      "coderabbitai",
+				IsBot:       true,
+				State:       domain.ReviewDismissed,
+				CommitID:    "deadbeefcafebabe",
+				IsStale:     true,
+				Dismissed:   true,
+				Action:      "dismissed",
+				Message:     "superseded by current HEAD",
+				SubmittedAt: time.Date(2026, 2, 20, 14, 0, 0, 0, time.UTC),
+			},
+		},
+		SuccessCount: 1,
+		FailureCount: 1,
+		Errors: []domain.DismissError{
+			{ReviewID: "PRR_4", Message: "already dismissed"},
+		},
+	}
+}
+
 func TestJSONStatusValid(t *testing.T) {
 	var buf bytes.Buffer
 	f := &JSONFormatter{}
@@ -316,6 +358,35 @@ func TestJSONStatusMergeReady(t *testing.T) {
 
 	if v, ok := parsed["is_merge_ready"].(bool); !ok || !v {
 		t.Errorf("is_merge_ready = %v, want true", parsed["is_merge_ready"])
+	}
+}
+
+func TestJSONStatusIncludesStaleReviews(t *testing.T) {
+	var buf bytes.Buffer
+	f := &JSONFormatter{}
+
+	if err := f.FormatStatus(&buf, sampleStatusWithStaleReview()); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	staleReviews, ok := parsed["stale_reviews"].([]any)
+	if !ok || len(staleReviews) != 1 {
+		t.Fatalf("stale_reviews count = %v, want 1", len(staleReviews))
+	}
+	stale := staleReviews[0].(map[string]any)
+	if stale["author"] != "coderabbitai" {
+		t.Errorf("stale_reviews[0].author = %v, want coderabbitai", stale["author"])
+	}
+	if stale["commit_id"] != "deadbeefcafebabe" {
+		t.Errorf("stale_reviews[0].commit_id = %v, want deadbeefcafebabe", stale["commit_id"])
+	}
+	if stale["is_stale"] != true {
+		t.Errorf("stale_reviews[0].is_stale = %v, want true", stale["is_stale"])
 	}
 }
 
@@ -408,6 +479,32 @@ func TestJSONCompactStatusShorterThanFull(t *testing.T) {
 
 	if compactBuf.Len() >= fullBuf.Len() {
 		t.Errorf("compact (%d bytes) should be shorter than full (%d bytes)", compactBuf.Len(), fullBuf.Len())
+	}
+}
+
+func TestJSONCompactStatusIncludesStaleReviews(t *testing.T) {
+	var buf bytes.Buffer
+	f := &JSONFormatter{}
+
+	if err := f.FormatCompactStatus(&buf, sampleStatusWithStaleReview()); err != nil {
+		t.Fatalf("FormatCompactStatus: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	staleReviews, ok := parsed["stale_reviews"].([]any)
+	if !ok || len(staleReviews) != 1 {
+		t.Fatalf("stale_reviews count = %v, want 1", len(staleReviews))
+	}
+	stale := staleReviews[0].(map[string]any)
+	if stale["id"] != "PRR_3" {
+		t.Errorf("stale_reviews[0].id = %v, want PRR_3", stale["id"])
+	}
+	if stale["is_bot"] != true {
+		t.Errorf("stale_reviews[0].is_bot = %v, want true", stale["is_bot"])
 	}
 }
 
@@ -665,5 +762,34 @@ func TestJSONCompactStatusBodyTruncation(t *testing.T) {
 	}
 	if !strings.HasSuffix(preview, "...") {
 		t.Errorf("body_preview should end with '...', got %q", preview)
+	}
+}
+
+func TestJSONDismissResultsValid(t *testing.T) {
+	var buf bytes.Buffer
+	f := &JSONFormatter{}
+
+	if err := f.FormatDismissResults(&buf, sampleDismissResults()); err != nil {
+		t.Fatalf("FormatDismissResults: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput:\n%s", err, buf.String())
+	}
+
+	if v, ok := parsed["success_count"].(float64); !ok || int(v) != 1 {
+		t.Errorf("success_count = %v, want 1", parsed["success_count"])
+	}
+	results, ok := parsed["results"].([]any)
+	if !ok || len(results) != 1 {
+		t.Fatalf("results count = %v, want 1", len(results))
+	}
+	first := results[0].(map[string]any)
+	if first["action"] != "dismissed" {
+		t.Errorf("results[0].action = %v, want dismissed", first["action"])
+	}
+	if first["commit_id"] != "deadbeefcafebabe" {
+		t.Errorf("results[0].commit_id = %v, want deadbeefcafebabe", first["commit_id"])
 	}
 }

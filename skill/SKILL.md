@@ -20,6 +20,7 @@ description: >
   (gh pr create, git push + PR URL) to monitor CI and review state.
   Provides JSON/XML/Markdown output with file:line locations, error log
   excerpts, and annotations from GitHub Actions.
+  Also handles stale blocking reviews via safe, stale-only dismissal.
 ---
 
 # gh-ghent — Agentic PR Monitoring
@@ -73,6 +74,7 @@ It waits for CI, performs bounded review monitoring, and returns everything in o
     "checks": [{"name": "CI", "conclusion": "success", "annotations": [], "log_excerpt": ""}]
   },
   "reviews": [{"author": "alice", "state": "APPROVED"}],
+  "stale_reviews": [{"id": "PRR_...", "author": "coderabbitai", "state": "CHANGES_REQUESTED", "commit_id": "abc123", "is_stale": true}],
   "review_monitor": {
     "phase": "settled",
     "confidence": "high",
@@ -90,9 +92,10 @@ Act on the **first matching** condition — fix it, then re-run status:
 2. **`checks.overall_status == "failure"`** → Fix CI. Log excerpts and annotations are inline.
 3. **`checks.overall_status == "pending"`** → Re-run the **same** `status --await-review` command. Do not switch to `--watch` while review comments may still appear.
 4. **`comments.unanswered_count > 0`** → Bot sweep (see below).
-5. **`comments.unresolved_count > 0`** → `gh ghent resolve --pr <N> --all`
-6. **`review_monitor.phase == "timeout"` or `review_monitor.confidence == "low"`** → Treat result as provisional. If you just pushed fixes, re-run the **same** `status --await-review` command after the push settles.
-7. **`is_merge_ready == true` and `review_monitor.confidence != "low"`** → Merge / stop.
+5. **`stale_reviews | length > 0`** → Dismiss only those stale blockers: `gh ghent dismiss --pr <N> --message "superseded by current HEAD"` (optionally `--bots-only`).
+6. **`comments.unresolved_count > 0`** → `gh ghent resolve --pr <N> --all`
+7. **`review_monitor.phase == "timeout"` or `review_monitor.confidence == "low"`** → Treat result as provisional. If you just pushed fixes, re-run the **same** `status --await-review` command after the push settles.
+8. **`is_merge_ready == true` and `review_monitor.confidence != "low"`** → Merge / stop.
 
 ## Anti-Footgun Rule
 
@@ -130,6 +133,7 @@ on a personal repo, retry with `--solo`.
 | `checks` | CI status + annotations | `--logs`, `--watch` |
 | `resolve` | Resolve/unresolve threads | `--thread`, `--all`, `--file`, `--author`, `--unresolve`, `--dry-run` |
 | `reply` | Reply to a thread | `--thread`, `--body`, `--body-file`, `--resolve` |
+| `dismiss` | Dismiss stale blocking reviews only | `--review`, `--author`, `--bots-only`, `--message`, `--dry-run` |
 
 ## Exit Codes
 
@@ -140,6 +144,7 @@ on a personal repo, retry with `--solo`.
 | `checks` | all pass | failure | error | pending | — |
 | `resolve` | all success | partial failure | total failure | — | — |
 | `reply` | posted | thread not found | error | — | reply ok, resolve failed |
+| `dismiss` | all dismissed / dry-run success | partial dismissal failure | total dismissal failure | — | — |
 
 Exit 2 = auth failure, rate limit, or resource not found.
 
@@ -157,6 +162,9 @@ gh ghent comments --pr <N> --group-by file --format json --no-tui
 
 # Compact status (minimal tokens for polling loops)
 gh ghent status --pr <N> --compact --format json --no-tui
+
+# Clear stale blocking bot reviews after a superseding push
+gh ghent dismiss --pr <N> --bots-only --message "superseded by current HEAD" --format json --no-tui
 ```
 
 ## References

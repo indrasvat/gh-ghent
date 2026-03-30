@@ -29,7 +29,7 @@ func TestMapReviewsToDomain(t *testing.T) {
 	resp := loadReviewsFixture(t, "../../testdata/graphql/pr_reviews.json")
 	nodes := resp.Repository.PullRequest.Reviews.Nodes
 
-	reviews, err := mapReviewsToDomain(nodes)
+	reviews, err := mapReviewsToDomain(nodes, resp.Repository.PullRequest.HeadRefOID)
 	if err != nil {
 		t.Fatalf("mapReviewsToDomain: %v", err)
 	}
@@ -42,8 +42,11 @@ func TestMapReviewsToDomain(t *testing.T) {
 	got := reviews[0]
 	want := domain.Review{
 		ID:          "PRR_review1",
+		DatabaseID:  101,
 		Author:      "reviewer1",
+		AuthorType:  "User",
 		State:       domain.ReviewApproved,
+		CommitID:    "def456",
 		Body:        "Looks good!",
 		SubmittedAt: mustParseTime(t, "2026-02-20T12:00:00Z"),
 	}
@@ -55,6 +58,9 @@ func TestMapReviewsToDomain(t *testing.T) {
 	if reviews[1].State != domain.ReviewChangesRequested {
 		t.Errorf("review[1].State = %q, want %q", reviews[1].State, domain.ReviewChangesRequested)
 	}
+	if !reviews[1].IsStale {
+		t.Error("review[1].IsStale = false, want true")
+	}
 
 	// Verify third review (COMMENTED)
 	if reviews[2].State != domain.ReviewCommented {
@@ -65,10 +71,13 @@ func TestMapReviewsToDomain(t *testing.T) {
 	if reviews[3].State != domain.ReviewDismissed {
 		t.Errorf("review[3].State = %q, want %q", reviews[3].State, domain.ReviewDismissed)
 	}
+	if !reviews[3].IsBot {
+		t.Error("review[3].IsBot = false, want true")
+	}
 }
 
 func TestMapReviewsEmpty(t *testing.T) {
-	reviews, err := mapReviewsToDomain(nil)
+	reviews, err := mapReviewsToDomain(nil, "")
 	if err != nil {
 		t.Fatalf("mapReviewsToDomain(nil): %v", err)
 	}
@@ -79,22 +88,32 @@ func TestMapReviewsEmpty(t *testing.T) {
 
 func TestMapReviewsAllStates(t *testing.T) {
 	mkAuthor := func(login string) struct {
-		Login string `json:"login"`
+		Login    string `json:"login"`
+		TypeName string `json:"__typename"`
 	} {
 		return struct {
-			Login string `json:"login"`
-		}{Login: login}
+			Login    string `json:"login"`
+			TypeName string `json:"__typename"`
+		}{Login: login, TypeName: "User"}
 	}
 
 	nodes := []reviewNode{
-		{ID: "r1", Author: mkAuthor("a"), State: "APPROVED", SubmittedAt: "2026-02-20T10:00:00Z"},
-		{ID: "r2", Author: mkAuthor("b"), State: "CHANGES_REQUESTED", SubmittedAt: "2026-02-20T11:00:00Z"},
-		{ID: "r3", Author: mkAuthor("c"), State: "COMMENTED", SubmittedAt: "2026-02-20T12:00:00Z"},
-		{ID: "r4", Author: mkAuthor("d"), State: "PENDING", SubmittedAt: ""},
-		{ID: "r5", Author: mkAuthor("e"), State: "DISMISSED", SubmittedAt: "2026-02-20T14:00:00Z"},
+		{ID: "r1", DatabaseID: 1, Author: mkAuthor("a"), Commit: struct {
+			OID string `json:"oid"`
+		}{OID: "head"}, State: "APPROVED", SubmittedAt: "2026-02-20T10:00:00Z"},
+		{ID: "r2", DatabaseID: 2, Author: mkAuthor("b"), Commit: struct {
+			OID string `json:"oid"`
+		}{OID: "old"}, State: "CHANGES_REQUESTED", SubmittedAt: "2026-02-20T11:00:00Z"},
+		{ID: "r3", DatabaseID: 3, Author: mkAuthor("c"), Commit: struct {
+			OID string `json:"oid"`
+		}{OID: "head"}, State: "COMMENTED", SubmittedAt: "2026-02-20T12:00:00Z"},
+		{ID: "r4", DatabaseID: 4, Author: mkAuthor("d"), State: "PENDING", SubmittedAt: ""},
+		{ID: "r5", DatabaseID: 5, Author: mkAuthor("e"), Commit: struct {
+			OID string `json:"oid"`
+		}{OID: "old"}, State: "DISMISSED", SubmittedAt: "2026-02-20T14:00:00Z"},
 	}
 
-	reviews, err := mapReviewsToDomain(nodes)
+	reviews, err := mapReviewsToDomain(nodes, "head")
 	if err != nil {
 		t.Fatalf("mapReviewsToDomain: %v", err)
 	}
@@ -116,5 +135,8 @@ func TestMapReviewsAllStates(t *testing.T) {
 	// PENDING review has zero-value SubmittedAt
 	if !reviews[3].SubmittedAt.IsZero() {
 		t.Errorf("PENDING review should have zero SubmittedAt, got %v", reviews[3].SubmittedAt)
+	}
+	if !reviews[1].IsStale {
+		t.Error("CHANGES_REQUESTED review should be marked stale when commit differs from head")
 	}
 }

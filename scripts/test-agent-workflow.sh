@@ -4,6 +4,8 @@
 set -euo pipefail
 
 BINARY="bin/gh-ghent"
+STALE_REPO="${GHENT_STALE_REPO:-clayliddell/AgentVM}"
+STALE_PR="${GHENT_STALE_PR:-10}"
 PASS=0
 FAIL=0
 
@@ -90,6 +92,25 @@ done
 
 # NOTE: Checks, resolve, reply, and status workflow tests will be added
 # as those commands are implemented (Tasks 2.2-2.6).
+
+echo ""
+echo "--- Workflow 4: Read stale blockers, preview safe dismiss ---"
+
+STATUS=$("$BINARY" status -R "$STALE_REPO" --pr "$STALE_PR" --format json 2>&1) || true
+STALE_REVIEW_ID=$(echo "$STATUS" | python3 -c "import json,sys; d=json.load(sys.stdin); r=d.get('stale_reviews', []); print(r[0]['id'] if r else '')" 2>/dev/null) || true
+if [ -n "$STALE_REVIEW_ID" ] && [[ "$STALE_REVIEW_ID" == PRR_* ]]; then
+    pass "parsed stale review ID: $STALE_REVIEW_ID"
+else
+    fail "could not parse stale review ID from status JSON"
+fi
+
+DRY_RUN=$("$BINARY" dismiss -R "$STALE_REPO" --pr "$STALE_PR" --dry-run --format json 2>&1) || true
+DRY_ACTION=$(echo "$DRY_RUN" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['results'][0]['action'] if d.get('results') else '')" 2>/dev/null) || true
+if [ "$DRY_ACTION" = "would_dismiss" ]; then
+    pass "dismiss dry-run preserves safe action semantics"
+else
+    fail "dismiss dry-run expected would_dismiss, got '$DRY_ACTION'"
+fi
 
 # --- Summary ---
 echo ""

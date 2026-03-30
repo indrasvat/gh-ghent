@@ -2,33 +2,42 @@
   "data": {
     "repository": {
       "pullRequest": {
+        "headRefOid": "def456",
         "reviews": {
           "nodes": [
             {
               "id": "PRR_review1",
-              "author": { "login": "reviewer1" },
+              "databaseId": 101,
+              "author": { "login": "reviewer1", "__typename": "User" },
               "state": "APPROVED",
+              "commit": { "oid": "def456" },
               "body": "Looks good!",
               "submittedAt": "2026-02-20T12:00:00Z"
             },
             {
               "id": "PRR_review2",
-              "author": { "login": "reviewer2" },
+              "databaseId": 102,
+              "author": { "login": "reviewer2", "__typename": "User" },
               "state": "CHANGES_REQUESTED",
+              "commit": { "oid": "abc123" },
               "body": "Please fix the error handling",
               "submittedAt": "2026-02-20T13:00:00Z"
             },
             {
               "id": "PRR_review3",
-              "author": { "login": "reviewer1" },
+              "databaseId": 103,
+              "author": { "login": "reviewer1", "__typename": "User" },
               "state": "COMMENTED",
+              "commit": { "oid": "def456" },
               "body": "Minor nit",
               "submittedAt": "2026-02-20T14:00:00Z"
             },
             {
               "id": "PRR_review4",
-              "author": { "login": "reviewer3" },
+              "databaseId": 104,
+              "author": { "login": "reviewer3", "__typename": "Bot" },
               "state": "DISMISSED",
+              "commit": { "oid": "abc123" },
               "body": "",
               "submittedAt": "2026-02-20T15:00:00Z"
             }
