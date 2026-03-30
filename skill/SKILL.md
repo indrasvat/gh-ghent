@@ -144,7 +144,7 @@ on a personal repo, retry with `--solo`.
 | `checks` | all pass | failure | error | pending | — |
 | `resolve` | all success | partial failure | total failure | — | — |
 | `reply` | posted | thread not found | error | — | reply ok, resolve failed |
-| `dismiss` | all dismissed / dry-run success | partial dismissal failure | total dismissal failure | — | — |
+| `dismiss` | all dismissed / no-op / dry-run success | partial dismissal failure | total dismissal failure | — | — |
 
 Exit 2 = auth failure, rate limit, or resource not found.
 

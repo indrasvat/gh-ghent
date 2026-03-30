@@ -155,7 +155,7 @@ func TestBuildDismissResultsPartialFailure(t *testing.T) {
 func TestBuildDismissResultsNoMatches(t *testing.T) {
 	client := &stubDismissClient{reviews: staleDismissFixture()}
 
-	_, err := buildDismissResults(
+	results, err := buildDismissResults(
 		context.Background(),
 		client,
 		"owner",
@@ -167,11 +167,20 @@ func TestBuildDismissResultsNoMatches(t *testing.T) {
 		"superseded by current HEAD",
 		false,
 	)
-	if err == nil {
-		t.Fatal("expected no-match error")
+	if err != nil {
+		t.Fatalf("buildDismissResults: %v", err)
 	}
-	if got, want := err.Error(), "no stale CHANGES_REQUESTED reviews matched"; got != want {
-		t.Errorf("error = %q, want %q", got, want)
+	if results.SuccessCount != 0 || results.FailureCount != 0 {
+		t.Fatalf("counts = (%d, %d), want (0, 0)", results.SuccessCount, results.FailureCount)
+	}
+	if len(results.Results) != 0 || len(results.Errors) != 0 {
+		t.Fatalf("results = %+v, want empty no-op result", results)
+	}
+	if results.Results == nil {
+		t.Fatal("results.Results = nil, want empty slice for machine-readable no-op output")
+	}
+	if len(client.dismissCalls) != 0 {
+		t.Fatalf("dismiss should not be called when nothing matches, got %d calls", len(client.dismissCalls))
 	}
 }
 

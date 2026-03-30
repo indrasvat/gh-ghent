@@ -92,7 +92,7 @@ gh ghent resolve --pr 42 --thread PRRT_abc123 --unresolve  # Reopen
 | `--all` | Resolve all unresolved threads |
 | `--unresolve` | Unresolve instead of resolve |
 
-Exit codes: `0` = all success, `1` = partial failure, `2` = total failure.
+Exit codes: `0` = all success / no-op success, `1` = partial failure, `2` = total failure.
 
 ### `gh ghent reply`
 
@@ -217,7 +217,7 @@ All commands use meaningful exit codes for scripting:
 | `2` | Error (API failure, auth, permissions) |
 | `3` | Pending (checks still running) |
 
-For `dismiss`, exit `1` means partial dismissal failure and exit `2` means every dismissal failed.
+For `dismiss`, exit `0` also covers the safe no-op case where no stale blockers matched. Exit `1` means partial dismissal failure and exit `2` means every attempted dismissal failed.
 
 ### Agent Workflow Example
 

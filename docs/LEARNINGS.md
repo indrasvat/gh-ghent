@@ -32,6 +32,7 @@
 - **2026-03-30 (task 036):** The stale-review feature should target **blocking review states**, not "bots" as the primary abstraction. GitHub's own Copilot review docs say Copilot always leaves `COMMENT` reviews, so bot-ness alone does not imply merge blocking.
 - **2026-03-30 (task 036):** GitHub rejects self-authored blocking reviews on your own PR (`422 Review Can not request changes on your own pull request`). End-to-end stale-review testing therefore needs a second actor: another user, an installed bot, or a GitHub Actions workflow that posts reviews as `github-actions[bot]`.
 - **2026-03-30 (task 036):** A branch-resident `push` workflow can synthesize stale-review fixtures even before the workflow exists on `main`, but `workflow_dispatch` cannot. For dogfooding on a feature branch, trigger on `push` with an explicit commit-message tag (for example `[synthetic-review]`), post the review to the branch PR, then push once more to stale it.
+- **2026-03-30 (task 036):** Broad stale-review dismissal should be idempotent. If filters match no stale blockers, `gh ghent dismiss` should succeed with an empty result set; only an explicit `--review` miss should error.
 
 ## Cobra CLI
 

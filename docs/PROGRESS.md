@@ -8,9 +8,9 @@
 | Field | Value |
 |-------|-------|
 | **Current Phase** | Phase 14: Stale Review Dismissal |
-| **Current Task** | Task 036 DONE: stale blocking review dismissal implemented, verified, and dogfooded on PR #16. |
+| **Current Task** | Task 036 DONE: stale blocking review dismissal implemented, review-hardened, verified, and dogfooded on PR #16. |
 | **Blocker** | None |
-| **Last Action** | End-to-end dogfood complete: a synthetic `github-actions[bot]` `CHANGES_REQUESTED` review was created on PR #16, made stale by a follow-up push, then dismissed successfully with `gh ghent dismiss`. |
+| **Last Action** | Review follow-up complete: broad `dismiss` is now an idempotent no-op on zero matches, re-verified across L1/L3/L4/L5 and on PR #16 with the installed extension. |
 | **Last Updated** | 2026-03-30 |
 
 ## How to Resume
@@ -122,7 +122,10 @@
   - Added `.github/workflows/synthetic-review.yml` as a reusable free test harness that posts reviews as `github-actions[bot]`.
   - Triggered a synthetic blocking review on PR #16, pushed again to stale it, verified `gh ghent status` reported one stale blocker, then successfully ran:
     - `gh ghent dismiss -R indrasvat/gh-ghent --pr 16 --message "superseded by current HEAD" --format json --no-tui`
-  - Post-dismiss verification showed `stale_reviews: []` and GitHub review state `DISMISSED`.
+  - Post-dismiss verification showed no remaining stale blockers and GitHub review state `DISMISSED`.
+- **Review-driven hardening:** Follow-up Claude + Gemini review identified one real gap in the initial command contract.
+  - Broad `gh ghent dismiss` now exits `0` with an empty result set when no stale blockers match, while explicit `--review` misses still error.
+  - Re-verified with `make ci-fast`, `bash scripts/test-binary.sh`, `bash scripts/test-agent-workflow.sh`, `uv run .claude/automations/test_ghent_dismiss.py`, and a live no-op invocation on `indrasvat/gh-ghent#16`.
 
 ### 2026-03-29 (Phase 13: Review Monitor Hardening — Task 035)
 - **Task 035 (Smart await-review + skill hardening):** Implemented bounded review stabilization in both pipe mode and TUI.

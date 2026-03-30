@@ -11,7 +11,7 @@ gh-ghent uses structured exit codes so agents can branch logic without parsing o
 | `checks` | All checks pass | At least one failure | Auth/rate-limit/not-found error | Checks still pending |
 | `resolve` | All threads resolved successfully | Partial failure (some resolved) | Total failure (none resolved) | — |
 | `reply` | Reply posted successfully | Thread not found | Other error | — |
-| `dismiss` | All stale blockers dismissed (or dry-run success) | Partial failure | Total failure | — |
+| `dismiss` | All stale blockers dismissed, no-op success, or dry-run success | Partial failure | Total failure | — |
 
 ## Error Exit Code (2)
 
@@ -63,9 +63,9 @@ fi
 ```bash
 gh ghent dismiss --pr 42 --dry-run --format json --no-tui > /dev/null 2>&1
 case $? in
-  0) echo "Dry-run succeeded or all dismissals succeeded" ;;
+  0) echo "Dry-run succeeded, nothing matched, or all dismissals succeeded" ;;
   1) echo "Some stale blockers were dismissed, some failed" ;;
-  2) echo "No stale blockers could be dismissed" ;;
+  2) echo "Every attempted dismissal failed" ;;
 esac
 ```
 

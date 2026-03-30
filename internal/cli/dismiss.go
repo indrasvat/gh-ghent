@@ -128,11 +128,11 @@ func buildDismissResults(
 	if err != nil {
 		return nil, err
 	}
-	if len(selected) == 0 {
-		return nil, fmt.Errorf("no stale CHANGES_REQUESTED reviews matched")
-	}
 
-	results := &domain.DismissResults{DryRun: dryRun}
+	results := &domain.DismissResults{
+		Results: []domain.DismissResult{},
+		DryRun:  dryRun,
+	}
 	for _, review := range selected {
 		if dryRun {
 			results.Results = append(results.Results, domain.DismissResult{

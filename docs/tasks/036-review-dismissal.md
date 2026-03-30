@@ -216,7 +216,8 @@ gh ghent status -R <owner>/<repo> --pr <n> --await-review --format json --no-tui
   - synthetic `github-actions[bot]` `REQUEST_CHANGES` review created by `.github/workflows/synthetic-review.yml`
   - follow-up push made it stale
   - `gh ghent status` surfaced the stale blocker
-  - `gh ghent dismiss` successfully dismissed it and `stale_reviews` returned to `[]`
+  - `gh ghent dismiss` successfully dismissed it and no stale blockers remained
+  - follow-up review hardening changed broad zero-match dismissal into a safe no-op success (`exit 0`, empty result set)
 
 ## Visual Test Results
 
@@ -226,6 +227,10 @@ gh ghent status -R <owner>/<repo> --pr <n> --await-review --format json --no-tui
   - `.claude/screenshots/ghent_dismiss_status_md_20260330_123417.png`
   - `.claude/screenshots/ghent_dismiss_dry_run_md_20260330_123421.png`
   - `.claude/screenshots/ghent_dismiss_dry_run_json_20260330_123425.png`
+  - `.claude/screenshots/ghent_dismiss_status_tui_20260330_135026.png`
+  - `.claude/screenshots/ghent_dismiss_status_md_20260330_135031.png`
+  - `.claude/screenshots/ghent_dismiss_dry_run_md_20260330_135035.png`
+  - `.claude/screenshots/ghent_dismiss_dry_run_json_20260330_135039.png`
 - Findings:
   - TUI approvals section clearly shows stale count and `(stale)` marker without layout breakage.
   - Markdown status output recommends the exact dismiss command.

@@ -300,7 +300,7 @@ Dismiss stale blocking reviews that no longer apply to the current PR head.
 
 ### Exit Codes
 
-- `0` — all selected stale blockers dismissed successfully (or dry-run success)
+- `0` — all selected stale blockers dismissed successfully, no stale blockers matched, or dry-run succeeded
 - `1` — partial failure
 - `2` — total failure
 
