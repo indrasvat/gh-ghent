@@ -264,7 +264,7 @@ Observed final monitor:
 - `review_monitor.confidence == "low"`
 - compatibility alias `review_settled` present with the same values
 
-2. Settled/high-confidence path on multi-bot PR:
+2. Settled/medium-confidence path on historical multi-bot PR:
 
 ```bash
 gh ghent status -R indrasvat/yathaavat --pr 1 --await-review --solo --logs --format json --no-tui
@@ -272,8 +272,9 @@ gh ghent status -R indrasvat/yathaavat --pr 1 --await-review --solo --logs --for
 
 Observed final monitor:
 - `review_monitor.phase == "settled"`
-- `review_monitor.confidence == "high"`
+- `review_monitor.confidence == "medium"`
 - `review_monitor.tail_probes == 2`
+- `review_monitor.activity_count == 0`
 - compatibility alias `review_settled` present with the same values
 
 The verification target is not perfect certainty; it is a materially lower miss rate and a clear machine-readable distinction between stable and provisional exits.
@@ -284,7 +285,7 @@ Add/update visual verification for:
 
 - awaiting review
 - review activity detected
-- stable settled/high-confidence completion
+- stable settled completion
 - timeout/provisional completion with warning text
 
 Executed:
@@ -310,6 +311,6 @@ Result:
 
 - Reviewed `/Users/indrasvat/code/github.com/gh-ghent/.claude/screenshots/ghent_await_review_ci_phase_20260329_172511.png`: initial watch screen renders correctly with `watching`, elapsed/poll metadata, and event-log placeholder; no blank-frame or paint glitch remains.
 - Reviewed `/Users/indrasvat/code/github.com/gh-ghent/.claude/screenshots/ghent_await_review_awaiting_20260329_172512.png` and `/Users/indrasvat/code/github.com/gh-ghent/.claude/screenshots/ghent_await_review_tail_settled_20260329_172543.png`: the intermediate states are visually distinct, with `awaiting reviews` transitioning to `confirming review quiet` and the event log showing the new stabilization message.
-- Reviewed `/Users/indrasvat/code/github.com/gh-ghent/.claude/screenshots/ghent_await_review_summary_20260329_172714.png`: settled state shows a green `Review activity stabilized` banner with phase/confidence/wait/tail metadata and no layout overflow.
-- Reviewed `/Users/indrasvat/code/github.com/gh-ghent/.claude/screenshots/ghent_await_review_timeout_warning_20260329_172723.png`: provisional state shows an amber `Review monitor provisional` banner with explicit warning text that more bot comments may still arrive.
+- Reviewed `/Users/indrasvat/code/github.com/gh-ghent/.claude/screenshots/ghent_await_review_summary_20260329_175602.png`: historical settled state now shows an amber `Review activity settled` banner with `confidence medium`, `activity 0`, and tail metadata instead of incorrectly claiming high-confidence fresh activity.
+- Reviewed `/Users/indrasvat/code/github.com/gh-ghent/.claude/screenshots/ghent_await_review_timeout_warning_20260329_175610.png`: provisional state shows an amber `Review monitor provisional` banner with explicit warning text that more bot comments may still arrive and no phantom activity count.
 - Full L4 harness result: `uv run .claude/automations/test_ghent_await_review.py` → 8/8 PASS against real GitHub PRs.

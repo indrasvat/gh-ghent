@@ -17,12 +17,12 @@ Real PR targets:
 Scenarios covered:
     1. Build + install ghent
     2. Pipe mode timeout path returns review_monitor timeout/low
-    3. Pipe mode settled path returns review_monitor settled/high
+    3. Pipe mode settled path returns review_monitor settled/medium
     4. Compatibility alias review_settled still present
     5. TUI initial watch screen renders "watching"
     6. TUI review-await screen renders "awaiting reviews"
     7. TUI tail confirmation renders "confirming review quiet"
-    8. TUI settled summary renders "Review activity stabilized"
+    8. TUI settled summary renders "Review activity settled"
     9. TUI timeout summary renders "Review monitor provisional"
 
 Screenshots:
@@ -314,15 +314,19 @@ async def run_tui_settled_scenario(connection) -> int:
         screenshot = await capture_screenshot(window, "ghent_await_review_tail_settled")
         record("TUI tail confirmation screenshot", "PASS", "tail confirmation detected", screenshot)
 
-        if not await wait_for_text(session, "Review activity stabilized", timeout=100):
-            await dump_screen(session, "review activity stabilized not found")
+        if not await wait_for_any_text(
+            session,
+            ["Review activity settled", "Review activity stabilized"],
+            timeout=100,
+        ):
+            await dump_screen(session, "review activity settled not found")
             return fail_and_return(test_name, "never reached settled status summary")
 
         screenshot = await capture_screenshot(window, "ghent_await_review_summary")
         record(
             test_name,
             "PASS",
-            "status summary rendered settled/high-confidence banner",
+            "status summary rendered settled review-monitor banner",
             screenshot,
         )
         return 0
@@ -420,11 +424,11 @@ def run_pipe_tests() -> int:
 
     monitor = payload.get("review_monitor", {})
     alias = payload.get("review_settled", {})
-    if monitor.get("phase") != "settled" or monitor.get("confidence") != "high":
+    if monitor.get("phase") != "settled" or monitor.get("confidence") != "medium":
         return fail_and_return("Pipe settled path", f"unexpected review_monitor: {monitor}")
     if monitor.get("tail_probes", 0) < 2:
         return fail_and_return("Pipe settled path", f"expected tail_probes >= 2, got {monitor}")
-    if alias.get("phase") != "settled" or alias.get("confidence") != "high":
+    if alias.get("phase") != "settled" or alias.get("confidence") != "medium":
         return fail_and_return("Pipe settled alias", f"unexpected review_settled: {alias}")
     record("Pipe settled path", "PASS", json.dumps(monitor, sort_keys=True))
     return 0

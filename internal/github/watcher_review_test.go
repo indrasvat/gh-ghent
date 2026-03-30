@@ -3,12 +3,43 @@ package github
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/indrasvat/gh-ghent/internal/domain"
 	"github.com/indrasvat/gh-ghent/internal/formatter"
 )
+
+type fakeReviewClock struct {
+	now  time.Time
+	step time.Duration
+}
+
+func (c *fakeReviewClock) Now() time.Time {
+	current := c.now
+	c.now = c.now.Add(c.step)
+	return current
+}
+
+func scriptedProbe(snaps []*domain.ActivitySnapshot, errs []error) activityProbeFunc {
+	index := 0
+	return func(context.Context, string, string, int) (*domain.ActivitySnapshot, error) {
+		if index >= len(snaps) {
+			if len(snaps) == 0 {
+				return nil, errors.New("no scripted snapshot")
+			}
+			return snaps[len(snaps)-1], nil
+		}
+		snap := snaps[index]
+		var err error
+		if index < len(errs) {
+			err = errs[index]
+		}
+		index++
+		return snap, err
+	}
+}
 
 func TestDefaultReviewWatchConfig(t *testing.T) {
 	cfg := DefaultReviewWatchConfig()
@@ -195,5 +226,169 @@ func TestReviewSettlementOmittedWhenNil(t *testing.T) {
 	output := buf.String()
 	if bytes.Contains([]byte(output), []byte(`"review_settled"`)) {
 		t.Errorf("JSON should omit review_settled when nil: %s", output)
+	}
+}
+
+func TestWatchReviewsHistoricalReviewStateSettlesMedium(t *testing.T) {
+	base := time.Unix(1_700_000_000, 0)
+	clock := &fakeReviewClock{now: base, step: 100 * time.Millisecond}
+	cfg := ReviewWatchConfig{
+		DebounceWindow:            150 * time.Millisecond,
+		HardTimeout:               2 * time.Second,
+		PollInterval:              time.Nanosecond,
+		LateActivityGrace:         500 * time.Millisecond,
+		MaxLateActivityExtensions: 1,
+		TailIntervals:             []time.Duration{time.Nanosecond, time.Nanosecond},
+	}
+	snap := &domain.ActivitySnapshot{
+		HeadSHA:     "abc123",
+		ThreadCount: 2,
+		ThreadIDs:   []string{"t1", "t2"},
+	}
+	f, _ := formatter.New("json")
+
+	result, err := watchReviewsWithProbe(
+		context.Background(),
+		&bytes.Buffer{},
+		f,
+		"owner",
+		"repo",
+		1,
+		"abc123",
+		Fingerprint(snap),
+		cfg,
+		clock.Now,
+		scriptedProbe([]*domain.ActivitySnapshot{snap, snap, snap}, nil),
+	)
+	if err != nil {
+		t.Fatalf("watchReviewsWithProbe: %v", err)
+	}
+	if result.HeadChanged {
+		t.Fatal("HeadChanged = true, want false")
+	}
+	if result.Settlement.Phase != domain.ReviewPhaseSettled {
+		t.Fatalf("Phase = %q, want settled", result.Settlement.Phase)
+	}
+	if result.Settlement.Confidence != domain.ReviewConfidenceMedium {
+		t.Fatalf("Confidence = %q, want medium", result.Settlement.Confidence)
+	}
+	if result.Settlement.ActivityCount != 0 {
+		t.Fatalf("ActivityCount = %d, want 0 for historical-only review state", result.Settlement.ActivityCount)
+	}
+	if result.Settlement.TailProbes != 2 {
+		t.Fatalf("TailProbes = %d, want 2", result.Settlement.TailProbes)
+	}
+}
+
+func TestWatchReviewsTailRearmsAndSettlesHigh(t *testing.T) {
+	base := time.Unix(1_700_000_000, 0)
+	clock := &fakeReviewClock{now: base, step: 100 * time.Millisecond}
+	cfg := ReviewWatchConfig{
+		DebounceWindow:            150 * time.Millisecond,
+		HardTimeout:               3 * time.Second,
+		PollInterval:              time.Nanosecond,
+		LateActivityGrace:         500 * time.Millisecond,
+		MaxLateActivityExtensions: 1,
+		TailIntervals:             []time.Duration{time.Nanosecond, time.Nanosecond},
+	}
+	initial := &domain.ActivitySnapshot{HeadSHA: "abc123"}
+	firstActivity := &domain.ActivitySnapshot{
+		HeadSHA:     "abc123",
+		ThreadCount: 1,
+		ThreadIDs:   []string{"t1"},
+	}
+	secondActivity := &domain.ActivitySnapshot{
+		HeadSHA:     "abc123",
+		ThreadCount: 2,
+		ThreadIDs:   []string{"t1", "t2"},
+	}
+	f, _ := formatter.New("json")
+
+	result, err := watchReviewsWithProbe(
+		context.Background(),
+		&bytes.Buffer{},
+		f,
+		"owner",
+		"repo",
+		1,
+		"abc123",
+		Fingerprint(initial),
+		cfg,
+		clock.Now,
+		scriptedProbe([]*domain.ActivitySnapshot{
+			initial,
+			firstActivity,
+			firstActivity,
+			secondActivity,
+			secondActivity,
+			secondActivity,
+			secondActivity,
+		}, nil),
+	)
+	if err != nil {
+		t.Fatalf("watchReviewsWithProbe: %v", err)
+	}
+	if result.Settlement.Phase != domain.ReviewPhaseSettled {
+		t.Fatalf("Phase = %q, want settled", result.Settlement.Phase)
+	}
+	if result.Settlement.Confidence != domain.ReviewConfidenceHigh {
+		t.Fatalf("Confidence = %q, want high", result.Settlement.Confidence)
+	}
+	if !result.Settlement.TailRearmed {
+		t.Fatal("TailRearmed = false, want true")
+	}
+	if result.Settlement.ActivityCount != 2 {
+		t.Fatalf("ActivityCount = %d, want 2", result.Settlement.ActivityCount)
+	}
+	if result.Settlement.TailProbes != 2 {
+		t.Fatalf("TailProbes = %d, want 2", result.Settlement.TailProbes)
+	}
+}
+
+func TestWatchReviewsLateActivityGraceAllowsTailToFinish(t *testing.T) {
+	base := time.Unix(1_700_000_000, 0)
+	clock := &fakeReviewClock{now: base, step: 100 * time.Millisecond}
+	cfg := ReviewWatchConfig{
+		DebounceWindow:            300 * time.Millisecond,
+		HardTimeout:               500 * time.Millisecond,
+		PollInterval:              time.Nanosecond,
+		LateActivityGrace:         400 * time.Millisecond,
+		MaxLateActivityExtensions: 1,
+		TailIntervals:             []time.Duration{time.Nanosecond},
+	}
+	initial := &domain.ActivitySnapshot{HeadSHA: "abc123"}
+	activity := &domain.ActivitySnapshot{
+		HeadSHA:     "abc123",
+		ThreadCount: 1,
+		ThreadIDs:   []string{"t1"},
+	}
+	f, _ := formatter.New("json")
+
+	result, err := watchReviewsWithProbe(
+		context.Background(),
+		&bytes.Buffer{},
+		f,
+		"owner",
+		"repo",
+		1,
+		"abc123",
+		Fingerprint(initial),
+		cfg,
+		clock.Now,
+		scriptedProbe([]*domain.ActivitySnapshot{
+			initial,
+			activity,
+			activity,
+			activity,
+		}, nil),
+	)
+	if err != nil {
+		t.Fatalf("watchReviewsWithProbe: %v", err)
+	}
+	if result.Settlement.Phase != domain.ReviewPhaseSettled {
+		t.Fatalf("Phase = %q, want settled", result.Settlement.Phase)
+	}
+	if result.Settlement.Confidence != domain.ReviewConfidenceHigh {
+		t.Fatalf("Confidence = %q, want high", result.Settlement.Confidence)
 	}
 }

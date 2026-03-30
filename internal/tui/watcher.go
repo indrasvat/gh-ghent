@@ -110,6 +110,7 @@ type watcherModel struct {
 	prevHash             string
 	baselineHash         string // fingerprint from before CI started
 	activityCount        int
+	reviewArmed          bool
 	initialHeadSHA       string
 	reviewTailIntervals  []time.Duration
 	reviewTailIndex      int
@@ -223,6 +224,7 @@ func (m watcherModel) handlePollResult(msg watchResultMsg) (watcherModel, tea.Cm
 			m.reviewTailProbes = 0
 			m.reviewTailRearmed = false
 			m.reviewLateExtensions = 0
+			m.reviewArmed = false
 
 			// Take initial probe and compare against baseline from before CI.
 			// If different, review activity happened during CI — arm debounce.
@@ -230,10 +232,11 @@ func (m watcherModel) handlePollResult(msg watchResultMsg) (watcherModel, tea.Cm
 				m.prevHash = ghub.Fingerprint(snap)
 				if m.baselineHash != "" && m.prevHash != m.baselineHash {
 					m.activityCount++
+					m.reviewArmed = true
 					m.addEvent(time.Now(), yellowStyle.Render("●"), "Review activity detected during CI", "")
 				} else if snap.ThreadCount > 0 {
-					m.activityCount++
-					m.addEvent(time.Now(), yellowStyle.Render("●"), "Existing review threads detected", "")
+					m.reviewArmed = true
+					m.addEvent(time.Now(), yellowStyle.Render("●"), "Existing review state detected", "")
 				}
 			}
 
@@ -329,8 +332,13 @@ func (m watcherModel) scheduleNextReviewPoll() tea.Cmd {
 	if m.reviewTailIndex >= 0 && m.reviewTailIndex < len(m.reviewTailIntervals) {
 		interval = m.reviewTailIntervals[m.reviewTailIndex]
 	}
-	if m.reviewTimeout > 0 && m.reviewTimeout < interval {
-		interval = m.reviewTimeout
+	if !m.reviewDeadline.IsZero() {
+		remaining := time.Until(m.reviewDeadline)
+		if remaining <= 0 {
+			interval = 0
+		} else if remaining < interval {
+			interval = remaining
+		}
 	}
 	return tea.Tick(interval, func(t time.Time) tea.Msg {
 		return reviewTickMsg(t)
@@ -370,6 +378,7 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 	if newHash != m.prevHash {
 		m.lastActivityAt = now
 		m.activityCount++
+		m.reviewArmed = true
 		m.prevHash = newHash
 		sawActivity = true
 		if m.reviewTailIndex >= 0 {
@@ -389,9 +398,10 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 		}
 	}
 
-	// Check debounce: settled when idle for the configured window after at least one activity.
-	// Don't settle on zero activity — the reviewer may still be working
-	// (e.g., Codex shows 👀 for 2-4 min before posting comments).
+	// Check debounce: settled when idle for the configured window after
+	// observed review state or fresh activity. Don't settle on a completely
+	// empty watch window — the reviewer may still be working (e.g., Codex
+	// shows 👀 for 2-4 min before posting comments).
 	idleDuration := now.Sub(m.lastActivityAt)
 	if m.reviewTailIndex >= 0 && !sawActivity {
 		m.reviewTailProbes++
@@ -401,7 +411,7 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 		m.reviewTailIndex++
 		return m, m.scheduleNextReviewPoll()
 	}
-	if m.activityCount > 0 && idleDuration >= m.reviewDebounceWindow {
+	if m.reviewArmed && idleDuration >= m.reviewDebounceWindow {
 		if len(m.reviewTailIntervals) == 0 {
 			return m.finishReviewWait(domain.ReviewPhaseSettled, now)
 		}

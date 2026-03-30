@@ -108,11 +108,16 @@
   - `internal/tui/watcher.go` and `internal/tui/status.go` now render distinct `confirming review quiet`, `Review activity stabilized`, and `Review monitor provisional` states.
   - The watcher now treats pre-existing review threads as meaningful observed activity for stabilization purposes, which avoids false low-confidence timeouts on stable bot-reviewed PRs.
 - **Skill / docs hardening:** Rewrote the agent loop in `skill/SKILL.md`, `skill/references/command-reference.md`, `skill/references/agent-workflows.md`, and `README.md` so agents always return to `gh ghent status --pr <N> --await-review --solo --logs --format json --no-tui` after every push, and explicitly do not switch to bare `--watch` for review follow-up cycles.
+- **External review pass:** Ran a `dootsabha` council review with Claude and Gemini before PR stage and incorporated the substantive findings.
+  - Separated **historical review state** from **fresh review activity** so pre-existing threads no longer inflate `activity_count` or produce false `confidence=high`.
+  - Fixed TUI review poll scheduling to cap by **remaining deadline time**, not the configured total timeout.
+  - Added backend behavioral coverage for `WatchReviews` tail confirmation, tail re-arm, and late-activity grace via the new internal `watchReviewsWithProbe(...)` helper.
+  - Clarified docs that `review_settled` is still emitted today as a compatibility alias.
 - **Verification:**
-  - `make ci-fast` PASS (`DONE 681 tests, 1 skipped`)
+  - `make ci-fast` PASS (`DONE 684 tests, 1 skipped`)
   - L3 real PR checks PASS:
-    - `indrasvat/doot#1` with `--review-timeout 5s` returns `review_monitor.phase=timeout`, `confidence=low`
-    - `indrasvat/yathaavat#1` returns `review_monitor.phase=settled`, `confidence=high`, `tail_probes=2`
+    - `indrasvat/doot#1` with `--review-timeout 5s` returns `review_monitor.phase=timeout`, `confidence=low`, `activity_count=0`
+    - `indrasvat/yathaavat#1` returns `review_monitor.phase=settled`, `confidence=medium`, `tail_probes=2`, `activity_count=0`
   - L4 PASS: `uv run .claude/automations/test_ghent_await_review.py` → 8/8 PASS, with reviewed screenshots for initial watch, awaiting review, tail confirmation, settled summary, and provisional timeout summary.
 
 ### 2026-03-29 (Phase 13 planning — Task 035 spec)

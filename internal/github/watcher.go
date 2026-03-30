@@ -143,6 +143,8 @@ type WatchReviewResult struct {
 	NewHeadSHA  string // the new SHA if changed
 }
 
+type activityProbeFunc func(context.Context, string, string, int) (*domain.ActivitySnapshot, error)
+
 // WatchReviews polls review activity until it settles or times out.
 // It uses a lightweight activity probe and fingerprint-based change detection.
 // If the PR head SHA changes (new push), it returns immediately with HeadChanged=true
@@ -163,6 +165,33 @@ func (c *Client) WatchReviews(
 	cfg ReviewWatchConfig,
 	clock func() time.Time,
 ) (*WatchReviewResult, error) {
+	return watchReviewsWithProbe(
+		ctx,
+		w,
+		f,
+		owner,
+		repo,
+		pr,
+		initialHeadSHA,
+		baselineHash,
+		cfg,
+		clock,
+		c.ProbeActivity,
+	)
+}
+
+func watchReviewsWithProbe(
+	ctx context.Context,
+	w io.Writer,
+	f domain.Formatter,
+	owner, repo string,
+	pr int,
+	initialHeadSHA string,
+	baselineHash string,
+	cfg ReviewWatchConfig,
+	clock func() time.Time,
+	probe activityProbeFunc,
+) (*WatchReviewResult, error) {
 	if clock == nil {
 		clock = time.Now
 	}
@@ -171,6 +200,7 @@ func (c *Client) WatchReviews(
 	startAt := clock()
 	lastActivityAt := startAt
 	activityCount := 0
+	reviewArmed := false
 	consecutiveErrors := 0
 	currentInterval := cfg.PollInterval
 	deadline := startAt.Add(cfg.HardTimeout)
@@ -181,22 +211,25 @@ func (c *Client) WatchReviews(
 	tailRearmed := false
 
 	// Take initial fingerprint.
-	snap, err := c.ProbeActivity(ctx, owner, repo, pr)
+	snap, err := probe(ctx, owner, repo, pr)
 	if err != nil {
 		return nil, fmt.Errorf("review watch initial probe: %w", err)
 	}
 	prevHash := Fingerprint(snap)
 
 	// Compare against baseline (taken before CI watch started).
-	// If different, activity happened during CI — arm the debounce immediately.
+	// If different, activity happened during CI — arm quiet detection immediately.
+	// If the PR already has review state but no fresh fingerprint change, arm the
+	// quiet detector without counting it as new activity.
 	if baselineHash != "" && prevHash != baselineHash {
 		activityCount++
+		reviewArmed = true
 		slog.Debug("review activity detected during CI watch",
 			"baseline_hash", baselineHash[:12],
 			"current_hash", prevHash[:12])
 	} else if snap.ThreadCount > 0 {
-		activityCount++
-		slog.Debug("existing review threads detected at review-watch start",
+		reviewArmed = true
+		slog.Debug("existing review state detected at review-watch start",
 			"thread_count", snap.ThreadCount)
 	}
 
@@ -235,7 +268,7 @@ func (c *Client) WatchReviews(
 		}
 
 		now := clock()
-		snap, err = c.ProbeActivity(ctx, owner, repo, pr)
+		snap, err = probe(ctx, owner, repo, pr)
 		if err != nil {
 			consecutiveErrors++
 			slog.Debug("review watch poll error",
@@ -292,6 +325,7 @@ func (c *Client) WatchReviews(
 		if newHash != prevHash {
 			lastActivityAt = now
 			activityCount++
+			reviewArmed = true
 			prevHash = newHash
 			sawActivity = true
 			if tailIndex >= 0 {
@@ -343,11 +377,12 @@ func (c *Client) WatchReviews(
 		}
 
 		// Check debounce: settled when idle for the debounce window.
-		// Only debounce after at least one activity change — don't settle on
-		// nothing, because the reviewer may still be working (e.g., Codex
-		// shows 👀 for 2-4 min before posting comments). If no activity is
-		// ever detected, the hard timeout below is the safety valve.
-		if activityCount > 0 && idleDuration >= cfg.DebounceWindow {
+		// Only debounce after observed review state or a fresh activity change —
+		// don't settle on a completely empty watch window, because the reviewer
+		// may still be working (e.g., Codex shows 👀 for 2-4 min before posting
+		// comments). If no review state is ever observed, the hard timeout below
+		// is the safety valve.
+		if reviewArmed && idleDuration >= cfg.DebounceWindow {
 			if len(cfg.TailIntervals) == 0 {
 				monitor := domain.NewReviewMonitor(
 					domain.ReviewPhaseSettled,

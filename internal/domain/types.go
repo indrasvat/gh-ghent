@@ -252,10 +252,13 @@ func reviewConfidenceFor(
 ) ReviewConfidence {
 	switch phase {
 	case ReviewPhaseSettled:
-		if tailProbes > 0 {
-			return ReviewConfidenceHigh
-		}
 		if activityCount > 0 {
+			if tailProbes > 0 {
+				return ReviewConfidenceHigh
+			}
+			return ReviewConfidenceMedium
+		}
+		if tailProbes > 0 {
 			return ReviewConfidenceMedium
 		}
 	case ReviewPhaseTimeout:

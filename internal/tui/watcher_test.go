@@ -450,7 +450,8 @@ func TestWatcherBaselineActivityArmsDebounce(t *testing.T) {
 	m.lastActivityAt = time.Now().Add(-35 * time.Second) // 35s idle
 	m.reviewTimeout = 5 * time.Minute
 	m.initialHeadSHA = "abc123"
-	m.activityCount = 1 // baseline detected activity → debounce armed
+	m.activityCount = 1
+	m.reviewArmed = true // baseline detected activity → quiet detector armed
 	m.prevHash = ghub.Fingerprint(snapWithThreads)
 
 	m, cmd := m.handleReviewPollResult(reviewPollResultMsg{snapshot: snapWithThreads})
@@ -491,7 +492,8 @@ func TestWatcherReviewSettled(t *testing.T) {
 	m.lastActivityAt = time.Now().Add(-35 * time.Second) // 35s idle > 30s debounce
 	m.reviewTimeout = 5 * time.Minute
 	m.initialHeadSHA = "abc123"
-	m.activityCount = 1 // must have seen at least one activity for debounce to fire
+	m.activityCount = 1
+	m.reviewArmed = true // must have seen review state for debounce to fire
 
 	// Set prevHash to match what an empty snapshot would produce,
 	// so the fingerprint doesn't change (which would reset lastActivityAt).
@@ -624,6 +626,7 @@ func TestWatcherReviewNewActivityRearmsTail(t *testing.T) {
 	m.lastActivityAt = time.Now().Add(-35 * time.Second)
 	m.initialHeadSHA = "abc123"
 	m.activityCount = 1
+	m.reviewArmed = true
 	baseSnap := &domain.ActivitySnapshot{HeadSHA: "abc123"}
 	m.prevHash = ghub.Fingerprint(baseSnap)
 

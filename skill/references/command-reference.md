@@ -366,7 +366,7 @@ The final status output includes a canonical `review_monitor` field:
 }
 ```
 
-`review_settled` may still appear as a compatibility alias.
+`review_settled` is still emitted today as a compatibility alias for older consumers.
 
 Interpretation:
 

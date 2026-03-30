@@ -27,6 +27,7 @@
 - **2026-03-26 (bot-sweep):** Compute merge-readiness BEFORE applying display filters (--bots-only) — filtering mutates thread counts, which would make the PR appear merge-ready when unresolved human threads are hidden.
 - **2026-03-26 (bot-sweep):** Codex bot review comments use `**<sub><sub>![P1 Badge]...` markup with "Useful? React with 👍 / 👎" footer. CodeRabbit uses `_⚠️ Potential issue_ | _🔴 Critical_` severity markers with `<!-- fingerprinting:... -->` HTML comments.
 - **2026-03-29 (task 035):** Review stabilization cannot rely only on fingerprint deltas after CI. If a PR already has review threads when review-wait begins, treat existing thread presence as observed activity or the smart waiter will incorrectly fall through to low-confidence timeout on otherwise stable PRs.
+- **2026-03-29 (task 035):** Historical review state and fresh review activity are different signals. Existing threads at watch start can justify a bounded quiet-check, but they must not increment `activity_count` or upgrade the result to `confidence=high`; only fingerprint changes during the watch window should do that.
 
 ## Cobra CLI
 
@@ -42,6 +43,7 @@
 - **2026-02-23 (task 023):** When a TUI view has separate `dur` and `status` columns concatenated on the right side, avoid setting the same label in both for a given state — causes duplicate text (e.g., `running... running...`). Only live testing against real in-progress CI caught this; 419 unit tests missed it entirely. Always trigger real CI runs and iterm2-driver test against live data for watch/polling features.
 - **2026-02-24 (task 034):** When adding `--watch` to a command that already has pipe-mode output, stream watch status to **stderr** and final output to **stdout** — this lets users pipe stdout to `jq` while seeing progress on stderr. Pattern: `WatchChecks(ctx, os.Stderr, f, ...)` then fall through to normal output on `os.Stdout`.
 - **2026-03-29 (task 035):** iTerm2 visual tests for watch/TUI startup must wait for the first rendered token (`watching`, `Event Log`, etc.) before capturing screenshots. Taking a screenshot immediately after `async_send_text()` can capture the shell instead of the TUI and produce a false visual pass.
+- **2026-03-29 (task 035):** TUI polling loops must cap by the **remaining deadline**, not the configured total timeout. Comparing `reviewTimeout` to the poll interval is dead code once the watch has already been running.
 
 ## Testing
 
