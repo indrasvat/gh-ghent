@@ -276,10 +276,11 @@ func (m statusModel) renderReviewMonitorSection() string {
 		formatDuration(time.Duration(m.reviewMonitor.WaitSeconds)*time.Second),
 	)
 
-	if m.reviewMonitor.Confidence == domain.ReviewConfidenceHigh {
+	switch m.reviewMonitor.Confidence {
+	case domain.ReviewConfidenceHigh:
 		accent = lipgloss.Color(string(styles.Green))
 		title = "Review activity stabilized"
-	} else if m.reviewMonitor.Confidence == domain.ReviewConfidenceMedium {
+	case domain.ReviewConfidenceMedium:
 		title = "Review activity settled"
 	}
 
