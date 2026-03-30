@@ -64,6 +64,7 @@ func (f *JSONFormatter) FormatCompactStatus(w io.Writer, result *domain.StatusRe
 		FailCount     int                      `json:"fail_count"`
 		Threads       []compactThread          `json:"threads,omitempty"`
 		FailedChecks  []compactFailedCheck     `json:"failed_checks,omitempty"`
+		ReviewMonitor *domain.ReviewMonitor    `json:"review_monitor,omitempty"`
 		ReviewSettled *domain.ReviewSettlement `json:"review_settled,omitempty"`
 	}
 
@@ -77,6 +78,7 @@ func (f *JSONFormatter) FormatCompactStatus(w io.Writer, result *domain.StatusRe
 		CheckStatus:   string(result.Checks.OverallStatus),
 		PassCount:     result.Checks.PassCount,
 		FailCount:     result.Checks.FailCount,
+		ReviewMonitor: result.ReviewMonitor,
 		ReviewSettled: result.ReviewSettled,
 	}
 

@@ -202,8 +202,21 @@ func (f *XMLFormatter) FormatStatus(w io.Writer, result *domain.StatusResult) er
 	if result.ReviewSettled != nil {
 		out.ReviewSettled = &xmlReviewSettlement{
 			Phase:         string(result.ReviewSettled.Phase),
+			Confidence:    string(result.ReviewSettled.Confidence),
 			ActivityCount: result.ReviewSettled.ActivityCount,
 			WaitSeconds:   result.ReviewSettled.WaitSeconds,
+			TailProbes:    result.ReviewSettled.TailProbes,
+			TailRearmed:   result.ReviewSettled.TailRearmed,
+		}
+	}
+	if result.ReviewMonitor != nil {
+		out.ReviewMonitor = &xmlReviewSettlement{
+			Phase:         string(result.ReviewMonitor.Phase),
+			Confidence:    string(result.ReviewMonitor.Confidence),
+			ActivityCount: result.ReviewMonitor.ActivityCount,
+			WaitSeconds:   result.ReviewMonitor.WaitSeconds,
+			TailProbes:    result.ReviewMonitor.TailProbes,
+			TailRearmed:   result.ReviewMonitor.TailRearmed,
 		}
 	}
 	// Add unresolved threads to comments section.
@@ -345,17 +358,19 @@ func (f *XMLFormatter) FormatCompactStatus(w io.Writer, result *domain.StatusRes
 
 func (f *XMLFormatter) FormatWatchStatus(w io.Writer, status *domain.WatchStatus) error {
 	out := xmlWatchStatus{
-		Timestamp:       status.Timestamp.Format(time.RFC3339),
-		OverallStatus:   string(status.OverallStatus),
-		Completed:       status.Completed,
-		Total:           status.Total,
-		PassCount:       status.PassCount,
-		FailCount:       status.FailCount,
-		PendingCount:    status.PendingCount,
-		Final:           status.Final,
-		ReviewPhase:     string(status.ReviewPhase),
-		ReviewIdleSecs:  status.ReviewIdleSecs,
-		ReviewTimeoutIn: status.ReviewTimeoutIn,
+		Timestamp:        status.Timestamp.Format(time.RFC3339),
+		OverallStatus:    string(status.OverallStatus),
+		Completed:        status.Completed,
+		Total:            status.Total,
+		PassCount:        status.PassCount,
+		FailCount:        status.FailCount,
+		PendingCount:     status.PendingCount,
+		Final:            status.Final,
+		ReviewPhase:      string(status.ReviewPhase),
+		ReviewConfidence: string(status.ReviewConfidence),
+		ReviewIdleSecs:   status.ReviewIdleSecs,
+		ReviewTimeoutIn:  status.ReviewTimeoutIn,
+		ReviewTailProbes: status.ReviewTailProbes,
 	}
 	for _, ev := range status.Events {
 		out.Events = append(out.Events, xmlWatchEvent{
@@ -378,19 +393,21 @@ func (f *XMLFormatter) FormatWatchStatus(w io.Writer, status *domain.WatchStatus
 }
 
 type xmlWatchStatus struct {
-	XMLName         xml.Name        `xml:"watch_status"`
-	Timestamp       string          `xml:"timestamp,attr"`
-	OverallStatus   string          `xml:"overall_status,attr"`
-	Completed       int             `xml:"completed,attr"`
-	Total           int             `xml:"total,attr"`
-	PassCount       int             `xml:"pass_count,attr"`
-	FailCount       int             `xml:"fail_count,attr"`
-	PendingCount    int             `xml:"pending_count,attr"`
-	Final           bool            `xml:"final,attr"`
-	ReviewPhase     string          `xml:"review_phase,attr,omitempty"`
-	ReviewIdleSecs  int             `xml:"review_idle_secs,attr,omitempty"`
-	ReviewTimeoutIn int             `xml:"review_timeout_in,attr,omitempty"`
-	Events          []xmlWatchEvent `xml:"event,omitempty"`
+	XMLName          xml.Name        `xml:"watch_status"`
+	Timestamp        string          `xml:"timestamp,attr"`
+	OverallStatus    string          `xml:"overall_status,attr"`
+	Completed        int             `xml:"completed,attr"`
+	Total            int             `xml:"total,attr"`
+	PassCount        int             `xml:"pass_count,attr"`
+	FailCount        int             `xml:"fail_count,attr"`
+	PendingCount     int             `xml:"pending_count,attr"`
+	Final            bool            `xml:"final,attr"`
+	ReviewPhase      string          `xml:"review_phase,attr,omitempty"`
+	ReviewConfidence string          `xml:"review_confidence,attr,omitempty"`
+	ReviewIdleSecs   int             `xml:"review_idle_secs,attr,omitempty"`
+	ReviewTimeoutIn  int             `xml:"review_timeout_in,attr,omitempty"`
+	ReviewTailProbes int             `xml:"review_tail_probes,attr,omitempty"`
+	Events           []xmlWatchEvent `xml:"event,omitempty"`
 }
 
 type xmlWatchEvent struct {
@@ -505,13 +522,17 @@ type xmlStatus struct {
 	Comments      xmlStatusComments    `xml:"comments"`
 	Checks        xmlStatusChecks      `xml:"checks"`
 	Reviews       []xmlReview          `xml:"review,omitempty"`
+	ReviewMonitor *xmlReviewSettlement `xml:"review_monitor,omitempty"`
 	ReviewSettled *xmlReviewSettlement `xml:"review_settled,omitempty"`
 }
 
 type xmlReviewSettlement struct {
 	Phase         string `xml:"phase,attr"`
+	Confidence    string `xml:"confidence,attr,omitempty"`
 	ActivityCount int    `xml:"activity_count,attr"`
 	WaitSeconds   int    `xml:"wait_seconds,attr"`
+	TailProbes    int    `xml:"tail_probes,attr,omitempty"`
+	TailRearmed   bool   `xml:"tail_rearmed,attr,omitempty"`
 }
 
 type xmlStatusComments struct {

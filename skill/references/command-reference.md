@@ -334,8 +334,16 @@ phase begins, the current snapshot is compared against this baseline. If differe
 bot reviewed during CI), activity is detected immediately and the debounce is armed — no
 wasted timeout waiting for activity that already happened.
 
-**Debounce:** Settles after 30s of no new review activity. Only fires after at least one
-activity change has been detected — prevents premature settlement while a bot is still working.
+**Debounce:** Enters review quiet detection after 30s of no new review activity. Only fires
+after at least one activity change has been detected — prevents premature settlement while a
+bot is still working.
+
+**Tail confirmation:** After the first quiet period, ghent performs bounded sparse confirmation
+probes before treating the review window as stable. If new activity appears during those probes,
+ghent re-arms active review polling automatically.
+
+**Late-activity grace:** If review activity starts right near the timeout boundary, ghent extends
+the deadline by a small bounded grace window so it does not cut off a burst mid-stream.
 
 **Hard timeout:** Configurable via `--review-timeout` (default 5m). Safety valve when no
 activity is ever detected (e.g., no bot configured, or bot gave silent approval via emoji).
@@ -344,19 +352,30 @@ activity is ever detected (e.g., no bot configured, or bot gave silent approval 
 (max 3 restarts).
 
 In non-TTY mode, review watch status streams to stderr alongside CI watch status.
-The final status output includes a `review_settled` field:
+The final status output includes a canonical `review_monitor` field:
 
 ```json
 {
-  "review_settled": {
+  "review_monitor": {
     "phase": "settled",
+    "confidence": "high",
     "activity_count": 3,
-    "wait_seconds": 154
+    "wait_seconds": 154,
+    "tail_probes": 2
   }
 }
 ```
 
-Phase is `"settled"` (debounce) or `"timeout"` (hard timeout reached).
+`review_settled` is still emitted today as a compatibility alias for older consumers.
+
+Interpretation:
+
+- `"settled"` + `"high"` → review activity stabilized through bounded confirmation probes
+- `"settled"` + `"medium"` → quiet observed, but confirmation was weaker
+- `"timeout"` + `"low"` → provisional result; additional bot comments may still arrive
+
+**Agent rule:** When review comments may still matter, always re-run `status --await-review`
+after each fix push. Do **not** switch to bare `--watch` for follow-up review cycles.
 
 In TTY mode, the watcher shows "awaiting reviews" with idle/timeout counters,
 then transitions to the status dashboard when reviews settle.

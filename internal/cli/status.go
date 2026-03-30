@@ -85,7 +85,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 				watch = true
 			}
 
-			var reviewSettlement *domain.ReviewSettlement
+			var reviewMonitor *domain.ReviewMonitor
 
 			// Watch mode: poll until CI terminal status, then output full status.
 			if watch {
@@ -201,7 +201,7 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 							fmt.Fprintf(os.Stderr, "New push detected, restarting CI watch...\n")
 							continue
 						}
-						reviewSettlement = &result.Settlement
+						reviewMonitor = &result.Settlement
 					}
 					break
 				}
@@ -327,7 +327,8 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
 				PRAge:         computePRAge(threads, reviews, now),
 				LastUpdate:    computeLastUpdate(threads, reviews, now),
 				ReviewCycles:  computeReviewCycles(reviews),
-				ReviewSettled: reviewSettlement,
+				ReviewMonitor: reviewMonitor,
+				ReviewSettled: reviewMonitor,
 			}
 
 			f, err := formatter.New(Flags.Format)
