@@ -13,9 +13,12 @@ gh-ghent uses structured exit codes so agents can branch logic without parsing o
 | `reply` | Reply posted successfully | Thread not found | Other error | — |
 | `dismiss` | All stale blockers dismissed, no-op success, or dry-run success | Partial failure | Total failure | — |
 
-## Error Exit Code (2)
+## Exit Code 2
 
-Exit code 2 always means an infrastructure error, not a PR state issue:
+Exit code meanings are command-specific. Always use the per-command table above as
+the authoritative mapping.
+
+For `status`, `comments`, and `checks`, exit 2 is an infrastructure/access error:
 
 | Error Type | Message Pattern |
 |------------|-----------------|
@@ -23,6 +26,9 @@ Exit code 2 always means an infrastructure error, not a PR state issue:
 | Rate limit | `Rate limit exceeded. Resets at HH:MM.` |
 | Not found (repo) | `PR #N in owner/repo not found.` |
 | Not found (PR) | `PR #N in owner/repo not found.` |
+
+For `resolve` and `dismiss`, exit 2 is a command-specific total failure state, not
+necessarily an infrastructure error.
 
 ## Conditional Patterns
 

@@ -390,6 +390,31 @@ func TestJSONStatusIncludesStaleReviews(t *testing.T) {
 	}
 }
 
+func TestJSONStatusIncludesEmptyStaleReviewsArray(t *testing.T) {
+	var buf bytes.Buffer
+	f := &JSONFormatter{}
+
+	result := sampleStatusResult()
+	result.StaleReviews = []domain.Review{}
+
+	if err := f.FormatStatus(&buf, result); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	staleReviews, ok := parsed["stale_reviews"].([]any)
+	if !ok {
+		t.Fatalf("stale_reviews type = %T, want []any", parsed["stale_reviews"])
+	}
+	if len(staleReviews) != 0 {
+		t.Fatalf("stale_reviews count = %d, want 0", len(staleReviews))
+	}
+}
+
 func TestJSONCompactStatusValid(t *testing.T) {
 	var buf bytes.Buffer
 	f := &JSONFormatter{}

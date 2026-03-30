@@ -68,3 +68,16 @@ func TestDismissResultMapping(t *testing.T) {
 		t.Errorf("dismiss result mismatch (-want +got):\n%s", diff)
 	}
 }
+
+func TestDismissReviewRequiresMessage(t *testing.T) {
+	client := &Client{}
+	review := domain.Review{ID: "PRR_review2", DatabaseID: 102}
+
+	_, err := client.DismissReview(t.Context(), "owner", "repo", 42, review, "")
+	if err == nil {
+		t.Fatal("expected error for empty message")
+	}
+	if got, want := err.Error(), "dismiss review: message is required"; got != want {
+		t.Fatalf("error = %q, want %q", got, want)
+	}
+}

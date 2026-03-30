@@ -556,9 +556,9 @@ gh ghent dismiss --pr 42 --author sonarcloud --dry-run --format json
 ```
 
 **Exit codes:**
-- `0` — All targeted reviews dismissed successfully (or dry-run found targets cleanly)
+- `0` — All targeted reviews dismissed successfully, or no stale blockers matched broad filters (safe no-op), or dry-run completed
 - `1` — Partial success (some dismissed, some failed)
-- `2` — Error (auth, missing permissions, no valid target, API failure)
+- `2` — Error (auth, missing permissions, explicit `--review` target miss, API failure)
 
 **Acceptance criteria:**
 - [ ] FR-DIS-01: Fetch review commit SHA and expose staleness in the domain model

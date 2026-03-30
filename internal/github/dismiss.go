@@ -28,6 +28,9 @@ func (c *Client) DismissReview(
 	if review.DatabaseID == 0 {
 		return nil, fmt.Errorf("dismiss review: review %s is missing numeric database ID", review.ID)
 	}
+	if message == "" {
+		return nil, fmt.Errorf("dismiss review: message is required")
+	}
 
 	reqBody := struct {
 		Message string `json:"message"`
@@ -44,7 +47,7 @@ func (c *Client) DismissReview(
 	if err := doWithRetry(func() error {
 		return c.rest.DoWithContext(ctx, http.MethodPut, endpoint, bytes.NewReader(encoded), &resp)
 	}); err != nil {
-		return nil, classifyError(err)
+		return nil, fmt.Errorf("dismiss review: %w", classifyError(err))
 	}
 
 	state := domain.ReviewDismissed

@@ -35,7 +35,7 @@ func (f *XMLFormatter) FormatComments(w io.Writer, result *domain.CommentsResult
 				Author:    c.Author,
 				IsBot:     c.IsBot,
 				Body:      c.Body,
-				CreatedAt: c.CreatedAt.Format(time.RFC3339),
+				CreatedAt: formatXMLTime(c.CreatedAt),
 				URL:       c.URL,
 				DiffHunk:  c.DiffHunk,
 			})
@@ -78,7 +78,7 @@ func (f *XMLFormatter) FormatGroupedComments(w io.Writer, result *domain.Grouped
 					Author:    c.Author,
 					IsBot:     c.IsBot,
 					Body:      c.Body,
-					CreatedAt: c.CreatedAt.Format(time.RFC3339),
+					CreatedAt: formatXMLTime(c.CreatedAt),
 					URL:       c.URL,
 					DiffHunk:  c.DiffHunk,
 				})
@@ -276,7 +276,7 @@ func (f *XMLFormatter) FormatStatus(w io.Writer, result *domain.StatusResult) er
 				Author:    c.Author,
 				IsBot:     c.IsBot,
 				Body:      c.Body,
-				CreatedAt: c.CreatedAt.Format(time.RFC3339),
+				CreatedAt: formatXMLTime(c.CreatedAt),
 				URL:       c.URL,
 			})
 		}

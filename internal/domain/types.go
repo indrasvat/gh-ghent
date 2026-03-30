@@ -350,7 +350,7 @@ type StatusResult struct {
 	Comments      CommentsResult    `json:"comments"`
 	Checks        ChecksResult      `json:"checks"`
 	Reviews       []Review          `json:"reviews"`
-	StaleReviews  []Review          `json:"stale_reviews,omitempty"`
+	StaleReviews  []Review          `json:"stale_reviews"`
 	IsMergeReady  bool              `json:"is_merge_ready"`
 	PRAge         string            `json:"pr_age,omitempty"`
 	LastUpdate    string            `json:"last_update,omitempty"`

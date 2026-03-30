@@ -103,8 +103,9 @@ async def get_screen_text(session) -> str:
 
 
 async def wait_for_text(session, text: str, timeout: float = 10.0) -> bool:
-    deadline = asyncio.get_event_loop().time() + timeout
-    while asyncio.get_event_loop().time() < deadline:
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while loop.time() < deadline:
         if text in await get_screen_text(session):
             return True
         await asyncio.sleep(0.5)
