@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 
@@ -14,16 +15,17 @@ import (
 // statusModel renders the dashboard overview with KPI cards, section
 // previews, and merge readiness badge.
 type statusModel struct {
-	comments     *domain.CommentsResult
-	checks       *domain.ChecksResult
-	reviews      []domain.Review
-	width        int
-	height       int
-	scrollOffset int
-	maxScroll    int  // cached max scroll offset, updated on data/size change
-	loading      bool // true while async data is being fetched
-	hasErrors    bool // true if any core fetch failed — blocks merge readiness
-	solo         bool // skip approval requirement (single-maintainer repos)
+	comments      *domain.CommentsResult
+	checks        *domain.ChecksResult
+	reviews       []domain.Review
+	reviewMonitor *domain.ReviewMonitor
+	width         int
+	height        int
+	scrollOffset  int
+	maxScroll     int  // cached max scroll offset, updated on data/size change
+	loading       bool // true while async data is being fetched
+	hasErrors     bool // true if any core fetch failed — blocks merge readiness
+	solo          bool // skip approval requirement (single-maintainer repos)
 }
 
 func (m *statusModel) setSize(width, height int) {
@@ -70,6 +72,10 @@ func (m statusModel) renderContent() string {
 
 	var sections []string
 	sections = append(sections, m.renderKPICards())
+	if m.reviewMonitor != nil {
+		sections = append(sections, "")
+		sections = append(sections, m.renderReviewMonitorSection())
+	}
 	sections = append(sections, "")
 	sections = append(sections, m.renderThreadsSection())
 	sections = append(sections, "")
@@ -126,6 +132,10 @@ func (m statusModel) View() string {
 
 	// ── KPI cards row ────────────────────────────────────
 	sections = append(sections, m.renderKPICards())
+	if m.reviewMonitor != nil {
+		sections = append(sections, "")
+		sections = append(sections, m.renderReviewMonitorSection())
+	}
 	sections = append(sections, "")
 
 	// ── Review Threads section ───────────────────────────
@@ -249,6 +259,45 @@ func (m statusModel) renderCardText(text, label string, color lipgloss.Color) st
 		Render(text)
 	labelStr := dimStyle.Render(strings.ToUpper(label))
 	return textStr + "\n" + labelStr
+}
+
+func (m statusModel) renderReviewMonitorSection() string {
+	if m.reviewMonitor == nil {
+		return ""
+	}
+
+	accent := lipgloss.Color(string(styles.Yellow))
+	title := "Review monitor provisional"
+	body := fmt.Sprintf(
+		"phase %s | confidence %s | activity %d | wait %s",
+		m.reviewMonitor.Phase,
+		m.reviewMonitor.Confidence,
+		m.reviewMonitor.ActivityCount,
+		formatDuration(time.Duration(m.reviewMonitor.WaitSeconds)*time.Second),
+	)
+
+	if m.reviewMonitor.Confidence == domain.ReviewConfidenceHigh {
+		accent = lipgloss.Color(string(styles.Green))
+		title = "Review activity stabilized"
+	} else if m.reviewMonitor.Confidence == domain.ReviewConfidenceMedium {
+		title = "Review activity settled"
+	}
+
+	if m.reviewMonitor.Phase == domain.ReviewPhaseTimeout {
+		body += " | more bot comments may still arrive"
+	} else if m.reviewMonitor.TailProbes > 0 {
+		body += fmt.Sprintf(" | tail probes %d", m.reviewMonitor.TailProbes)
+	}
+
+	return lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(accent).
+		Padding(0, 1).
+		Width(max(m.width-2, 10)).
+		Render(
+			lipgloss.NewStyle().Bold(true).Foreground(accent).Render(title) + "\n" +
+				dimStyle.Render(body),
+		)
 }
 
 func (m statusModel) hasChangesRequested() bool {

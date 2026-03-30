@@ -121,7 +121,7 @@ Combined PR status dashboard with merge-readiness assessment.
 gh ghent status --pr 42                     # Interactive dashboard
 gh ghent status --pr 42 --logs --format json  # Full status with failure diagnostics
 gh ghent status --pr 42 --watch --format json # Wait for CI, then full report
-gh ghent status --pr 42 --await-review        # Wait for CI + bot reviews to settle
+gh ghent status --pr 42 --await-review        # Wait for CI + bounded review stabilization
 gh ghent status --pr 42 --quiet               # Silent merge-readiness gate
 gh ghent status --pr 42 --solo                # Skip approval check (personal repos)
 ```
@@ -131,7 +131,7 @@ gh ghent status --pr 42 --solo                # Skip approval check (personal re
 | `--pr` | Pull request number (required) |
 | `--logs` | Include failing job log excerpts and annotations |
 | `--watch` | Poll until CI completes, then output full status |
-| `--await-review` | After CI completes, wait for review activity to settle (implies `--watch`) |
+| `--await-review` | After CI completes, wait for bounded review stabilization (implies `--watch`) |
 | `--review-timeout` | Hard timeout for `--await-review` (default: `5m`) |
 | `--quiet` | Silent on merge-ready (exit 0), full output on not-ready (exit 1) |
 | `--compact` | One-line-per-thread compact digest for agents |
@@ -187,23 +187,23 @@ All commands use meaningful exit codes for scripting:
 ### Agent Workflow Example
 
 ```bash
-# 1. Get everything in one call with failure diagnostics
-STATUS=$(gh ghent status --pr 42 --logs --format json --no-tui)
+# 1. Use the single blessed review command
+STATUS=$(gh ghent status --pr 42 --await-review --logs --format json --no-tui)
 
-# 2. Check merge readiness
-echo "$STATUS" | jq -e '.is_merge_ready' && exit 0
-
-# 3. Read CI failures (annotations + log excerpts)
+# 2. Fix CI failures if present
 echo "$STATUS" | jq '.checks.checks[] | select(.conclusion=="failure") | {name, log_excerpt, annotations}'
 
-# 4. Read unresolved review threads
-echo "$STATUS" | jq '.comments.threads[] | {path, line, body: .comments[0].body}'
+# 3. Read unresolved review threads
+echo "$STATUS" | jq '.comments.threads[] | {id, path, line, body: .comments[0].body}'
 
-# 5. Fix code, then resolve + reply
+# 4. Fix code, then resolve + reply as needed
 gh ghent resolve --pr 42 --all --format json
 
-# 6. Wait for CI + bot review, get fresh status
-gh ghent status --pr 42 --await-review --logs --format json --no-tui
+# 5. After pushing fixes, run the same command again
+STATUS=$(gh ghent status --pr 42 --await-review --logs --format json --no-tui)
+
+# 6. Stop only when merge-ready and review_monitor is not low-confidence
+echo "$STATUS" | jq '{merge_ready: .is_merge_ready, review_monitor: .review_monitor}'
 ```
 
 ### Output Formats

@@ -93,17 +93,23 @@ func (c *Client) WatchChecks(
 
 // ReviewWatchConfig holds configuration for the review-await phase.
 type ReviewWatchConfig struct {
-	DebounceWindow time.Duration // settle after this idle period (default 30s)
-	HardTimeout    time.Duration // max wait after CI completes (default 5m)
-	PollInterval   time.Duration // how often to poll (default 15s)
+	DebounceWindow            time.Duration   // settle after this idle period (default 30s)
+	HardTimeout               time.Duration   // max wait after CI completes (default 5m)
+	PollInterval              time.Duration   // how often to poll (default 15s)
+	LateActivityGrace         time.Duration   // extension when activity arrives near timeout
+	MaxLateActivityExtensions int             // cap to keep the wait bounded
+	TailIntervals             []time.Duration // sparse confirmation probes after settle
 }
 
 // DefaultReviewWatchConfig returns sensible defaults for review watching.
 func DefaultReviewWatchConfig() ReviewWatchConfig {
 	return ReviewWatchConfig{
-		DebounceWindow: 30 * time.Second,
-		HardTimeout:    5 * time.Minute,
-		PollInterval:   15 * time.Second,
+		DebounceWindow:            30 * time.Second,
+		HardTimeout:               5 * time.Minute,
+		PollInterval:              15 * time.Second,
+		LateActivityGrace:         30 * time.Second,
+		MaxLateActivityExtensions: 1,
+		TailIntervals:             []time.Duration{30 * time.Second, 60 * time.Second},
 	}
 }
 
@@ -146,12 +152,27 @@ func (c *Client) WatchReviews(
 	if cfg.HardTimeout == 0 {
 		cfg.HardTimeout = 5 * time.Minute
 	}
+	if cfg.LateActivityGrace == 0 {
+		cfg.LateActivityGrace = cfg.DebounceWindow
+	}
+	if cfg.MaxLateActivityExtensions == 0 {
+		cfg.MaxLateActivityExtensions = 1
+	}
+	if len(cfg.TailIntervals) == 0 {
+		cfg.TailIntervals = []time.Duration{30 * time.Second, 60 * time.Second}
+	}
 
 	startAt := clock()
 	lastActivityAt := startAt
 	activityCount := 0
 	consecutiveErrors := 0
 	currentInterval := cfg.PollInterval
+	deadline := startAt.Add(cfg.HardTimeout)
+	maxDeadline := deadline.Add(cfg.LateActivityGrace * time.Duration(cfg.MaxLateActivityExtensions))
+	lateExtensions := 0
+	tailIndex := -1
+	tailProbes := 0
+	tailRearmed := false
 
 	// Take initial fingerprint.
 	snap, err := c.ProbeActivity(ctx, owner, repo, pr)
@@ -167,30 +188,42 @@ func (c *Client) WatchReviews(
 		slog.Debug("review activity detected during CI watch",
 			"baseline_hash", baselineHash[:12],
 			"current_hash", prevHash[:12])
+	} else if snap.ThreadCount > 0 {
+		activityCount++
+		slog.Debug("existing review threads detected at review-watch start",
+			"thread_count", snap.ThreadCount)
 	}
 
 	for {
 		// Cap poll interval to remaining timeout so we don't oversleep.
-		remaining := cfg.HardTimeout - clock().Sub(startAt)
+		remaining := deadline.Sub(clock())
 		if remaining <= 0 {
 			// Already past timeout — emit and return immediately.
 			now := clock()
 			status := &domain.WatchStatus{
-				Timestamp:     now,
-				OverallStatus: domain.StatusPass,
-				ReviewPhase:   domain.ReviewPhaseTimeout,
-				Final:         true,
+				Timestamp:        now,
+				OverallStatus:    domain.StatusPass,
+				ReviewPhase:      domain.ReviewPhaseTimeout,
+				ReviewConfidence: domain.ReviewConfidenceLow,
+				ReviewTailProbes: tailProbes,
+				Final:            true,
 			}
 			_ = f.FormatWatchStatus(w, status)
+			monitor := domain.NewReviewMonitor(
+				domain.ReviewPhaseTimeout,
+				activityCount,
+				int(now.Sub(startAt).Seconds()),
+				tailProbes,
+				tailRearmed,
+			)
 			return &WatchReviewResult{
-				Settlement: domain.ReviewSettlement{
-					Phase:         domain.ReviewPhaseTimeout,
-					ActivityCount: activityCount,
-					WaitSeconds:   int(cfg.HardTimeout.Seconds()),
-				},
+				Settlement: monitor,
 			}, nil
 		}
 		sleepDur := min(currentInterval, remaining)
+		if tailIndex >= 0 && tailIndex < len(cfg.TailIntervals) {
+			sleepDur = min(cfg.TailIntervals[tailIndex], remaining)
+		}
 
 		// Wait for next poll or context cancellation.
 		select {
@@ -215,23 +248,27 @@ func (c *Client) WatchReviews(
 			// Emit status with error info but continue.
 			totalElapsed := now.Sub(startAt)
 			status := &domain.WatchStatus{
-				Timestamp:       now,
-				OverallStatus:   domain.StatusPass,
-				ReviewPhase:     domain.ReviewPhaseWaiting,
-				ReviewIdleSecs:  int(now.Sub(lastActivityAt).Seconds()),
-				ReviewTimeoutIn: max(0, int((cfg.HardTimeout - totalElapsed).Seconds())),
-				Final:           false,
+				Timestamp:        now,
+				OverallStatus:    domain.StatusPass,
+				ReviewPhase:      domain.ReviewPhaseWaiting,
+				ReviewIdleSecs:   int(now.Sub(lastActivityAt).Seconds()),
+				ReviewTimeoutIn:  max(0, int(deadline.Sub(now).Seconds())),
+				ReviewTailProbes: tailProbes,
+				Final:            false,
 			}
 			_ = f.FormatWatchStatus(w, status)
 
 			// Hard timeout still applies during errors.
-			if totalElapsed >= cfg.HardTimeout {
+			if !now.Before(deadline) {
+				monitor := domain.NewReviewMonitor(
+					domain.ReviewPhaseTimeout,
+					activityCount,
+					int(totalElapsed.Seconds()),
+					tailProbes,
+					tailRearmed,
+				)
 				return &WatchReviewResult{
-					Settlement: domain.ReviewSettlement{
-						Phase:         domain.ReviewPhaseTimeout,
-						ActivityCount: activityCount,
-						WaitSeconds:   int(totalElapsed.Seconds()),
-					},
+					Settlement: monitor,
 				}, nil
 			}
 			continue
@@ -251,10 +288,26 @@ func (c *Client) WatchReviews(
 
 		// Compare fingerprints.
 		newHash := Fingerprint(snap)
+		sawActivity := false
 		if newHash != prevHash {
 			lastActivityAt = now
 			activityCount++
 			prevHash = newHash
+			sawActivity = true
+			if tailIndex >= 0 {
+				tailIndex = -1
+				tailRearmed = true
+			}
+			if deadline.Sub(now) <= cfg.DebounceWindow && lateExtensions < cfg.MaxLateActivityExtensions {
+				extended := deadline.Add(cfg.LateActivityGrace)
+				if extended.After(maxDeadline) {
+					extended = maxDeadline
+				}
+				if extended.After(deadline) {
+					deadline = extended
+					lateExtensions++
+				}
+			}
 		}
 
 		idleDuration := now.Sub(lastActivityAt)
@@ -262,11 +315,35 @@ func (c *Client) WatchReviews(
 
 		// Emit review watch status.
 		status := &domain.WatchStatus{
-			Timestamp:       now,
-			OverallStatus:   domain.StatusPass,
-			ReviewPhase:     domain.ReviewPhaseWaiting,
-			ReviewIdleSecs:  int(idleDuration.Seconds()),
-			ReviewTimeoutIn: max(0, int((cfg.HardTimeout - totalElapsed).Seconds())),
+			Timestamp:        now,
+			OverallStatus:    domain.StatusPass,
+			ReviewPhase:      domain.ReviewPhaseWaiting,
+			ReviewIdleSecs:   int(idleDuration.Seconds()),
+			ReviewTimeoutIn:  max(0, int(deadline.Sub(now).Seconds())),
+			ReviewTailProbes: tailProbes,
+		}
+
+		if tailIndex >= 0 && !sawActivity {
+			tailProbes++
+			status.ReviewConfidence = domain.ReviewConfidenceMedium
+			status.ReviewTailProbes = tailProbes
+			tailIndex++
+			if tailIndex >= len(cfg.TailIntervals) {
+				monitor := domain.NewReviewMonitor(
+					domain.ReviewPhaseSettled,
+					activityCount,
+					int(totalElapsed.Seconds()),
+					tailProbes,
+					tailRearmed,
+				)
+				status.ReviewPhase = domain.ReviewPhaseSettled
+				status.ReviewConfidence = monitor.Confidence
+				status.Final = true
+				_ = f.FormatWatchStatus(w, status)
+				return &WatchReviewResult{Settlement: monitor}, nil
+			}
+			_ = f.FormatWatchStatus(w, status)
+			continue
 		}
 
 		// Check debounce: settled when idle for the debounce window.
@@ -275,32 +352,40 @@ func (c *Client) WatchReviews(
 		// shows 👀 for 2-4 min before posting comments). If no activity is
 		// ever detected, the hard timeout below is the safety valve.
 		if activityCount > 0 && idleDuration >= cfg.DebounceWindow {
-			status.ReviewPhase = domain.ReviewPhaseSettled
-			status.Final = true
+			if len(cfg.TailIntervals) == 0 {
+				monitor := domain.NewReviewMonitor(
+					domain.ReviewPhaseSettled,
+					activityCount,
+					int(totalElapsed.Seconds()),
+					tailProbes,
+					tailRearmed,
+				)
+				status.ReviewPhase = domain.ReviewPhaseSettled
+				status.ReviewConfidence = monitor.Confidence
+				status.Final = true
+				_ = f.FormatWatchStatus(w, status)
+				return &WatchReviewResult{Settlement: monitor}, nil
+			}
+			tailIndex = 0
+			status.ReviewConfidence = domain.ReviewConfidenceMedium
 			_ = f.FormatWatchStatus(w, status)
-
-			return &WatchReviewResult{
-				Settlement: domain.ReviewSettlement{
-					Phase:         domain.ReviewPhaseSettled,
-					ActivityCount: activityCount,
-					WaitSeconds:   int(totalElapsed.Seconds()),
-				},
-			}, nil
+			continue
 		}
 
 		// Check hard timeout.
-		if totalElapsed >= cfg.HardTimeout {
+		if !now.Before(deadline) {
+			monitor := domain.NewReviewMonitor(
+				domain.ReviewPhaseTimeout,
+				activityCount,
+				int(totalElapsed.Seconds()),
+				tailProbes,
+				tailRearmed,
+			)
 			status.ReviewPhase = domain.ReviewPhaseTimeout
+			status.ReviewConfidence = monitor.Confidence
 			status.Final = true
 			_ = f.FormatWatchStatus(w, status)
-
-			return &WatchReviewResult{
-				Settlement: domain.ReviewSettlement{
-					Phase:         domain.ReviewPhaseTimeout,
-					ActivityCount: activityCount,
-					WaitSeconds:   int(totalElapsed.Seconds()),
-				},
-			}, nil
+			return &WatchReviewResult{Settlement: monitor}, nil
 		}
 
 		_ = f.FormatWatchStatus(w, status)

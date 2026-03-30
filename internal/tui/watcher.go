@@ -99,15 +99,22 @@ type watcherModel struct {
 	logOffset int
 
 	// Review-await mode.
-	awaitReview    bool
-	reviewTimeout  time.Duration
-	reviewFetchFn  ReviewPollFunc
-	reviewStartAt  time.Time
-	lastActivityAt time.Time
-	prevHash       string
-	baselineHash   string // fingerprint from before CI started
-	activityCount  int
-	initialHeadSHA string
+	awaitReview          bool
+	reviewTimeout        time.Duration
+	reviewFetchFn        ReviewPollFunc
+	reviewStartAt        time.Time
+	reviewDeadline       time.Time
+	lastActivityAt       time.Time
+	prevHash             string
+	baselineHash         string // fingerprint from before CI started
+	activityCount        int
+	initialHeadSHA       string
+	reviewTailIntervals  []time.Duration
+	reviewTailIndex      int
+	reviewTailProbes     int
+	reviewTailRearmed    bool
+	reviewLateGrace      time.Duration
+	reviewLateExtensions int
 
 	// Status transition: when true, emit watchDoneMsg on terminal state.
 	statusTransition bool
@@ -118,11 +125,14 @@ func newWatcherModel(interval time.Duration) watcherModel {
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color(string(styles.Blue)))
 	return watcherModel{
-		state:    watchStatePolling,
-		spinner:  s,
-		startAt:  time.Now(),
-		interval: interval,
-		seen:     make(map[int64]string),
+		state:               watchStatePolling,
+		spinner:             s,
+		startAt:             time.Now(),
+		interval:            interval,
+		seen:                make(map[int64]string),
+		reviewTailIntervals: append([]time.Duration(nil), ghub.DefaultReviewWatchConfig().TailIntervals...),
+		reviewTailIndex:     -1,
+		reviewLateGrace:     ghub.DefaultReviewWatchConfig().LateActivityGrace,
 	}
 }
 
@@ -204,8 +214,13 @@ func (m watcherModel) handlePollResult(msg watchResultMsg) (watcherModel, tea.Cm
 			// CI passed — transition to review-await phase.
 			m.state = watchStateAwaitingReview
 			m.reviewStartAt = time.Now()
+			m.reviewDeadline = m.reviewStartAt.Add(m.reviewTimeout)
 			m.lastActivityAt = time.Now()
 			m.initialHeadSHA = msg.checks.HeadSHA
+			m.reviewTailIndex = -1
+			m.reviewTailProbes = 0
+			m.reviewTailRearmed = false
+			m.reviewLateExtensions = 0
 
 			// Take initial probe and compare against baseline from before CI.
 			// If different, review activity happened during CI — arm debounce.
@@ -217,6 +232,13 @@ func (m watcherModel) handlePollResult(msg watchResultMsg) (watcherModel, tea.Cm
 						timestamp: time.Now(),
 						icon:      yellowStyle.Render("●"),
 						name:      "Review activity detected during CI",
+					})
+				} else if snap.ThreadCount > 0 {
+					m.activityCount++
+					m.events = append(m.events, watchEvent{
+						timestamp: time.Now(),
+						icon:      yellowStyle.Render("●"),
+						name:      "Existing review threads detected",
 					})
 				}
 			}
@@ -310,6 +332,9 @@ func (m watcherModel) reviewPollCmd() tea.Cmd {
 
 func (m watcherModel) scheduleNextReviewPoll() tea.Cmd {
 	interval := 15 * time.Second
+	if m.reviewTailIndex >= 0 && m.reviewTailIndex < len(m.reviewTailIntervals) {
+		interval = m.reviewTailIntervals[m.reviewTailIndex]
+	}
 	if m.reviewTimeout > 0 && m.reviewTimeout < interval {
 		interval = m.reviewTimeout
 	}
@@ -320,6 +345,9 @@ func (m watcherModel) scheduleNextReviewPoll() tea.Cmd {
 
 func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherModel, tea.Cmd) {
 	now := time.Now()
+	if m.reviewDeadline.IsZero() && m.reviewTimeout > 0 && !m.reviewStartAt.IsZero() {
+		m.reviewDeadline = m.reviewStartAt.Add(m.reviewTimeout)
+	}
 
 	if msg.err != nil {
 		m.events = append(m.events, watchEvent{
@@ -331,7 +359,7 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 		m.logOffset = max(len(m.events)-m.eventLogHeight(), 0)
 
 		// Hard timeout still applies during errors.
-		if now.Sub(m.reviewStartAt) >= m.reviewTimeout {
+		if !m.reviewDeadline.IsZero() && !now.Before(m.reviewDeadline) {
 			return m.finishReviewWait(domain.ReviewPhaseTimeout, now)
 		}
 		return m, m.scheduleNextReviewPoll()
@@ -355,15 +383,37 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 
 	// Compare fingerprints.
 	newHash := ghub.Fingerprint(msg.snapshot)
+	sawActivity := false
 	if newHash != m.prevHash {
 		m.lastActivityAt = now
 		m.activityCount++
 		m.prevHash = newHash
-		m.events = append(m.events, watchEvent{
-			timestamp: now,
-			icon:      yellowStyle.Render("●"),
-			name:      "New review activity detected",
-		})
+		sawActivity = true
+		if m.reviewTailIndex >= 0 {
+			m.reviewTailIndex = -1
+			m.reviewTailRearmed = true
+			m.events = append(m.events, watchEvent{
+				timestamp: now,
+				icon:      yellowStyle.Render("↺"),
+				name:      "New review activity detected — resuming active watch",
+			})
+		} else {
+			m.events = append(m.events, watchEvent{
+				timestamp: now,
+				icon:      yellowStyle.Render("●"),
+				name:      "New review activity detected",
+			})
+		}
+		if !m.reviewDeadline.IsZero() && m.reviewDeadline.Sub(now) <= 30*time.Second && m.reviewLateExtensions == 0 {
+			m.reviewDeadline = m.reviewDeadline.Add(max(m.reviewLateGrace, 30*time.Second))
+			m.reviewLateExtensions++
+			m.events = append(m.events, watchEvent{
+				timestamp: now,
+				icon:      yellowStyle.Render("⏱"),
+				name:      "Late review activity grace applied",
+				detail:    formatDuration(max(m.reviewLateGrace, 30*time.Second)),
+			})
+		}
 	}
 
 	m.logOffset = max(len(m.events)-m.eventLogHeight(), 0)
@@ -372,12 +422,30 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 	// Don't settle on zero activity — the reviewer may still be working
 	// (e.g., Codex shows 👀 for 2-4 min before posting comments).
 	idleDuration := now.Sub(m.lastActivityAt)
+	if m.reviewTailIndex >= 0 && !sawActivity {
+		m.reviewTailProbes++
+		if m.reviewTailIndex == len(m.reviewTailIntervals)-1 {
+			return m.finishReviewWait(domain.ReviewPhaseSettled, now)
+		}
+		m.reviewTailIndex++
+		return m, m.scheduleNextReviewPoll()
+	}
 	if m.activityCount > 0 && idleDuration >= 30*time.Second {
-		return m.finishReviewWait(domain.ReviewPhaseSettled, now)
+		if len(m.reviewTailIntervals) == 0 {
+			return m.finishReviewWait(domain.ReviewPhaseSettled, now)
+		}
+		m.reviewTailIndex = 0
+		m.events = append(m.events, watchEvent{
+			timestamp: now,
+			icon:      yellowStyle.Render("◎"),
+			name:      "Review activity quiet — confirming stability",
+		})
+		m.logOffset = max(len(m.events)-m.eventLogHeight(), 0)
+		return m, m.scheduleNextReviewPoll()
 	}
 
 	// Check hard timeout.
-	if now.Sub(m.reviewStartAt) >= m.reviewTimeout {
+	if !m.reviewDeadline.IsZero() && !now.Before(m.reviewDeadline) {
 		return m.finishReviewWait(domain.ReviewPhaseTimeout, now)
 	}
 
@@ -394,6 +462,9 @@ func (m watcherModel) finishReviewWait(phase domain.ReviewWatchPhase, now time.T
 	if phase == domain.ReviewPhaseTimeout {
 		icon = yellowStyle.Render("⏱")
 		label = "Review timeout reached"
+		detail += " — more bot comments may still arrive"
+	} else if m.reviewTailProbes > 0 {
+		detail += fmt.Sprintf(" — tail probes %d", m.reviewTailProbes)
 	}
 
 	m.events = append(m.events, watchEvent{
@@ -404,11 +475,14 @@ func (m watcherModel) finishReviewWait(phase domain.ReviewWatchPhase, now time.T
 	})
 	m.logOffset = max(len(m.events)-m.eventLogHeight(), 0)
 
-	settlement := &domain.ReviewSettlement{
-		Phase:         phase,
-		ActivityCount: m.activityCount,
-		WaitSeconds:   int(elapsed.Seconds()),
-	}
+	settlement := &domain.ReviewSettlement{}
+	*settlement = domain.NewReviewMonitor(
+		phase,
+		m.activityCount,
+		int(elapsed.Seconds()),
+		m.reviewTailProbes,
+		m.reviewTailRearmed,
+	)
 
 	if m.statusTransition {
 		return m, func() tea.Msg { return watchDoneMsg{settlement: settlement} }
@@ -454,8 +528,12 @@ func (m watcherModel) renderWatchStatus() string {
 		parts = append(parts, " "+m.spinner.View()+" "+
 			yellowStyle.Bold(true).Render("watching"))
 	case watchStateAwaitingReview:
+		label := "awaiting reviews"
+		if m.reviewTailIndex >= 0 {
+			label = "confirming review quiet"
+		}
 		parts = append(parts, " "+m.spinner.View()+" "+
-			yellowStyle.Bold(true).Render("awaiting reviews"))
+			yellowStyle.Bold(true).Render(label))
 	case watchStateDone:
 		parts = append(parts, " "+greenStyle.Render("✓")+" "+
 			greenStyle.Bold(true).Render("all checks passed"))
@@ -468,9 +546,15 @@ func (m watcherModel) renderWatchStatus() string {
 		// Review-phase stats.
 		idle := time.Since(m.lastActivityAt)
 		parts = append(parts, dimStyle.Render(fmt.Sprintf("idle: %s", formatDuration(idle))))
-		remaining := m.reviewTimeout - time.Since(m.reviewStartAt)
+		remaining := time.Until(m.reviewDeadline)
+		if m.reviewDeadline.IsZero() {
+			remaining = m.reviewTimeout - time.Since(m.reviewStartAt)
+		}
 		if remaining > 0 {
 			parts = append(parts, dimStyle.Render(fmt.Sprintf("timeout: %s", formatDuration(remaining))))
+		}
+		if m.reviewTailProbes > 0 {
+			parts = append(parts, dimStyle.Render(fmt.Sprintf("tail: %d", m.reviewTailProbes)))
 		}
 	} else {
 		// CI-phase stats.

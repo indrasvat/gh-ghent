@@ -30,20 +30,31 @@ description: >
 
 Get PR number: `gh pr view --json number -q .number`
 
-## First Command After PR Creation
+## First Command After PR Creation Or Review-Fix Push
 
 ```bash
 PR=$(gh pr view --json number -q .number)
 gh ghent status --pr $PR --await-review --solo --logs --format json --no-tui
 ```
 
-Waits for CI, then waits for bot reviewers to settle (5m timeout, exits early after 30s silence).
-Returns everything: threads with `is_bot`, checks with log excerpts, reviews, `is_merge_ready`.
+This is the **single blessed command** for PR review handling.
+Use it:
+
+- immediately after PR creation
+- again after **every push** that addresses review or CI feedback
+
+It waits for CI, performs bounded review monitoring, and returns everything in one response:
+
+- threads with `is_bot`
+- checks with log excerpts
+- reviews
+- `review_monitor`
+- `is_merge_ready`
 
 **Drop `--solo`** for org repos with required review policies.
-**Always include `--await-review`** after PR creation — it only adds 30s of silence detection even without bot reviewers.
-**Drop `--await-review`** only in mid-development re-checks where you just need CI status.
-**Drop `--logs`** on re-checks after fixing threads (only needed for CI failures).
+**Always include `--await-review`** when review comments may still arrive.
+**Do not switch to bare `--watch`** after the first cycle if review comments still matter — `--watch` is CI-only and can miss follow-up bot comments.
+**Drop `--logs`** only on narrow re-checks where CI failure detail is definitely not needed.
 
 ## Response Shape (status)
 
@@ -61,7 +72,13 @@ Returns everything: threads with `is_bot`, checks with log excerpts, reviews, `i
     "overall_status": "pass",
     "checks": [{"name": "CI", "conclusion": "success", "annotations": [], "log_excerpt": ""}]
   },
-  "reviews": [{"author": "alice", "state": "APPROVED"}]
+  "reviews": [{"author": "alice", "state": "APPROVED"}],
+  "review_monitor": {
+    "phase": "settled",
+    "confidence": "high",
+    "activity_count": 3,
+    "wait_seconds": 154
+  }
 }
 ```
 
@@ -71,10 +88,22 @@ Act on the **first matching** condition — fix it, then re-run status:
 
 1. **Exit code 2** → auth / rate limit / not-found error. Fix credentials.
 2. **`checks.overall_status == "failure"`** → Fix CI. Log excerpts and annotations are inline.
-3. **`checks.overall_status == "pending"`** → Re-run with `--watch` to wait.
+3. **`checks.overall_status == "pending"`** → Re-run the **same** `status --await-review` command. Do not switch to `--watch` while review comments may still appear.
 4. **`comments.unanswered_count > 0`** → Bot sweep (see below).
 5. **`comments.unresolved_count > 0`** → `gh ghent resolve --pr <N> --all`
-6. **`is_merge_ready == true`** → Merge.
+6. **`review_monitor.phase == "timeout"` or `review_monitor.confidence == "low"`** → Treat result as provisional. If you just pushed fixes, re-run the **same** `status --await-review` command after the push settles.
+7. **`is_merge_ready == true` and `review_monitor.confidence != "low"`** → Merge / stop.
+
+## Anti-Footgun Rule
+
+When review comments may still arrive:
+
+- use `gh ghent status --await-review ...`
+- after every fix push, use `gh ghent status --await-review ...` again
+- do **not** switch to `gh ghent checks --watch`
+- do **not** switch to `gh ghent status --watch`
+
+Bare `--watch` is only for CI-only waiting when review state is irrelevant.
 
 ## Bot Sweep (when `unanswered_count > 0`)
 
@@ -83,8 +112,8 @@ The status already contains the full threads — no second call needed.
 1. Read threads from `comments.threads[]` where `comments[0].is_bot == true`
 2. Fix code → push
 3. Per thread: `gh ghent reply --pr <N> --thread PRRT_... --body "Fixed" --resolve`
-4. Re-check: `gh ghent status --pr <N> --await-review --solo --format json --no-tui`
-5. Repeat until `is_merge_ready == true`
+4. Re-check with the **same** command: `gh ghent status --pr <N> --await-review --solo --logs --format json --no-tui`
+5. Repeat until `is_merge_ready == true` and `review_monitor.confidence != "low"`
 
 ## Solo Mode
 

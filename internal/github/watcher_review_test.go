@@ -21,6 +21,15 @@ func TestDefaultReviewWatchConfig(t *testing.T) {
 	if cfg.PollInterval != 15*time.Second {
 		t.Errorf("PollInterval = %v, want 15s", cfg.PollInterval)
 	}
+	if cfg.LateActivityGrace != 30*time.Second {
+		t.Errorf("LateActivityGrace = %v, want 30s", cfg.LateActivityGrace)
+	}
+	if cfg.MaxLateActivityExtensions != 1 {
+		t.Errorf("MaxLateActivityExtensions = %d, want 1", cfg.MaxLateActivityExtensions)
+	}
+	if len(cfg.TailIntervals) != 2 {
+		t.Fatalf("TailIntervals length = %d, want 2", len(cfg.TailIntervals))
+	}
 }
 
 func TestWatchReviewResultTypes(t *testing.T) {
@@ -71,11 +80,13 @@ func TestReviewWatchPhaseConstants(t *testing.T) {
 func TestWatchStatusReviewFields(t *testing.T) {
 	// Verify that WatchStatus can carry review-phase fields.
 	status := &domain.WatchStatus{
-		Timestamp:       time.Now(),
-		OverallStatus:   domain.StatusPass,
-		ReviewPhase:     domain.ReviewPhaseWaiting,
-		ReviewIdleSecs:  12,
-		ReviewTimeoutIn: 288,
+		Timestamp:        time.Now(),
+		OverallStatus:    domain.StatusPass,
+		ReviewPhase:      domain.ReviewPhaseWaiting,
+		ReviewConfidence: domain.ReviewConfidenceMedium,
+		ReviewIdleSecs:   12,
+		ReviewTimeoutIn:  288,
+		ReviewTailProbes: 1,
 	}
 
 	// Format as JSON to verify serialization.
@@ -91,6 +102,9 @@ func TestWatchStatusReviewFields(t *testing.T) {
 	}
 	if !bytes.Contains([]byte(output), []byte(`"review_idle_secs":12`)) {
 		t.Errorf("JSON missing review_idle_secs: %s", output)
+	}
+	if !bytes.Contains([]byte(output), []byte(`"review_confidence":"medium"`)) {
+		t.Errorf("JSON missing review_confidence: %s", output)
 	}
 }
 
@@ -127,15 +141,24 @@ func TestWatchChecksNoChecksPR(t *testing.T) {
 	_ = client
 }
 
-func TestReviewSettlementInStatusResult(t *testing.T) {
-	// Verify ReviewSettled is included in StatusResult serialization.
+func TestReviewMonitorInStatusResult(t *testing.T) {
+	// Verify ReviewMonitor is included in StatusResult serialization.
 	result := &domain.StatusResult{
 		PRNumber:     42,
 		IsMergeReady: false,
-		ReviewSettled: &domain.ReviewSettlement{
+		ReviewMonitor: &domain.ReviewMonitor{
 			Phase:         domain.ReviewPhaseSettled,
+			Confidence:    domain.ReviewConfidenceHigh,
 			ActivityCount: 3,
 			WaitSeconds:   154,
+			TailProbes:    2,
+		},
+		ReviewSettled: &domain.ReviewSettlement{
+			Phase:         domain.ReviewPhaseSettled,
+			Confidence:    domain.ReviewConfidenceHigh,
+			ActivityCount: 3,
+			WaitSeconds:   154,
+			TailProbes:    2,
 		},
 	}
 
@@ -146,11 +169,14 @@ func TestReviewSettlementInStatusResult(t *testing.T) {
 	}
 
 	output := buf.String()
+	if !bytes.Contains([]byte(output), []byte(`"review_monitor"`)) {
+		t.Errorf("JSON missing review_monitor: %s", output)
+	}
 	if !bytes.Contains([]byte(output), []byte(`"review_settled"`)) {
 		t.Errorf("JSON missing review_settled: %s", output)
 	}
-	if !bytes.Contains([]byte(output), []byte(`"settled"`)) {
-		t.Errorf("JSON missing phase value: %s", output)
+	if !bytes.Contains([]byte(output), []byte(`"confidence": "high"`)) {
+		t.Errorf("JSON missing confidence value: %s", output)
 	}
 }
 

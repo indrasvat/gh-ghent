@@ -204,12 +204,64 @@ const (
 	ReviewPhaseTimeout ReviewWatchPhase = "timeout"
 )
 
-// ReviewSettlement carries the result of the review-await phase.
+type ReviewConfidence string
+
+const (
+	ReviewConfidenceNone   ReviewConfidence = ""
+	ReviewConfidenceLow    ReviewConfidence = "low"
+	ReviewConfidenceMedium ReviewConfidence = "medium"
+	ReviewConfidenceHigh   ReviewConfidence = "high"
+)
+
+// ReviewMonitor carries the result of the review-await phase.
 // Durations stored as integer seconds; formatters handle human-readable display.
-type ReviewSettlement struct {
+type ReviewMonitor struct {
 	Phase         ReviewWatchPhase `json:"phase"`
+	Confidence    ReviewConfidence `json:"confidence,omitempty"`
 	ActivityCount int              `json:"activity_count"`
 	WaitSeconds   int              `json:"wait_seconds"`
+	TailProbes    int              `json:"tail_probes,omitempty"`
+	TailRearmed   bool             `json:"tail_rearmed,omitempty"`
+}
+
+// ReviewSettlement is kept as a compatibility alias for older code and output.
+type ReviewSettlement = ReviewMonitor
+
+// NewReviewMonitor constructs a monitor payload with consistent confidence semantics.
+func NewReviewMonitor(
+	phase ReviewWatchPhase,
+	activityCount int,
+	waitSeconds int,
+	tailProbes int,
+	tailRearmed bool,
+) ReviewMonitor {
+	return ReviewMonitor{
+		Phase:         phase,
+		Confidence:    reviewConfidenceFor(phase, activityCount, tailProbes),
+		ActivityCount: activityCount,
+		WaitSeconds:   waitSeconds,
+		TailProbes:    tailProbes,
+		TailRearmed:   tailRearmed,
+	}
+}
+
+func reviewConfidenceFor(
+	phase ReviewWatchPhase,
+	activityCount int,
+	tailProbes int,
+) ReviewConfidence {
+	switch phase {
+	case ReviewPhaseSettled:
+		if tailProbes > 0 {
+			return ReviewConfidenceHigh
+		}
+		if activityCount > 0 {
+			return ReviewConfidenceMedium
+		}
+	case ReviewPhaseTimeout:
+		return ReviewConfidenceLow
+	}
+	return ReviewConfidenceNone
 }
 
 // ActivitySnapshot captures lightweight review activity metadata for settlement fingerprinting.
@@ -247,9 +299,11 @@ type WatchStatus struct {
 	Final         bool          `json:"final"`
 
 	// Review-await phase fields (populated only during --await-review).
-	ReviewPhase     ReviewWatchPhase `json:"review_phase,omitempty"`
-	ReviewIdleSecs  int              `json:"review_idle_secs,omitempty"`
-	ReviewTimeoutIn int              `json:"review_timeout_in,omitempty"`
+	ReviewPhase      ReviewWatchPhase `json:"review_phase,omitempty"`
+	ReviewConfidence ReviewConfidence `json:"review_confidence,omitempty"`
+	ReviewIdleSecs   int              `json:"review_idle_secs,omitempty"`
+	ReviewTimeoutIn  int              `json:"review_timeout_in,omitempty"`
+	ReviewTailProbes int              `json:"review_tail_probes,omitempty"`
 }
 
 // StatusResult combines all PR data for the status command.
@@ -262,5 +316,6 @@ type StatusResult struct {
 	PRAge         string            `json:"pr_age,omitempty"`
 	LastUpdate    string            `json:"last_update,omitempty"`
 	ReviewCycles  int               `json:"review_cycles,omitempty"`
+	ReviewMonitor *ReviewMonitor    `json:"review_monitor,omitempty"`
 	ReviewSettled *ReviewSettlement `json:"review_settled,omitempty"`
 }

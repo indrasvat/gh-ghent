@@ -434,8 +434,9 @@ func TestWatcherBaselineSameNoFalseActivity(t *testing.T) {
 }
 
 func TestWatcherBaselineActivityArmsDebounce(t *testing.T) {
-	// When baseline detected activity (activityCount=1 at start), the debounce
-	// should fire after 30s of idle — not wait for the full timeout.
+	// When baseline detected activity (activityCount=1 at start), the watcher
+	// should enter tail confirmation after 30s of idle instead of exiting
+	// immediately on the first quiet poll.
 	snapWithThreads := &domain.ActivitySnapshot{
 		HeadSHA:     "abc123",
 		ThreadCount: 2,
@@ -452,10 +453,16 @@ func TestWatcherBaselineActivityArmsDebounce(t *testing.T) {
 	m.activityCount = 1 // baseline detected activity → debounce armed
 	m.prevHash = ghub.Fingerprint(snapWithThreads)
 
-	m, _ = m.handleReviewPollResult(reviewPollResultMsg{snapshot: snapWithThreads})
+	m, cmd := m.handleReviewPollResult(reviewPollResultMsg{snapshot: snapWithThreads})
 
-	if m.state != watchStateDone {
-		t.Errorf("state = %d, want watchStateDone (baseline activity + 35s idle → should settle)", m.state)
+	if m.state != watchStateAwaitingReview {
+		t.Errorf("state = %d, want watchStateAwaitingReview (should enter tail confirmation)", m.state)
+	}
+	if cmd == nil {
+		t.Error("expected follow-up review poll cmd during tail confirmation")
+	}
+	if m.reviewTailIndex != 0 {
+		t.Errorf("reviewTailIndex = %d, want 0", m.reviewTailIndex)
 	}
 }
 
@@ -491,6 +498,23 @@ func TestWatcherReviewSettled(t *testing.T) {
 	snap := &domain.ActivitySnapshot{HeadSHA: "abc123"}
 	m.prevHash = ghub.Fingerprint(snap) // same hash → no activity reset
 
+	var cmd tea.Cmd
+	m, cmd = m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
+	if m.state != watchStateAwaitingReview {
+		t.Fatalf("state after entering tail = %d, want watchStateAwaitingReview", m.state)
+	}
+	if cmd == nil {
+		t.Fatal("expected tail confirmation cmd")
+	}
+
+	m, cmd = m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
+	if m.state != watchStateAwaitingReview {
+		t.Fatalf("state after first tail probe = %d, want watchStateAwaitingReview", m.state)
+	}
+	if cmd == nil {
+		t.Fatal("expected second tail confirmation cmd")
+	}
+
 	m, _ = m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
 
 	if m.state != watchStateDone {
@@ -506,6 +530,9 @@ func TestWatcherReviewSettled(t *testing.T) {
 	}
 	if !found {
 		t.Error("missing 'Reviews settled' event")
+	}
+	if m.reviewTailProbes != 2 {
+		t.Errorf("reviewTailProbes = %d, want 2", m.reviewTailProbes)
 	}
 }
 
@@ -584,6 +611,38 @@ func TestWatcherReviewTimeout(t *testing.T) {
 	}
 	if !found {
 		t.Error("missing 'Review timeout' event")
+	}
+}
+
+func TestWatcherReviewNewActivityRearmsTail(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.state = watchStateAwaitingReview
+	m.reviewStartAt = time.Now().Add(-2 * time.Minute)
+	m.reviewTimeout = 5 * time.Minute
+	m.reviewDeadline = time.Now().Add(2 * time.Minute)
+	m.lastActivityAt = time.Now().Add(-35 * time.Second)
+	m.initialHeadSHA = "abc123"
+	m.activityCount = 1
+	baseSnap := &domain.ActivitySnapshot{HeadSHA: "abc123"}
+	m.prevHash = ghub.Fingerprint(baseSnap)
+
+	m, _ = m.handleReviewPollResult(reviewPollResultMsg{snapshot: baseSnap})
+	if m.reviewTailIndex != 0 {
+		t.Fatalf("reviewTailIndex = %d, want 0 after entering tail", m.reviewTailIndex)
+	}
+
+	newSnap := &domain.ActivitySnapshot{HeadSHA: "abc123", ThreadCount: 1, ThreadIDs: []string{"t1"}}
+	m, cmd := m.handleReviewPollResult(reviewPollResultMsg{snapshot: newSnap})
+
+	if m.reviewTailIndex != -1 {
+		t.Errorf("reviewTailIndex = %d, want -1 after rearm", m.reviewTailIndex)
+	}
+	if !m.reviewTailRearmed {
+		t.Error("expected reviewTailRearmed to be true")
+	}
+	if cmd == nil {
+		t.Error("expected follow-up poll cmd after rearm")
 	}
 }
 

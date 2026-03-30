@@ -8,45 +8,32 @@
 # ///
 
 """
-ghent --await-review Visual Test: Automated verification of the review-await
-feature in both pipe mode (JSON output) and TUI watch mode.
+Exhaustive visual and live-PR verification for ghent --await-review.
 
-Tests:
-    1. Build: Verify gh-ghent builds and installs
-    2. Pipe --await-review: JSON includes review_settled with phase=settled
-    3. Pipe wait_seconds: review_settled.wait_seconds >= 30 (debounce)
-    4. Pipe backward compat: --watch alone has no review_settled
-    5. TUI --await-review launch: watch view shows CI phase
-    6. TUI review phase: screen shows "awaiting reviews" after CI passes
-    7. TUI settled transition: after debounce, transitions to status dashboard
-    8. TUI status content: KPI cards visible in status view
+Real PR targets:
+    - indrasvat/yathaavat#1 : existing multi-bot review activity, should settle high
+    - indrasvat/doot#1      : quiet PR, short timeout should remain provisional/low
 
-Verification Strategy:
-    - Create a dedicated window (never current_terminal_window) for isolation
-    - Use indrasvat/doot PR #1 (checks passed, no active reviews)
-    - Pipe mode: subprocess with JSON parsing (fast, no TUI needed)
-    - TUI mode: launch in iTerm2 session, poll screen for state transitions
-    - 30s debounce means review phase takes ~30-35s — use polling, not fixed sleep
-    - Dump screen on any failure for debugging
+Scenarios covered:
+    1. Build + install ghent
+    2. Pipe mode timeout path returns review_monitor timeout/low
+    3. Pipe mode settled path returns review_monitor settled/high
+    4. Compatibility alias review_settled still present
+    5. TUI initial watch screen renders "watching"
+    6. TUI review-await screen renders "awaiting reviews"
+    7. TUI tail confirmation renders "confirming review quiet"
+    8. TUI settled summary renders "Review activity stabilized"
+    9. TUI timeout summary renders "Review monitor provisional"
 
 Screenshots:
-    - ghent_await_review_ci_phase.png: Watch view during CI check phase
-    - ghent_await_review_awaiting.png: Watch view in "awaiting reviews" phase
-    - ghent_await_review_status.png: Status dashboard after settlement
-
-Screenshot Inspection Checklist:
-    - Colors: Tokyo Night theme, yellow for awaiting, green for passed
-    - Boundaries: Status bar, help bar, check list
-    - Visible Elements: spinner, "awaiting reviews", idle/timeout counters
-    - Keyboard Navigation: q to quit
-
-Key Bindings:
-    - q: Quit TUI
-    - Ctrl+C: Interrupt
-
-Usage:
-    uv run .claude/automations/test_ghent_await_review.py
+    - ghent_await_review_ci_phase.png
+    - ghent_await_review_awaiting.png
+    - ghent_await_review_tail_settled.png
+    - ghent_await_review_summary.png
+    - ghent_await_review_timeout_warning.png
 """
+
+from __future__ import annotations
 
 import asyncio
 import json
@@ -54,123 +41,96 @@ import os
 import subprocess
 import sys
 import time
+from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 import iterm2
 
-# ============================================================
-# CONFIGURATION
-# ============================================================
-
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SCREENSHOT_DIR = os.path.join(PROJECT_ROOT, ".claude", "screenshots")
-TIMEOUT_SECONDS = 10.0
-REPO = "indrasvat/doot"
-PR = "1"
-
-# ============================================================
-# RESULT TRACKING
-# ============================================================
-
-results = {
-    "passed": 0,
-    "failed": 0,
-    "unverified": 0,
-    "tests": [],
-    "screenshots": [],
-    "start_time": None,
-    "end_time": None,
-}
+SETTLED_REPO = "indrasvat/yathaavat"
+SETTLED_PR = 1
+TIMEOUT_REPO = "indrasvat/doot"
+TIMEOUT_PR = 1
+PIPE_TIMEOUT_SECONDS = 240
+SCREEN_TIMEOUT_SECONDS = 150
+WINDOW_WIDTH = 1180
+WINDOW_HEIGHT = 760
+SESSION_PREFIX = "ghent-await-review-"
 
 
-def log_result(
-    test_name: str, status: str, details: str = "", screenshot: str | None = None
-):
-    results["tests"].append(
-        {"name": test_name, "status": status, "details": details, "screenshot": screenshot}
-    )
+@dataclass
+class TestResult:
+    name: str
+    status: str
+    detail: str = ""
+    screenshot: str | None = None
+
+
+RESULTS: list[TestResult] = []
+
+
+def record(name: str, status: str, detail: str = "", screenshot: str | None = None) -> None:
+    RESULTS.append(TestResult(name=name, status=status, detail=detail, screenshot=screenshot))
+    symbol = {"PASS": "+", "FAIL": "x"}.get(status, "?")
+    print(f"[{symbol}] {status}: {name}")
+    if detail:
+        print(f"    {detail}")
     if screenshot:
-        results["screenshots"].append(screenshot)
-
-    symbol = {"PASS": "+", "FAIL": "x", "UNVERIFIED": "?"}.get(status, "?")
-    results[{"PASS": "passed", "FAIL": "failed"}.get(status, "unverified")] += 1
-    print(f"  [{symbol}] {status}: {test_name}")
-    if details:
-        print(f"      {details}")
-    if screenshot:
-        print(f"      Screenshot: {screenshot}")
+        print(f"    screenshot: {screenshot}")
 
 
-def print_summary() -> int:
-    results["end_time"] = datetime.now()
-    total = results["passed"] + results["failed"] + results["unverified"]
-    duration = (
-        (results["end_time"] - results["start_time"]).total_seconds()
-        if results["start_time"]
-        else 0
+def fail_and_return(name: str, detail: str) -> int:
+    record(name, "FAIL", detail)
+    return 1
+
+
+def run_json(command: list[str], *, timeout: int = PIPE_TIMEOUT_SECONDS) -> tuple[int, str, str]:
+    proc = subprocess.run(
+        command,
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
     )
-
-    print(f"\n{'=' * 60}")
-    print("TEST SUMMARY — --await-review Feature")
-    print("=" * 60)
-    print(f"Duration:   {duration:.1f}s")
-    print(f"Total:      {total}")
-    print(f"Passed:     {results['passed']}")
-    print(f"Failed:     {results['failed']}")
-    print(f"Unverified: {results['unverified']}")
-    if results["screenshots"]:
-        print(f"Screenshots: {len(results['screenshots'])}")
-    print("=" * 60)
-
-    if results["failed"] > 0:
-        print("\nFailed tests:")
-        for t in results["tests"]:
-            if t["status"] == "FAIL":
-                print(f"  - {t['name']}: {t['details']}")
-        print("\nOVERALL: FAILED")
-        return 1
-    print("\nOVERALL: PASSED")
-    return 0
+    return proc.returncode, proc.stdout, proc.stderr
 
 
-def print_test_header(test_name: str, test_num: int | None = None):
-    header = f"TEST {test_num}: {test_name}" if test_num else f"TEST: {test_name}"
-    print(f"\n{'=' * 60}")
-    print(header)
-    print("=" * 60)
+def parse_status_json(stdout: str) -> dict:
+    payload = stdout.strip()
+    if not payload:
+        raise ValueError("no stdout payload to parse")
+    return json.loads(payload)
 
-
-# ============================================================
-# QUARTZ WINDOW TARGETING (position-based, parallel-safe)
-# ============================================================
 
 try:
     import Quartz
 
-    def find_quartz_window_id(target_x, target_w, target_h, tolerance=30):
+    def find_quartz_window_id(target_x: float, target_w: float, target_h: float, tolerance: int = 30):
         window_list = Quartz.CGWindowListCopyWindowInfo(
             Quartz.kCGWindowListOptionOnScreenOnly
             | Quartz.kCGWindowListExcludeDesktopElements,
             Quartz.kCGNullWindowID,
         )
         best_id, best_score = None, float("inf")
-        for w in window_list:
-            if "iTerm" not in w.get("kCGWindowOwnerName", ""):
+        for window in window_list:
+            if "iTerm" not in window.get("kCGWindowOwnerName", ""):
                 continue
-            b = w.get("kCGWindowBounds", {})
+            bounds = window.get("kCGWindowBounds", {})
             score = (
-                abs(float(b.get("X", 0)) - target_x) * 2
-                + abs(float(b.get("Width", 0)) - target_w)
-                + abs(float(b.get("Height", 0)) - target_h)
+                abs(float(bounds.get("X", 0)) - target_x) * 2
+                + abs(float(bounds.get("Width", 0)) - target_w)
+                + abs(float(bounds.get("Height", 0)) - target_h)
             )
             if score < best_score:
-                best_score, best_id = score, w.get("kCGWindowNumber")
+                best_score, best_id = score, window.get("kCGWindowNumber")
         return best_id if best_score < tolerance else None
 
 except ImportError:
-    print("WARNING: Quartz not available, screenshots will capture full screen")
+    Quartz = None
 
-    def find_quartz_window_id(target_x, target_w, target_h, tolerance=30):
+    def find_quartz_window_id(target_x: float, target_w: float, target_h: float, tolerance: int = 30):
         return None
 
 
@@ -181,310 +141,341 @@ async def capture_screenshot(window, name: str) -> str:
     filepath = os.path.join(SCREENSHOT_DIR, filename)
 
     frame = await window.async_get_frame()
-    qid = find_quartz_window_id(frame.origin.x, frame.size.width, frame.size.height)
-
-    if qid:
-        subprocess.run(["screencapture", "-x", "-l", str(qid), filepath], check=True)
+    window_id = find_quartz_window_id(frame.origin.x, frame.size.width, frame.size.height)
+    if window_id is not None:
+        subprocess.run(["screencapture", "-x", "-l", str(window_id), filepath], check=True)
     else:
-        print("  WARNING: Quartz window not found, capturing full screen")
         subprocess.run(["screencapture", "-x", filepath], check=True)
 
-    print(f"  SCREENSHOT: {filepath}")
     return filepath
-
-
-# ============================================================
-# VERIFICATION HELPERS
-# ============================================================
 
 
 async def get_screen_text(session) -> str:
     screen = await session.async_get_screen_contents()
-    lines = []
-    for i in range(screen.number_of_lines):
-        lines.append(screen.line(i).string)
-    return "\n".join(lines)
+    return "\n".join(screen.line(i).string for i in range(screen.number_of_lines))
 
 
-async def verify_screen_contains(session, expected: str, description: str) -> bool:
-    start = time.monotonic()
-    while (time.monotonic() - start) < TIMEOUT_SECONDS:
-        screen = await session.async_get_screen_contents()
-        for i in range(screen.number_of_lines):
-            if expected.lower() in screen.line(i).string.lower():
-                print(f"  Found: '{expected}' ({description})")
-                return True
-        await asyncio.sleep(0.3)
-    print(f"  Not found: '{expected}' after {TIMEOUT_SECONDS}s ({description})")
+async def wait_for_text(
+    session,
+    needle: str,
+    *,
+    timeout: float = SCREEN_TIMEOUT_SECONDS,
+    interval: float = 0.5,
+) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if needle.lower() in (await get_screen_text(session)).lower():
+            return True
+        await asyncio.sleep(interval)
     return False
 
 
-async def dump_screen(session, label: str):
-    screen = await session.async_get_screen_contents()
-    print(f"\n{'=' * 60}")
-    print(f"SCREEN DUMP: {label}")
-    print("=" * 60)
-    for i in range(screen.number_of_lines):
-        line = screen.line(i).string
-        if line.strip():
-            print(f"{i:03d}: {line}")
-    print("=" * 60 + "\n")
+async def wait_for_any_text(
+    session,
+    needles: list[str],
+    *,
+    timeout: float = SCREEN_TIMEOUT_SECONDS,
+    interval: float = 0.5,
+) -> str | None:
+    deadline = time.monotonic() + timeout
+    lowered_needles = [needle.lower() for needle in needles]
+    while time.monotonic() < deadline:
+        text = (await get_screen_text(session)).lower()
+        for needle in lowered_needles:
+            if needle in text:
+                return needle
+        await asyncio.sleep(interval)
+    return None
 
 
-# ============================================================
-# WINDOW CREATION WITH READINESS PROBES
-# ============================================================
+async def dump_screen(session, label: str) -> None:
+    print(f"\n==== SCREEN DUMP: {label} ====")
+    screen = await get_screen_text(session)
+    print(screen)
+    print("==== END SCREEN DUMP ====\n")
 
 
-async def create_test_window(connection, name="test", x_pos=100, width=900, height=600):
+async def cleanup_session(session) -> None:
+    try:
+        await session.async_send_text("\u0003")
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        await session.async_send_text("q")
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        await session.async_send_text("exit\n")
+    except Exception:  # noqa: BLE001
+        pass
+    await asyncio.sleep(0.2)
+    try:
+        await session.async_close()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+async def cleanup_stale_windows(connection, *, prefix: str = SESSION_PREFIX) -> None:
+    app = await iterm2.async_get_app(connection)
+    for window in app.terminal_windows:
+        for tab in window.tabs:
+            for session in tab.sessions:
+                if session.name and session.name.startswith(prefix):
+                    await cleanup_session(session)
+
+
+async def create_test_window(connection, *, name: str, x_pos: int) -> tuple[Any, Any]:
     window = await iterm2.Window.async_create(connection)
     if window is None:
         raise RuntimeError("Window.async_create() returned None")
 
     await asyncio.sleep(0.5)
-
     app = await iterm2.async_get_app(connection)
     if window.current_tab is None:
-        for w in app.terminal_windows:
-            if w.window_id == window.window_id:
-                window = w
+        for refreshed in app.terminal_windows:
+            if refreshed.window_id == window.window_id:
+                window = refreshed
                 break
 
-    for _ in range(20):
+    session = None
+    for _ in range(30):
         if window.current_tab and window.current_tab.current_session:
+            session = window.current_tab.current_session
             break
         await asyncio.sleep(0.2)
-
-    if not window.current_tab or not window.current_tab.current_session:
-        raise RuntimeError("Window tab/session not ready after timeout")
-
-    session = window.current_tab.current_session
-    await session.async_set_name(name)
+        app = await iterm2.async_get_app(connection)
+        for refreshed in app.terminal_windows:
+            if refreshed.window_id == window.window_id:
+                window = refreshed
+                break
+    if session is None:
+        raise RuntimeError("window session not ready after refresh + probe")
 
     frame = await window.async_get_frame()
-    await window.async_set_frame(
-        iterm2.Frame(
-            iterm2.Point(x_pos, frame.origin.y),
-            iterm2.Size(width, height),
-        )
-    )
+    frame.origin.x = x_pos
+    frame.origin.y = 80
+    frame.size.width = WINDOW_WIDTH
+    frame.size.height = WINDOW_HEIGHT
+    await window.async_set_frame(frame)
     await asyncio.sleep(0.3)
 
+    await session.async_set_name(name)
     screen = await session.async_get_screen_contents()
     if screen is None:
-        raise RuntimeError("Screen not readable after window creation")
+        raise RuntimeError("screen not readable after window creation")
 
     return window, session
 
 
-# ============================================================
-# CLEANUP
-# ============================================================
-
-
-async def cleanup_session(session, quit_key: str | None = None):
-    print("\n  Performing cleanup...")
+async def run_tui_settled_scenario(connection) -> int:
+    test_name = "TUI settled/high-confidence path"
+    window, session = await create_test_window(
+        connection,
+        name=f"{SESSION_PREFIX}settled",
+        x_pos=80,
+    )
     try:
-        await session.async_send_text("\x03")  # Ctrl+C
-        await asyncio.sleep(0.2)
-        if quit_key:
-            await session.async_send_text(quit_key)
-            await asyncio.sleep(0.3)
-        await session.async_send_text("\x03")  # Ctrl+C again
-        await asyncio.sleep(0.1)
-        await session.async_send_text("exit\n")
-        await asyncio.sleep(0.3)
-        await session.async_close()
-        print("  Cleanup complete")
-    except Exception as e:
-        print(f"  Cleanup warning: {e}")
-
-
-# ============================================================
-# MAIN TEST FUNCTION
-# ============================================================
-
-
-async def main(connection):
-    results["start_time"] = datetime.now()
-
-    print("\n" + "#" * 60)
-    print("# ghent --await-review VISUAL TEST")
-    print("# Tests review-await in pipe mode and TUI watch mode")
-    print("#" * 60)
-
-    window, session = await create_test_window(connection, "await-review-test", x_pos=150)
-    created_sessions = [session]
-
-    try:
-        await session.async_send_text(f"cd {PROJECT_ROOT}\n")
-        await asyncio.sleep(0.5)
-
-        # ============================================================
-        # TEST 1: Build
-        # ============================================================
-        print_test_header("Build & Install", 1)
-        result = subprocess.run(
-            ["make", "install"], capture_output=True, text=True, cwd=PROJECT_ROOT
+        cmd = (
+            f"cd {PROJECT_ROOT} && "
+            f"gh ghent status -R {SETTLED_REPO} --pr {SETTLED_PR} "
+            "--await-review --solo --logs\n"
         )
-        if result.returncode == 0:
-            log_result("Build & install", "PASS")
-        else:
-            log_result("Build & install", "FAIL", result.stderr[:200])
-            return print_summary()
+        await session.async_send_text(cmd)
 
-        # ============================================================
-        # TESTS 2-3: Pipe mode --await-review
-        # ============================================================
-        print_test_header("Pipe --await-review (JSON output)", 2)
-        print("  Running gh ghent status --await-review (takes ~30s for debounce)...")
+        first_render = await wait_for_any_text(
+            session,
+            ["watching", "awaiting reviews", "event log"],
+            timeout=15,
+            interval=0.2,
+        )
+        if first_render is None:
+            await dump_screen(session, "initial watch render not found")
+            return fail_and_return(test_name, "initial watch screen never rendered")
 
-        pipe_result = subprocess.run(
-            [
-                "gh", "ghent", "status", "--pr", PR, "-R", REPO,
-                "--format", "json", "--no-tui",
-                "--await-review", "--review-timeout", "45s",
-            ],
-            capture_output=True, text=True, timeout=120,
+        screenshot = await capture_screenshot(window, "ghent_await_review_ci_phase")
+        record(
+            "TUI CI phase screenshot",
+            "PASS",
+            f"captured initial watch render ({first_render})",
+            screenshot,
         )
 
-        try:
-            data = json.loads(pipe_result.stdout)
-            settled = data.get("review_settled")
-            if settled and settled.get("phase") == "settled":
-                log_result("Pipe: review_settled.phase=settled", "PASS")
-            else:
-                log_result(
-                    "Pipe: review_settled.phase=settled", "FAIL",
-                    f"got: {settled}"
-                )
+        if not await wait_for_text(session, "awaiting reviews", timeout=25):
+            await dump_screen(session, "awaiting reviews not found")
+            return fail_and_return(test_name, "never reached awaiting reviews")
 
-            print_test_header("Pipe wait_seconds >= 30", 3)
-            wait = settled.get("wait_seconds", 0) if settled else 0
-            if wait >= 30:
-                log_result("Pipe: wait_seconds >= 30", "PASS", f"wait_seconds={wait}")
-            else:
-                log_result("Pipe: wait_seconds >= 30", "FAIL", f"wait_seconds={wait}")
-        except (json.JSONDecodeError, TypeError) as e:
-            log_result("Pipe: review_settled.phase=settled", "FAIL", str(e))
-            log_result("Pipe: wait_seconds >= 30", "FAIL", "no valid JSON")
+        screenshot = await capture_screenshot(window, "ghent_await_review_awaiting")
+        record("TUI awaiting review screenshot", "PASS", "awaiting reviews detected", screenshot)
 
-        # ============================================================
-        # TEST 4: Backward compat
-        # ============================================================
-        print_test_header("Backward compat (--watch alone)", 4)
-        compat_result = subprocess.run(
-            [
-                "gh", "ghent", "status", "--pr", PR, "-R", REPO,
-                "--format", "json", "--no-tui", "--watch",
-            ],
-            capture_output=True, text=True, timeout=30,
+        if not await wait_for_text(session, "confirming review quiet", timeout=70):
+            await dump_screen(session, "confirming review quiet not found")
+            return fail_and_return(test_name, "never reached tail confirmation")
+
+        screenshot = await capture_screenshot(window, "ghent_await_review_tail_settled")
+        record("TUI tail confirmation screenshot", "PASS", "tail confirmation detected", screenshot)
+
+        if not await wait_for_text(session, "Review activity stabilized", timeout=100):
+            await dump_screen(session, "review activity stabilized not found")
+            return fail_and_return(test_name, "never reached settled status summary")
+
+        screenshot = await capture_screenshot(window, "ghent_await_review_summary")
+        record(
+            test_name,
+            "PASS",
+            "status summary rendered settled/high-confidence banner",
+            screenshot,
         )
-        try:
-            compat_data = json.loads(compat_result.stdout)
-            if compat_data.get("review_settled") is None:
-                log_result("Backward compat: no review_settled", "PASS")
-            else:
-                log_result(
-                    "Backward compat: no review_settled", "FAIL",
-                    "review_settled should be absent"
-                )
-        except json.JSONDecodeError:
-            log_result("Backward compat: no review_settled", "FAIL", "invalid JSON")
-
-        # ============================================================
-        # TESTS 5-8: TUI mode --await-review
-        # ============================================================
-        print_test_header("TUI --await-review launch", 5)
-        await session.async_send_text("clear\n")
-        await asyncio.sleep(0.3)
-        await session.async_send_text(
-            f"gh ghent status --pr {PR} -R {REPO} --await-review --review-timeout 45s\n"
-        )
-        # Wait for TUI to render (CI checks are already completed → fast)
-        await asyncio.sleep(3)
-
-        screen_text = await get_screen_text(session)
-        ss = await capture_screenshot(window, "ghent_await_review_ci_phase")
-
-        # CI should complete nearly instantly for doot (checks already done)
-        if any(kw in screen_text.lower() for kw in ["watching", "all checks passed", "awaiting reviews", "passed"]):
-            log_result("TUI: watch phase visible", "PASS", screenshot=ss)
-        else:
-            await dump_screen(session, "tui_launch")
-            log_result("TUI: watch phase visible", "FAIL", "no watch indicators", screenshot=ss)
-
-        # ============================================================
-        # TEST 6: Review-await phase
-        # ============================================================
-        print_test_header("TUI review-await phase", 6)
-        # Poll for "awaiting reviews" text (CI passes fast, review phase starts)
-        found_awaiting = False
-        for attempt in range(15):  # ~15s of polling
-            screen_text = await get_screen_text(session)
-            if "awaiting reviews" in screen_text.lower():
-                found_awaiting = True
-                break
-            # May have already settled if debounce passed
-            if "reviews settled" in screen_text.lower() or "unresolved" in screen_text.lower():
-                found_awaiting = True
-                break
-            await asyncio.sleep(1)
-
-        if found_awaiting:
-            ss = await capture_screenshot(window, "ghent_await_review_awaiting")
-            log_result("TUI: review-await phase visible", "PASS", screenshot=ss)
-        else:
-            await dump_screen(session, "no_awaiting")
-            log_result("TUI: review-await phase visible", "FAIL", "never saw awaiting/settled")
-
-        # ============================================================
-        # TEST 7: Status transition after debounce
-        # ============================================================
-        print_test_header("TUI status transition", 7)
-        print("  Waiting for 30s debounce + status transition...")
-        # Poll for status dashboard indicators
-        found_status = False
-        for attempt in range(45):  # up to ~45s total
-            screen_text = await get_screen_text(session)
-            if any(kw in screen_text.lower() for kw in ["unresolved", "approved", "merge", "review comments", "ci checks"]):
-                found_status = True
-                break
-            await asyncio.sleep(1)
-
-        if found_status:
-            ss = await capture_screenshot(window, "ghent_await_review_status")
-            log_result("TUI: status dashboard visible", "PASS", screenshot=ss)
-        else:
-            await dump_screen(session, "no_status")
-            log_result("TUI: status dashboard visible", "FAIL", "no status indicators after wait")
-
-        # ============================================================
-        # TEST 8: Status KPI content
-        # ============================================================
-        print_test_header("TUI status KPI cards", 8)
-        screen_text = await get_screen_text(session)
-        has_kpi = any(kw in screen_text.lower() for kw in ["pass", "fail", "unresolved", "approved", "ready", "not ready"])
-        if has_kpi:
-            log_result("TUI: KPI cards visible", "PASS")
-        else:
-            log_result("TUI: KPI cards visible", "UNVERIFIED", "could not confirm KPI cards")
-
-    except Exception as e:
-        print(f"\nERROR during test execution: {e}")
-        log_result("Test Execution", "FAIL", str(e))
-        try:
-            await dump_screen(session, "error_state")
-        except Exception:
-            pass
-
+        return 0
     finally:
-        for s in created_sessions:
-            await cleanup_session(s, quit_key="q")
+        await cleanup_session(session)
 
-    return print_summary()
+
+async def run_tui_timeout_scenario(connection) -> int:
+    test_name = "TUI timeout/low-confidence path"
+    window, session = await create_test_window(
+        connection,
+        name=f"{SESSION_PREFIX}timeout",
+        x_pos=1400,
+    )
+    try:
+        cmd = (
+            f"cd {PROJECT_ROOT} && "
+            f"gh ghent status -R {TIMEOUT_REPO} --pr {TIMEOUT_PR} "
+            "--await-review --review-timeout 5s --solo --logs\n"
+        )
+        await session.async_send_text(cmd)
+
+        if not await wait_for_text(session, "Review monitor provisional", timeout=30):
+            await dump_screen(session, "review monitor provisional not found")
+            return fail_and_return(test_name, "timeout warning banner never appeared")
+
+        screenshot = await capture_screenshot(window, "ghent_await_review_timeout_warning")
+        record(
+            test_name,
+            "PASS",
+            "status summary rendered provisional timeout banner",
+            screenshot,
+        )
+        return 0
+    finally:
+        await cleanup_session(session)
+
+
+def run_pipe_tests() -> int:
+    command = [
+        "gh",
+        "ghent",
+        "status",
+        "-R",
+        TIMEOUT_REPO,
+        "--pr",
+        str(TIMEOUT_PR),
+        "--await-review",
+        "--review-timeout",
+        "5s",
+        "--solo",
+        "--logs",
+        "--format",
+        "json",
+        "--no-tui",
+    ]
+    code, stdout, stderr = run_json(command)
+    if code != 0:
+        return fail_and_return("Pipe timeout path", f"exit {code}: {stderr.strip()}")
+    try:
+        payload = parse_status_json(stdout)
+    except Exception as exc:  # noqa: BLE001
+        return fail_and_return("Pipe timeout path", f"failed to parse JSON: {exc}")
+
+    monitor = payload.get("review_monitor", {})
+    alias = payload.get("review_settled", {})
+    if monitor.get("phase") != "timeout" or monitor.get("confidence") != "low":
+        return fail_and_return("Pipe timeout path", f"unexpected review_monitor: {monitor}")
+    if alias.get("phase") != "timeout" or alias.get("confidence") != "low":
+        return fail_and_return("Pipe timeout alias", f"unexpected review_settled: {alias}")
+    record("Pipe timeout path", "PASS", json.dumps(monitor, sort_keys=True))
+
+    command = [
+        "gh",
+        "ghent",
+        "status",
+        "-R",
+        SETTLED_REPO,
+        "--pr",
+        str(SETTLED_PR),
+        "--await-review",
+        "--solo",
+        "--logs",
+        "--format",
+        "json",
+        "--no-tui",
+    ]
+    code, stdout, stderr = run_json(command)
+    if code != 0:
+        return fail_and_return("Pipe settled path", f"exit {code}: {stderr.strip()}")
+    try:
+        payload = parse_status_json(stdout)
+    except Exception as exc:  # noqa: BLE001
+        return fail_and_return("Pipe settled path", f"failed to parse JSON: {exc}")
+
+    monitor = payload.get("review_monitor", {})
+    alias = payload.get("review_settled", {})
+    if monitor.get("phase") != "settled" or monitor.get("confidence") != "high":
+        return fail_and_return("Pipe settled path", f"unexpected review_monitor: {monitor}")
+    if monitor.get("tail_probes", 0) < 2:
+        return fail_and_return("Pipe settled path", f"expected tail_probes >= 2, got {monitor}")
+    if alias.get("phase") != "settled" or alias.get("confidence") != "high":
+        return fail_and_return("Pipe settled alias", f"unexpected review_settled: {alias}")
+    record("Pipe settled path", "PASS", json.dumps(monitor, sort_keys=True))
+    return 0
+
+
+def install_binary() -> int:
+    proc = subprocess.run(
+        ["make", "install"],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        return fail_and_return("Build/install", proc.stderr or proc.stdout)
+    record("Build/install", "PASS", "make install succeeded")
+    return 0
+
+
+def summarize_and_exit() -> int:
+    passed = sum(1 for result in RESULTS if result.status == "PASS")
+    failed = sum(1 for result in RESULTS if result.status == "FAIL")
+    print("\n============================================================")
+    print("ghent --await-review visual/live verification")
+    print("============================================================")
+    print(f"passed: {passed}")
+    print(f"failed: {failed}")
+    if failed:
+        print("OVERALL: FAILED")
+        return 1
+    print("OVERALL: PASSED")
+    return 0
+
+
+async def main(connection) -> int:
+    await cleanup_stale_windows(connection)
+
+    if install_binary() != 0:
+        return summarize_and_exit()
+
+    if run_pipe_tests() != 0:
+        return summarize_and_exit()
+
+    if await run_tui_settled_scenario(connection) != 0:
+        return summarize_and_exit()
+
+    if await run_tui_timeout_scenario(connection) != 0:
+        return summarize_and_exit()
+
+    return summarize_and_exit()
 
 
 if __name__ == "__main__":
-    exit_code = iterm2.run_until_complete(main)
-    sys.exit(exit_code or 0)
+    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+    sys.exit(iterm2.run_until_complete(main))
