@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Status** | IN PROGRESS |
+| **Status** | DONE |
 | **Phase** | 14 (Stale Review Dismissal follow-up) |
 | **Priority** | P1 |
 | **Depends on** | 036 |
@@ -49,3 +49,12 @@ yq e '.' .github/workflows/synthetic-review.yml >/dev/null
 1. Push the branch before opening a PR with a commit message containing `[synthetic-review]`.
 2. Confirm the workflow run completes successfully with a skip notice instead of failing.
 
+## Verification Results
+
+- **L1:** `make ci-fast` PASS
+- **Workflow sanity:** `yq e '.' .github/workflows/synthetic-review.yml >/dev/null` PASS
+- **Live verification:** PASS
+  - branch: `fix/037-synthetic-review-no-pr-noise`
+  - verification push commit: `eac4914` (`test(workflow): verify no-pr skip [synthetic-review]`)
+  - Actions run: `Synthetic Review` run `23773130175`
+  - result: successful run with notice `No open pull request found for branch fix/037-synthetic-review-no-pr-noise; skipping synthetic review.`

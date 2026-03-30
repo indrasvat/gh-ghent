@@ -7,10 +7,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 14: Stale Review Dismissal |
-| **Current Task** | Task 036 DONE: stale blocking review dismissal implemented, review-hardened, verified, and dogfooded on PR #16. |
+| **Current Phase** | Phase 14: Stale Review Dismissal follow-up |
+| **Current Task** | Task 037 DONE: synthetic review workflow now skips cleanly when a tagged push lands on a branch without an open PR. |
 | **Blocker** | None |
-| **Last Action** | Final skill pass complete: `skill/SKILL.md` now pushes agents even harder toward the single blessed `status --await-review` path and narrower-command fallback only when warranted. |
+| **Last Action** | Verified the synthetic-review no-PR path against GitHub Actions itself: a `[synthetic-review]` push on `fix/037-synthetic-review-no-pr-noise` completed successfully with a skip notice instead of a red failure. |
 | **Last Updated** | 2026-03-30 |
 
 ## How to Resume
@@ -97,6 +97,7 @@
 
 ### Phase 14: Stale Review Dismissal
 - [x] Task 14.1: Dismiss stale blocking reviews + status surfacing → `docs/tasks/036-review-dismissal.md`
+- [x] Task 14.2: Synthetic review no-PR skip → `docs/tasks/037-synthetic-review-no-pr-noise.md`
 
 ## Blockers
 
@@ -129,6 +130,18 @@
 - **Final skill hardening:** Tightened `skill/SKILL.md` to keep the guidance focused on the single blessed `status --await-review --logs --format json --no-tui` path.
   - The frontmatter is shorter and more trigger-oriented.
   - The skill now states more explicitly that agents should only drop to `comments`, `checks`, `resolve`, `reply`, or `dismiss` when `status` or the user has already narrowed the task.
+
+### 2026-03-30 (Phase 14 follow-up: Task 037 synthetic review no-PR skip)
+- **Bugfix:** Adjusted `.github/workflows/synthetic-review.yml` so a tagged `push` without an open PR no longer fails the workflow.
+  - The harness still uses the `push` trigger for branch-resident stale-review testing.
+  - When no PR exists for the branch, the `github-script` step now emits a notice and exits successfully instead of calling `core.setFailed(...)`.
+- **Verification completed:**
+  - `yq e '.' .github/workflows/synthetic-review.yml >/dev/null` PASS
+  - `make ci-fast` PASS
+  - Live GitHub Actions verification PASS on branch `fix/037-synthetic-review-no-pr-noise`
+    - commit `eac4914` (`test(workflow): verify no-pr skip [synthetic-review]`)
+    - run `23773130175`
+    - annotation: `No open pull request found for branch fix/037-synthetic-review-no-pr-noise; skipping synthetic review.`
 
 ### 2026-03-29 (Phase 13: Review Monitor Hardening — Task 035)
 - **Task 035 (Smart await-review + skill hardening):** Implemented bounded review stabilization in both pipe mode and TUI.
