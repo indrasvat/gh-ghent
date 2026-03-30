@@ -174,6 +174,33 @@ func TestXMLStatusFields(t *testing.T) {
 	}
 }
 
+func TestXMLStatusIncludesStaleReviews(t *testing.T) {
+	var buf bytes.Buffer
+	f := &XMLFormatter{}
+
+	if err := f.FormatStatus(&buf, sampleStatusWithStaleReview()); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
+	}
+
+	var v xmlStatus
+	if err := xml.Unmarshal(buf.Bytes(), &v); err != nil {
+		t.Fatalf("invalid XML: %v", err)
+	}
+
+	if len(v.StaleReviews) != 1 {
+		t.Fatalf("len(StaleReviews) = %d, want 1", len(v.StaleReviews))
+	}
+	if v.StaleReviews[0].Author != "coderabbitai" {
+		t.Errorf("StaleReviews[0].Author = %q, want coderabbitai", v.StaleReviews[0].Author)
+	}
+	if v.StaleReviews[0].CommitID != "deadbeefcafebabe" {
+		t.Errorf("StaleReviews[0].CommitID = %q, want deadbeefcafebabe", v.StaleReviews[0].CommitID)
+	}
+	if !v.StaleReviews[0].IsStale {
+		t.Error("StaleReviews[0].IsStale = false, want true")
+	}
+}
+
 func TestXMLStatusWithFailedChecks(t *testing.T) {
 	var buf bytes.Buffer
 	f := &XMLFormatter{}
@@ -260,6 +287,54 @@ func TestXMLCompactStatusWithFailedChecks(t *testing.T) {
 	}
 	if v.FailedChecks[0].LogExcerpt == "" {
 		t.Error("FailedChecks[0].LogExcerpt should be non-empty")
+	}
+}
+
+func TestXMLCompactStatusIncludesStaleReviews(t *testing.T) {
+	var buf bytes.Buffer
+	f := &XMLFormatter{}
+
+	if err := f.FormatCompactStatus(&buf, sampleStatusWithStaleReview()); err != nil {
+		t.Fatalf("FormatCompactStatus: %v", err)
+	}
+
+	var v xmlCompactStatus
+	if err := xml.Unmarshal(buf.Bytes(), &v); err != nil {
+		t.Fatalf("invalid XML: %v", err)
+	}
+
+	if len(v.StaleReviews) != 1 {
+		t.Fatalf("len(StaleReviews) = %d, want 1", len(v.StaleReviews))
+	}
+	if v.StaleReviews[0].ID != "PRR_3" {
+		t.Errorf("StaleReviews[0].ID = %q, want PRR_3", v.StaleReviews[0].ID)
+	}
+}
+
+func TestXMLDismissResultsFields(t *testing.T) {
+	var buf bytes.Buffer
+	f := &XMLFormatter{}
+
+	if err := f.FormatDismissResults(&buf, sampleDismissResults()); err != nil {
+		t.Fatalf("FormatDismissResults: %v", err)
+	}
+
+	var v xmlDismissResults
+	if err := xml.Unmarshal(buf.Bytes(), &v); err != nil {
+		t.Fatalf("invalid XML: %v\noutput:\n%s", err, buf.String())
+	}
+
+	if v.SuccessCount != 1 || v.FailureCount != 1 {
+		t.Fatalf("counts = (%d, %d), want (1, 1)", v.SuccessCount, v.FailureCount)
+	}
+	if len(v.Results) != 1 {
+		t.Fatalf("len(Results) = %d, want 1", len(v.Results))
+	}
+	if v.Results[0].Action != "dismissed" {
+		t.Errorf("Results[0].Action = %q, want dismissed", v.Results[0].Action)
+	}
+	if len(v.Errors) != 1 || v.Errors[0].ReviewID != "PRR_4" {
+		t.Fatalf("Errors = %+v, want PRR_4 failure", v.Errors)
 	}
 }
 

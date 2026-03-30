@@ -7,11 +7,11 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 13: Review Monitor Hardening |
-| **Current Task** | Task 035 complete: smart `--await-review` + skill hardening for issue #13 shipped and verified against real PRs. |
+| **Current Phase** | Phase 14: Stale Review Dismissal |
+| **Current Task** | Task 036 DONE: stale blocking review dismissal implemented, review-hardened, verified, and dogfooded on PR #16. |
 | **Blocker** | None |
-| **Last Action** | Implemented smart review stabilization, hardened the ghent skill around a single `status --await-review` loop, and completed L1/L3/L4 verification with real PRs plus reviewed screenshots. |
-| **Last Updated** | 2026-03-29 |
+| **Last Action** | Final skill pass complete: `skill/SKILL.md` now pushes agents even harder toward the single blessed `status --await-review` path and narrower-command fallback only when warranted. |
+| **Last Updated** | 2026-03-30 |
 
 ## How to Resume
 
@@ -95,11 +95,40 @@
 
 > **Milestone: Review Monitor Hardening complete** — `status --await-review` is now the single blessed agent review loop with bounded confirmation and explicit provisional-vs-stable output semantics
 
+### Phase 14: Stale Review Dismissal
+- [x] Task 14.1: Dismiss stale blocking reviews + status surfacing → `docs/tasks/036-review-dismissal.md`
+
 ## Blockers
 
 (None currently)
 
 ## Session Log
+
+### 2026-03-30 (Phase 14: Task 036 stale blocking review dismissal)
+- **Feature implementation:** Added stale-review metadata (`DatabaseID`, `AuthorType`, `IsBot`, `CommitID`, `IsStale`) to the review model and review fetch path.
+  - `internal/github/reviews.go` now fetches PR head SHA plus per-review commit SHA and author typing, then computes `IsStale`.
+  - `internal/github/dismiss.go` adds REST dismissal via `PUT /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/dismissals`.
+  - `internal/cli/dismiss.go` adds a new pipe-first `gh ghent dismiss` command with strict stale-only semantics, dry-run, author filter, bot filter, and partial-failure exit codes.
+- **Status / formatter / TUI updates:** `status` now exposes `stale_reviews`, marks stale blockers in Markdown/TUI, and suggests the exact dismiss command without changing conservative merge-readiness logic.
+  - Structured output now includes stale review helper data in JSON compact/full output and XML.
+  - The TUI approvals section now shows stale counts and `(stale)` labels for blocking stale reviews.
+- **Verification completed:**
+  - `make ci-fast` PASS
+  - `bash scripts/test-binary.sh` PASS (19/19), including live stale-review detection on `clayliddell/AgentVM#10`
+  - `bash scripts/test-agent-workflow.sh` PASS (11/11), including stale-review parsing + dismiss dry-run flow
+  - `uv run .claude/automations/test_ghent_dismiss.py` PASS (5/5) with reviewed screenshots for TUI status stale markers and dry-run output
+- **Dogfooding on this feature PR:** Opened draft PR `indrasvat/gh-ghent#16`.
+  - Confirmed GitHub rejects self-authored `REQUEST_CHANGES` reviews on your own PR with `422 Review Can not request changes on your own pull request`.
+  - Added `.github/workflows/synthetic-review.yml` as a reusable free test harness that posts reviews as `github-actions[bot]`.
+  - Triggered a synthetic blocking review on PR #16, pushed again to stale it, verified `gh ghent status` reported one stale blocker, then successfully ran:
+    - `gh ghent dismiss -R indrasvat/gh-ghent --pr 16 --message "superseded by current HEAD" --format json --no-tui`
+  - Post-dismiss verification showed no remaining stale blockers and GitHub review state `DISMISSED`.
+- **Review-driven hardening:** Follow-up Claude + Gemini review identified one real gap in the initial command contract.
+  - Broad `gh ghent dismiss` now exits `0` with an empty result set when no stale blockers match, while explicit `--review` misses still error.
+  - Re-verified with `make ci-fast`, `bash scripts/test-binary.sh`, `bash scripts/test-agent-workflow.sh`, `uv run .claude/automations/test_ghent_dismiss.py`, and a live no-op invocation on `indrasvat/gh-ghent#16`.
+- **Final skill hardening:** Tightened `skill/SKILL.md` to keep the guidance focused on the single blessed `status --await-review --logs --format json --no-tui` path.
+  - The frontmatter is shorter and more trigger-oriented.
+  - The skill now states more explicitly that agents should only drop to `comments`, `checks`, `resolve`, `reply`, or `dismiss` when `status` or the user has already narrowed the task.
 
 ### 2026-03-29 (Phase 13: Review Monitor Hardening — Task 035)
 - **Task 035 (Smart await-review + skill hardening):** Implemented bounded review stabilization in both pipe mode and TUI.

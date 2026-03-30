@@ -96,11 +96,34 @@ echo "$STATUS" | jq '.comments.threads[] | {id, path, line, author: .comments[0]
 # Step 4: Push fixes, then run the same command again
 STATUS=$(gh ghent status --pr $PR --await-review --solo --logs --format json --no-tui)
 
-# Step 5: Stop only when merge-ready and review monitoring is not low-confidence
-echo "$STATUS" | jq '{merge_ready: .is_merge_ready, review_monitor: .review_monitor}'
+# Step 5: If stale blockers remain from an older head, dismiss only those stale blockers
+echo "$STATUS" | jq '.stale_reviews'
+gh ghent dismiss --pr $PR --bots-only --message "superseded by current HEAD" --format json --no-tui
+
+# Step 6: Stop only when merge-ready and review monitoring is not low-confidence
+echo "$STATUS" | jq '{merge_ready: .is_merge_ready, stale_reviews: .stale_reviews, review_monitor: .review_monitor}'
 ```
 
-## 4. Incremental Delta Check
+## 4. Clear Stale Blocking Reviews Safely
+
+When a push supersedes an earlier `CHANGES_REQUESTED` review, use `status` to discover stale blockers and `dismiss` to clear only that safe subset.
+
+```bash
+STATUS=$(gh ghent status --pr 42 --format json --no-tui)
+
+# Inspect exactly what is stale
+echo "$STATUS" | jq '.stale_reviews'
+
+# Preview before acting
+gh ghent dismiss --pr 42 --dry-run --format json --no-tui
+
+# Dismiss stale bot blockers only
+gh ghent dismiss --pr 42 --bots-only --message "superseded by current HEAD" --format json --no-tui
+```
+
+Never dismiss broad review sets. `dismiss` is designed for stale blockers only.
+
+## 5. Incremental Delta Check
 
 Use `--since` to see only new activity since your last check.
 
@@ -121,7 +144,7 @@ gh ghent comments --pr 42 --since 1h --format json --no-tui
 gh ghent checks --pr 42 --since 30m --format json --no-tui
 ```
 
-## 5. Selective Resolve by File or Author
+## 6. Selective Resolve by File or Author
 
 Resolve only threads matching specific criteria.
 

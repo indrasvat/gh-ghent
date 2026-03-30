@@ -310,6 +310,16 @@ func (m statusModel) hasChangesRequested() bool {
 	return false
 }
 
+func (m statusModel) staleBlockingCount() int {
+	count := 0
+	for _, r := range m.reviews {
+		if r.State == domain.ReviewChangesRequested && r.IsStale {
+			count++
+		}
+	}
+	return count
+}
+
 // cardColorForCount returns green if count is 0, red otherwise.
 func cardColorForCount(count int, redIfNonZero bool) lipgloss.Color {
 	if redIfNonZero && count > 0 {
@@ -494,7 +504,11 @@ func (m statusModel) renderApprovalsSection() string {
 	}
 
 	if len(m.reviews) > 0 {
-		rightInfo = dimStyle.Render(fmt.Sprintf("%d reviews", len(m.reviews)))
+		info := fmt.Sprintf("%d reviews", len(m.reviews))
+		if staleCount := m.staleBlockingCount(); staleCount > 0 {
+			info += fmt.Sprintf(" · %d stale", staleCount)
+		}
+		rightInfo = dimStyle.Render(info)
 	} else if m.solo {
 		rightInfo = dimStyle.Render("solo mode")
 	}
@@ -522,7 +536,7 @@ func (m statusModel) renderApprovalsSection() string {
 		if i >= maxReviewsShow {
 			break
 		}
-		icon, stateText := reviewIcon(r.State)
+		icon, stateText := reviewIcon(r)
 		author := styles.Author.Render("@" + r.Author)
 		timeAgo := dimStyle.Render(formatTimeAgo(r.SubmittedAt))
 		line := "   " + icon + " " + author + " " + stateText
@@ -553,22 +567,35 @@ func reviewPriority(state domain.ReviewState) int {
 }
 
 // reviewIcon returns the icon and styled state text for a review.
-func reviewIcon(state domain.ReviewState) (string, string) {
-	switch state {
+func reviewIcon(review domain.Review) (string, string) {
+	var icon string
+	var stateText string
+
+	switch review.State {
 	case domain.ReviewApproved:
-		return greenStyle.Render("✓"), greenStyle.Render("approved")
+		icon = greenStyle.Render("✓")
+		stateText = greenStyle.Render("approved")
 	case domain.ReviewChangesRequested:
-		return lipgloss.NewStyle().
-				Foreground(lipgloss.Color(string(styles.Yellow))).Render("✗"),
-			lipgloss.NewStyle().
-				Foreground(lipgloss.Color(string(styles.Yellow))).Render("changes requested")
+		icon = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(string(styles.Yellow))).Render("✗")
+		stateText = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(string(styles.Yellow))).Render("changes requested")
 	case domain.ReviewCommented:
-		return dimStyle.Render("○"), dimStyle.Render("commented")
+		icon = dimStyle.Render("○")
+		stateText = dimStyle.Render("commented")
 	case domain.ReviewDismissed:
-		return dimStyle.Render("—"), dimStyle.Render("dismissed")
+		icon = dimStyle.Render("—")
+		stateText = dimStyle.Render("dismissed")
 	default:
-		return dimStyle.Render("◌"), dimStyle.Render("pending")
+		icon = dimStyle.Render("◌")
+		stateText = dimStyle.Render("pending")
 	}
+
+	if review.IsStale && review.State == domain.ReviewChangesRequested {
+		stateText += " " + dimStyle.Render("(stale)")
+	}
+
+	return icon, stateText
 }
 
 // ── Section header helper ────────────────────────────────────────

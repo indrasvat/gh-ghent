@@ -153,17 +153,19 @@ ghent/
 │   │   ├── checks.go              # gh ghent checks → TUI or pipe
 │   │   ├── resolve.go             # gh ghent resolve → TUI or pipe
 │   │   ├── reply.go               # gh ghent reply → pipe only (agent command)
+│   │   ├── dismiss.go             # gh ghent dismiss → pipe only (agent command)
 │   │   └── status.go              # gh ghent status → TUI or pipe
 │   ├── domain/                    # Types + interfaces (no dependencies)
 │   │   ├── types.go               # ReviewThread, CheckRun, Annotation, etc.
-│   │   └── ports.go               # ThreadFetcher, CheckFetcher, ThreadResolver, ThreadReplier, Formatter
+│   │   └── ports.go               # Thread/Review fetchers, resolvers, repliers, dismissers, Formatter
 │   ├── github/                    # GitHub API adapter (implements ports)
 │   │   ├── client.go              # go-gh client wiring
 │   │   ├── threads.go             # GraphQL: fetch review threads
 │   │   ├── checks.go              # REST: fetch check runs + annotations
 │   │   ├── logs.go                # REST: fetch job logs
 │   │   ├── resolve.go             # GraphQL: resolve/unresolve mutations
-│   │   └── reply.go               # REST: reply to review comments
+│   │   ├── reply.go               # REST: reply to review comments
+│   │   └── dismiss.go             # REST: dismiss blocking reviews
 │   ├── tui/                       # Bubble Tea interactive TUI
 │   │   ├── app.go                 # Root model, view switching, key routing
 │   │   ├── comments.go            # Comments list + expanded thread view
@@ -517,6 +519,62 @@ gh ghent reply --pr 42 --thread PRRT_abc123 --body "Done" --format json
 > **REST reply endpoint:** `docs/github-api-research.md` §8 (Review Comments)
 > **GraphQL viewerCanReply field:** `docs/github-api-research.md` §5 (Key Types)
 
+### 6.5.1 Dismiss Command (`gh ghent dismiss`)
+
+**Purpose:** Dismiss stale blocking pull request reviews when the underlying feedback has already been addressed, especially for automated reviewers that leave orphaned `CHANGES_REQUESTED` verdicts on older commits.
+
+**Important distinction:** This command operates on **reviews**, not review threads.
+Resolving all review threads does not dismiss the top-level review verdict.
+
+**Flags:**
+- `--pr <number>` — PR number (required)
+- `--review <id>` — Specific review node ID or numeric review ID to dismiss
+- `--author <login>` — Only dismiss reviews from the specified author
+- `--bots-only` — Only target reviews from bot accounts
+- `--message <text>` — Dismissal reason sent to GitHub (required unless `--dry-run`)
+- `--dry-run` — Show what would be dismissed without executing
+- All persistent flags from root
+
+**Behavior:**
+1. Fetches the PR head SHA and all reviews for the PR.
+2. Enriches each review with its review commit SHA, bot/human classification, and staleness (`review.commit != pr.head`).
+3. Restricts candidates to stale `CHANGES_REQUESTED` reviews only, then applies filters in this order: review ID → author → bots-only.
+4. In dry-run mode, prints the targeted reviews and why they matched.
+5. In execute mode, dismisses each targeted review via `PUT /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}/dismissals`.
+6. Returns partial-success results if some dismissals succeed and others fail.
+
+**Pipe mode (non-TTY and TTY):**
+```bash
+# Dismiss one stale blocking review
+gh ghent dismiss --pr 42 --review PRR_kwDO... --message "Superseded by commit def456"
+
+# Dismiss stale bot reviews only
+gh ghent dismiss --pr 42 --bots-only --message "Security scan is green on HEAD"
+
+# Preview targets
+gh ghent dismiss --pr 42 --author sonarcloud --dry-run --format json
+```
+
+**Exit codes:**
+- `0` — All targeted reviews dismissed successfully, or no stale blockers matched broad filters (safe no-op), or dry-run completed
+- `1` — Partial success (some dismissed, some failed)
+- `2` — Error (auth, missing permissions, explicit `--review` target miss, API failure)
+
+**Acceptance criteria:**
+- [ ] FR-DIS-01: Fetch review commit SHA and expose staleness in the domain model
+- [ ] FR-DIS-02: `--review <id>` dismisses a specific review
+- [ ] FR-DIS-03: `--bots-only` and `--author` can narrow the stale-blocking review set
+- [ ] FR-DIS-04: `--dry-run` prints machine-readable candidate output without mutation
+- [ ] FR-DIS-05: REST dismissal uses a user-supplied message and surfaces partial failures
+- [ ] FR-DIS-06: Bot filtering uses authoritative GraphQL author typing when available, with existing login fallbacks
+- [ ] FR-DIS-07: The command remains pipe-first; no new TUI view is required
+- [ ] FR-DIS-08: The command never targets anything except stale `CHANGES_REQUESTED` reviews
+
+**Design note:** `status` must remain conservative. A stale `CHANGES_REQUESTED` review is still merge-blocking on GitHub until it is explicitly dismissed or replaced. Surfacing staleness should improve operator guidance, not silently mark the PR merge-ready.
+
+> **REST dismissal endpoint:** `docs/github-api-research.md` §8
+> **GitHub rules note:** branch protection can dismiss stale approvals on push, but it does not clear stale `CHANGES_REQUESTED` reviews
+
 ### 6.6 Status Command (`gh ghent status`)
 
 **Purpose:** Dashboard overview of entire PR state — threads, checks, approvals in one view.
@@ -531,6 +589,7 @@ gh ghent reply --pr 42 --thread PRRT_abc123 --body "Done" --format json
 - Review Threads section: top threads with "... and N more" truncation
 - CI Checks section: failed checks with annotations, passed count
 - Approvals section: reviewer status (approved, changes requested)
+- Stale blocking reviews are annotated as stale/outdated in the approvals section
 - Quick-nav: c → comments, k → checks, r → resolve, o → open PR, R → re-run failed
 
 **Pipe mode (non-TTY):** Combined JSON/XML/MD output with all sections
@@ -546,6 +605,8 @@ gh ghent reply --pr 42 --thread PRRT_abc123 --body "Done" --format json
 - [ ] FR-SUM-03: Quick-nav keys (c/k/r) jump to full views
 - [ ] FR-SUM-04: Pipe mode includes all sections in one response
 - [ ] FR-SUM-05: Exit code reflects merge readiness
+- [ ] FR-SUM-06: Reviews in output include stale-vs-current metadata
+- [ ] FR-SUM-07: JSON/XML output includes a `stale_reviews` helper array with review ID, author, state, commit SHA, and dismissal context
 
 > **TUI mockup:** `docs/tui-mockups.html` — status tab
 
@@ -743,6 +804,17 @@ Goal: All interactive views working per mockups.
 - [ ] Task 6.3: Status mode enhancements — one-line-per-thread digest
 - [ ] Task 6.4: Batch resolve — resolve by file pattern or author
 
+### Phase 14: Stale Review Dismissal
+
+Goal: Let humans and agents distinguish stale blocking reviews from active ones, and clear them without dropping to raw `gh api` calls.
+
+| Task | Description | Depends On | Parallel With |
+|------|------------|------------|---------------|
+| 14.1 | `gh ghent dismiss` — stale review detection, REST dismissal, status enrichment, skill/docs updates | 2.6, 2.4, 2.5, 7.1, 10.1, 13.1 | — |
+
+**PRD sections needed:** §6.5.1 (dismiss), §6.6 (status), §6.8 (formats)
+**Verification:** L1 + L3 + L5 minimum; L4 only if status TUI rendering changes materially
+
 ---
 
 ## 9. Testing Strategy
@@ -795,6 +867,7 @@ Goal: All interactive views working per mockups.
 
 | Date | Version | Change |
 |------|---------|--------|
+| 2026-03-30 | 1.3 | Added stale blocking review dismissal planning (§6.5.1), status stale-review surfacing (§6.6), and Phase 14 tasking for issue #15 |
 | 2026-02-22 | 1.2 | Added `gh ghent reply` command (§6.5), renumbered §6.6-6.8, added Phase 2 task 2.5 |
 | 2026-02-22 | 1.1 | Added Bubble Tea TUI, status command (formerly summary), updated phases and architecture |
 | 2026-02-22 | 1.0 | Initial PRD (incorrectly omitted TUI — corrected in v1.1) |

@@ -92,7 +92,7 @@ gh ghent resolve --pr 42 --thread PRRT_abc123 --unresolve  # Reopen
 | `--all` | Resolve all unresolved threads |
 | `--unresolve` | Unresolve instead of resolve |
 
-Exit codes: `0` = all success, `1` = partial failure, `2` = total failure.
+Exit codes: `0` = all success / no-op success, `1` = partial failure, `2` = total failure.
 
 ### `gh ghent reply`
 
@@ -113,6 +113,33 @@ echo "Acknowledged" | gh ghent reply --pr 42 --thread PRRT_abc123 --body-file -
 
 Exit codes: `0` = reply posted, `1` = thread not found, `2` = error.
 
+### `gh ghent dismiss`
+
+Dismiss stale blocking reviews that are no longer about the current PR head.
+
+```bash
+gh ghent dismiss --pr 42 --dry-run
+gh ghent dismiss --pr 42 --bots-only --message "superseded by current HEAD"
+gh ghent dismiss --pr 42 --review PRR_kwDO... --message "superseded by current HEAD"
+```
+
+This command is intentionally narrow:
+
+- only `CHANGES_REQUESTED` reviews
+- only when the review commit is stale relative to the current PR head
+- never current reviews
+
+| Flag | Description |
+|------|-------------|
+| `--pr` | Pull request number (required) |
+| `--review` | Review node ID or numeric review ID to dismiss |
+| `--author` | Limit to one review author |
+| `--bots-only` | Limit to stale blocking bot reviews |
+| `--message` | Dismissal message sent to GitHub (required unless `--dry-run`) |
+| `--dry-run` | Preview matching stale blockers without dismissing |
+
+Exit codes: `0` = all success, `1` = partial failure, `2` = total failure.
+
 ### `gh ghent status`
 
 Combined PR status dashboard with merge-readiness assessment.
@@ -124,6 +151,7 @@ gh ghent status --pr 42 --watch --format json # Wait for CI, then full report
 gh ghent status --pr 42 --await-review        # Wait for CI + bounded review stabilization
 gh ghent status --pr 42 --quiet               # Silent merge-readiness gate
 gh ghent status --pr 42 --solo                # Skip approval check (personal repos)
+gh ghent status --pr 42 --format json | jq '.stale_reviews'
 ```
 
 | Flag | Description |
@@ -139,6 +167,8 @@ gh ghent status --pr 42 --solo                # Skip approval check (personal re
 
 Merge-ready when: no unresolved threads + all checks pass + at least one approval.
 With `--solo`, the approval requirement is skipped (but `CHANGES_REQUESTED` still blocks).
+Stale `CHANGES_REQUESTED` reviews still block until explicitly dismissed. `status` surfaces them in
+`stale_reviews` and suggests a safe `gh ghent dismiss` command.
 
 Exit codes: `0` = merge-ready, `1` = not merge-ready.
 
@@ -171,6 +201,9 @@ gh ghent checks --pr 42 --format json --logs --no-tui
 
 # One-shot merge readiness
 gh ghent status --pr 42 --format json --no-tui | jq '.is_merge_ready'
+
+# Surface stale blocking reviews
+gh ghent status --pr 42 --format json --no-tui | jq '.stale_reviews'
 ```
 
 ### Exit Codes
@@ -183,6 +216,8 @@ All commands use meaningful exit codes for scripting:
 | `1` | Action needed (unresolved threads, check failure, not merge-ready) |
 | `2` | Error (API failure, auth, permissions) |
 | `3` | Pending (checks still running) |
+
+For `dismiss`, exit `0` also covers the safe no-op case where no stale blockers matched. Exit `1` means partial dismissal failure and exit `2` means every attempted dismissal failed.
 
 ### Agent Workflow Example
 
@@ -202,8 +237,12 @@ gh ghent resolve --pr 42 --all --format json
 # 5. After pushing fixes, run the same command again
 STATUS=$(gh ghent status --pr 42 --await-review --logs --format json --no-tui)
 
-# 6. Stop only when merge-ready and review_monitor is not low-confidence
-echo "$STATUS" | jq '{merge_ready: .is_merge_ready, review_monitor: .review_monitor}'
+# 6. If stale blockers exist, dismiss only those stale blockers
+echo "$STATUS" | jq '.stale_reviews'
+gh ghent dismiss --pr 42 --bots-only --message "superseded by current HEAD"
+
+# 7. Stop only when merge-ready and review_monitor is not low-confidence
+echo "$STATUS" | jq '{merge_ready: .is_merge_ready, stale_reviews: .stale_reviews, review_monitor: .review_monitor}'
 ```
 
 ### Output Formats

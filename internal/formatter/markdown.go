@@ -144,6 +144,36 @@ func (f *MarkdownFormatter) FormatResolveResults(w io.Writer, result *domain.Res
 	return nil
 }
 
+func (f *MarkdownFormatter) FormatDismissResults(w io.Writer, result *domain.DismissResults) error {
+	fmt.Fprintf(w, "# Dismiss Results\n\n")
+	fmt.Fprintf(w, "**Success:** %d | **Failed:** %d", result.SuccessCount, result.FailureCount)
+	if result.DryRun {
+		fmt.Fprintf(w, " | **Dry Run:** true")
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintln(w)
+
+	if len(result.Results) > 0 {
+		fmt.Fprintf(w, "| Review | Author | State | Commit | Action |\n")
+		fmt.Fprintf(w, "|--------|--------|-------|--------|--------|\n")
+		for _, r := range result.Results {
+			commitID := r.CommitID
+			if len(commitID) > 7 {
+				commitID = commitID[:7]
+			}
+			fmt.Fprintf(w, "| %s | @%s | %s | %s | %s |\n", r.ReviewID, r.Author, r.State, commitID, r.Action)
+		}
+	}
+
+	if len(result.Errors) > 0 {
+		fmt.Fprintf(w, "\n## Errors\n\n")
+		for _, e := range result.Errors {
+			fmt.Fprintf(w, "- **%s:** %s\n", e.ReviewID, e.Message)
+		}
+	}
+	return nil
+}
+
 func (f *MarkdownFormatter) FormatCompactStatus(w io.Writer, result *domain.StatusResult) error {
 	mergeStatus := "NOT READY"
 	if result.IsMergeReady {
@@ -165,6 +195,9 @@ func (f *MarkdownFormatter) FormatCompactStatus(w io.Writer, result *domain.Stat
 	}
 	if result.ReviewCycles > 0 {
 		fmt.Fprintf(w, " cycles:%d", result.ReviewCycles)
+	}
+	if len(result.StaleReviews) > 0 {
+		fmt.Fprintf(w, " stale:%d", len(result.StaleReviews))
 	}
 	fmt.Fprintln(w)
 
@@ -297,11 +330,27 @@ func (f *MarkdownFormatter) FormatStatus(w io.Writer, result *domain.StatusResul
 	if len(result.Reviews) == 0 {
 		fmt.Fprintf(w, "No reviews yet.\n")
 	} else {
-		fmt.Fprintf(w, "| Reviewer | State |\n")
-		fmt.Fprintf(w, "|----------|-------|\n")
+		fmt.Fprintf(w, "| Reviewer | State | Commit |\n")
+		fmt.Fprintf(w, "|----------|-------|--------|\n")
 		for _, r := range result.Reviews {
-			fmt.Fprintf(w, "| @%s | %s |\n", r.Author, r.State)
+			state := string(r.State)
+			if r.IsStale && r.State == domain.ReviewChangesRequested {
+				state += " (stale)"
+			}
+			commitID := r.CommitID
+			if len(commitID) > 7 {
+				commitID = commitID[:7]
+			}
+			if commitID == "" {
+				commitID = "-"
+			}
+			fmt.Fprintf(w, "| @%s | %s | %s |\n", r.Author, state, commitID)
 		}
+	}
+
+	if len(result.StaleReviews) > 0 {
+		fmt.Fprintf(w, "\nStale blocking reviews detected: %d.\n", len(result.StaleReviews))
+		fmt.Fprintf(w, "Suggested: `gh ghent dismiss --pr %d --message \"superseded by current HEAD\"`\n", result.PRNumber)
 	}
 
 	return nil

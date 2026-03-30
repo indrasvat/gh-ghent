@@ -138,6 +138,7 @@ for AI agents. Works wherever gh is authenticated — zero config.
 		newChecksCmd(),
 		newResolveCmd(),
 		newReplyCmd(),
+		newDismissCmd(),
 		newStatusCmd(),
 	)
 

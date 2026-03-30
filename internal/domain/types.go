@@ -152,8 +152,13 @@ const (
 // Review represents a pull request review.
 type Review struct {
 	ID          string      `json:"id"`
+	DatabaseID  int64       `json:"database_id,omitempty"`
 	Author      string      `json:"author"`
+	AuthorType  string      `json:"author_type,omitempty"`
+	IsBot       bool        `json:"is_bot,omitempty"`
 	State       ReviewState `json:"state"`
+	CommitID    string      `json:"commit_id,omitempty"`
+	IsStale     bool        `json:"is_stale,omitempty"`
 	Body        string      `json:"body,omitempty"`
 	SubmittedAt time.Time   `json:"submitted_at"`
 }
@@ -191,6 +196,36 @@ type ResolveResults struct {
 	FailureCount int             `json:"failure_count"`
 	SkippedCount int             `json:"skipped_count,omitempty"`
 	Errors       []ResolveError  `json:"errors,omitempty"`
+	DryRun       bool            `json:"dry_run,omitempty"`
+}
+
+// DismissResult represents the result of dismissing a single stale review.
+type DismissResult struct {
+	ReviewID    string      `json:"review_id"`
+	DatabaseID  int64       `json:"database_id,omitempty"`
+	Author      string      `json:"author"`
+	IsBot       bool        `json:"is_bot,omitempty"`
+	State       ReviewState `json:"state"`
+	CommitID    string      `json:"commit_id,omitempty"`
+	IsStale     bool        `json:"is_stale"`
+	Dismissed   bool        `json:"dismissed"`
+	Action      string      `json:"action"` // "dismissed" or "would_dismiss"
+	Message     string      `json:"message,omitempty"`
+	SubmittedAt time.Time   `json:"submitted_at,omitempty"`
+}
+
+// DismissError records a per-review dismissal failure.
+type DismissError struct {
+	ReviewID string `json:"review_id"`
+	Message  string `json:"message"`
+}
+
+// DismissResults wraps results from one or more dismiss operations.
+type DismissResults struct {
+	Results      []DismissResult `json:"results"`
+	SuccessCount int             `json:"success_count"`
+	FailureCount int             `json:"failure_count"`
+	Errors       []DismissError  `json:"errors,omitempty"`
 	DryRun       bool            `json:"dry_run,omitempty"`
 }
 
@@ -315,6 +350,7 @@ type StatusResult struct {
 	Comments      CommentsResult    `json:"comments"`
 	Checks        ChecksResult      `json:"checks"`
 	Reviews       []Review          `json:"reviews"`
+	StaleReviews  []Review          `json:"stale_reviews"`
 	IsMergeReady  bool              `json:"is_merge_ready"`
 	PRAge         string            `json:"pr_age,omitempty"`
 	LastUpdate    string            `json:"last_update,omitempty"`

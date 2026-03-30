@@ -121,14 +121,35 @@ func TestMarkdownStatusStructure(t *testing.T) {
 		{"fail count", "**Fail:** 0"},
 		{"pending count", "**Pending:** 0"},
 		{"approvals section", "## Approvals"},
-		{"reviewer table", "| Reviewer | State |"},
-		{"alice approved", "| @alice | APPROVED |"},
-		{"bob commented", "| @bob | COMMENTED |"},
+		{"reviewer table", "| Reviewer | State | Commit |"},
+		{"alice approved", "| @alice | APPROVED | - |"},
+		{"bob commented", "| @bob | COMMENTED | - |"},
 	}
 
 	for _, tc := range checks {
 		if !strings.Contains(out, tc.want) {
 			t.Errorf("%s: output missing %q\noutput:\n%s", tc.name, tc.want, out)
+		}
+	}
+}
+
+func TestMarkdownStatusStaleReviewGuidance(t *testing.T) {
+	var buf bytes.Buffer
+	f := &MarkdownFormatter{}
+
+	if err := f.FormatStatus(&buf, sampleStatusWithStaleReview()); err != nil {
+		t.Fatalf("FormatStatus: %v", err)
+	}
+
+	out := buf.String()
+	checks := []string{
+		"| @coderabbitai | CHANGES_REQUESTED (stale) | deadbee |",
+		"Stale blocking reviews detected: 1.",
+		"gh ghent dismiss --pr 42 --message \"superseded by current HEAD\"",
+	}
+	for _, want := range checks {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q\noutput:\n%s", want, out)
 		}
 	}
 }
@@ -236,6 +257,44 @@ func TestMarkdownCompactStatusWithFailedChecks(t *testing.T) {
 	for _, tc := range checks {
 		if !strings.Contains(out, tc.want) {
 			t.Errorf("%s: output missing %q\noutput:\n%s", tc.name, tc.want, out)
+		}
+	}
+}
+
+func TestMarkdownCompactStatusIncludesStaleCount(t *testing.T) {
+	var buf bytes.Buffer
+	f := &MarkdownFormatter{}
+
+	if err := f.FormatCompactStatus(&buf, sampleStatusWithStaleReview()); err != nil {
+		t.Fatalf("FormatCompactStatus: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "stale:1") {
+		t.Errorf("compact output missing stale count\noutput:\n%s", out)
+	}
+}
+
+func TestMarkdownDismissResultsStructure(t *testing.T) {
+	var buf bytes.Buffer
+	f := &MarkdownFormatter{}
+
+	if err := f.FormatDismissResults(&buf, sampleDismissResults()); err != nil {
+		t.Fatalf("FormatDismissResults: %v", err)
+	}
+
+	out := buf.String()
+	checks := []string{
+		"# Dismiss Results",
+		"**Success:** 1 | **Failed:** 1",
+		"| Review | Author | State | Commit | Action |",
+		"| PRR_3 | @coderabbitai | DISMISSED | deadbee | dismissed |",
+		"## Errors",
+		"already dismissed",
+	}
+	for _, want := range checks {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q\noutput:\n%s", want, out)
 		}
 	}
 }

@@ -1,25 +1,12 @@
 ---
 name: gh-ghent
 description: >
-  Structured access to GitHub PR review state for AI coding agents. This skill
-  should be used when the user needs to check PR merge readiness, diagnose CI
-  failures, read unresolved review comments, resolve review threads, monitor
-  CI status, or triage bot reviewer findings (Codex, CodeRabbit, Copilot,
-  Cursor Bugbot). Use when the user says "check my PR", "is my PR ready to
-  merge", "why is CI failing", "CI is red", "build broken", "what are the
-  review comments", "any feedback on my PR", "read PR comments", "address
-  review feedback", "resolve review threads", "PR status", "are checks
-  passing", "did CI pass", "check PR #N", "monitor CI", "wait for checks",
-  "what's failing", "review my PR", "wait for bot review", "wait for Codex",
-  "wait for CodeRabbit", "has the bot reviewed yet", "is the review done",
-  "sweep bot comments", "fix bot findings", "address bot reviews",
-  "what did the bots say", "any bot comments", "triage bot feedback",
-  or any request to inspect, diagnose, or act on GitHub pull request
-  review threads, CI check status, or merge readiness.
-  IMPORTANT - also trigger this skill immediately after creating a PR
-  (gh pr create, git push + PR URL) to monitor CI and review state.
-  Provides JSON/XML/Markdown output with file:line locations, error log
-  excerpts, and annotations from GitHub Actions.
+  Structured GitHub PR state for AI coding agents. Use for PR readiness,
+  CI failure diagnosis, unresolved review threads, bounded review waiting,
+  bot-review triage, and safe stale-review dismissal. Trigger immediately
+  after PR creation and again after every review-fix push. Default path is
+  `gh ghent status --await-review --logs --format json --no-tui`; only drop
+  to narrower commands when status already tells you what to do next.
 ---
 
 # gh-ghent — Agentic PR Monitoring
@@ -42,6 +29,12 @@ Use it:
 
 - immediately after PR creation
 - again after **every push** that addresses review or CI feedback
+
+Use narrower commands (`comments`, `checks`, `resolve`, `reply`, `dismiss`) only when:
+
+- the user asked for a narrow operation directly
+- `status` already identified the next specific action
+- `status` failed and you need targeted fallback inspection
 
 It waits for CI, performs bounded review monitoring, and returns everything in one response:
 
@@ -73,6 +66,7 @@ It waits for CI, performs bounded review monitoring, and returns everything in o
     "checks": [{"name": "CI", "conclusion": "success", "annotations": [], "log_excerpt": ""}]
   },
   "reviews": [{"author": "alice", "state": "APPROVED"}],
+  "stale_reviews": [{"id": "PRR_...", "author": "coderabbitai", "state": "CHANGES_REQUESTED", "commit_id": "abc123", "is_stale": true}],
   "review_monitor": {
     "phase": "settled",
     "confidence": "high",
@@ -90,9 +84,10 @@ Act on the **first matching** condition — fix it, then re-run status:
 2. **`checks.overall_status == "failure"`** → Fix CI. Log excerpts and annotations are inline.
 3. **`checks.overall_status == "pending"`** → Re-run the **same** `status --await-review` command. Do not switch to `--watch` while review comments may still appear.
 4. **`comments.unanswered_count > 0`** → Bot sweep (see below).
-5. **`comments.unresolved_count > 0`** → `gh ghent resolve --pr <N> --all`
-6. **`review_monitor.phase == "timeout"` or `review_monitor.confidence == "low"`** → Treat result as provisional. If you just pushed fixes, re-run the **same** `status --await-review` command after the push settles.
-7. **`is_merge_ready == true` and `review_monitor.confidence != "low"`** → Merge / stop.
+5. **`stale_reviews | length > 0`** → Dismiss only those stale blockers: `gh ghent dismiss --pr <N> --message "superseded by current HEAD"` (optionally `--bots-only`).
+6. **`comments.unresolved_count > 0`** → `gh ghent resolve --pr <N> --all`
+7. **`review_monitor.phase == "timeout"` or `review_monitor.confidence == "low"`** → Treat result as provisional. If you just pushed fixes, re-run the **same** `status --await-review` command after the push settles.
+8. **`is_merge_ready == true` and `review_monitor.confidence != "low"`** → Merge / stop.
 
 ## Anti-Footgun Rule
 
@@ -100,6 +95,7 @@ When review comments may still arrive:
 
 - use `gh ghent status --await-review ...`
 - after every fix push, use `gh ghent status --await-review ...` again
+- do **not** start with `comments` or `checks` if a full PR-state decision is needed
 - do **not** switch to `gh ghent checks --watch`
 - do **not** switch to `gh ghent status --watch`
 
@@ -107,7 +103,8 @@ Bare `--watch` is only for CI-only waiting when review state is irrelevant.
 
 ## Bot Sweep (when `unanswered_count > 0`)
 
-The status already contains the full threads — no second call needed.
+The `status` result already contains the full threads. Do not make a second
+`comments` call unless you need a narrower filtered view.
 
 1. Read threads from `comments.threads[]` where `comments[0].is_bot == true`
 2. Fix code → push
@@ -130,6 +127,9 @@ on a personal repo, retry with `--solo`.
 | `checks` | CI status + annotations | `--logs`, `--watch` |
 | `resolve` | Resolve/unresolve threads | `--thread`, `--all`, `--file`, `--author`, `--unresolve`, `--dry-run` |
 | `reply` | Reply to a thread | `--thread`, `--body`, `--body-file`, `--resolve` |
+| `dismiss` | Dismiss stale blocking reviews only | `--review`, `--author`, `--bots-only`, `--message`, `--dry-run` |
+
+Default for agents: start with `status`, not `comments` or `checks`.
 
 ## Exit Codes
 
@@ -140,6 +140,7 @@ on a personal repo, retry with `--solo`.
 | `checks` | all pass | failure | error | pending | — |
 | `resolve` | all success | partial failure | total failure | — | — |
 | `reply` | posted | thread not found | error | — | reply ok, resolve failed |
+| `dismiss` | all dismissed / no-op / dry-run success | partial dismissal failure | total dismissal failure | — | — |
 
 Exit 2 = auth failure, rate limit, or resource not found.
 
@@ -157,6 +158,9 @@ gh ghent comments --pr <N> --group-by file --format json --no-tui
 
 # Compact status (minimal tokens for polling loops)
 gh ghent status --pr <N> --compact --format json --no-tui
+
+# Clear stale blocking bot reviews after a superseding push
+gh ghent dismiss --pr <N> --bots-only --message "superseded by current HEAD" --format json --no-tui
 ```
 
 ## References

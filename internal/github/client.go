@@ -98,12 +98,13 @@ func New(opts ...Option) (*Client, error) {
 
 // Compile-time interface satisfaction checks.
 var (
-	_ domain.ThreadFetcher  = (*Client)(nil)
-	_ domain.CheckFetcher   = (*Client)(nil)
-	_ domain.ThreadResolver = (*Client)(nil)
-	_ domain.ThreadReplier  = (*Client)(nil)
-	_ domain.ReviewFetcher  = (*Client)(nil)
-	_ domain.ActivityProber = (*Client)(nil)
+	_ domain.ThreadFetcher   = (*Client)(nil)
+	_ domain.CheckFetcher    = (*Client)(nil)
+	_ domain.ThreadResolver  = (*Client)(nil)
+	_ domain.ThreadReplier   = (*Client)(nil)
+	_ domain.ReviewFetcher   = (*Client)(nil)
+	_ domain.ReviewDismisser = (*Client)(nil)
+	_ domain.ActivityProber  = (*Client)(nil)
 )
 
 // ResolveThread and UnresolveThread are implemented in resolve.go.

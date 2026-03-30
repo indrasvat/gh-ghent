@@ -21,6 +21,9 @@ func TestIsMergeReady(t *testing.T) {
 	reviewsChangesRequested := []domain.Review{
 		{Author: "alice", State: domain.ReviewChangesRequested},
 	}
+	reviewsStaleChangesRequested := []domain.Review{
+		{Author: "alice", State: domain.ReviewChangesRequested, IsStale: true},
+	}
 	reviewsCommentedOnly := []domain.Review{
 		{Author: "alice", State: domain.ReviewCommented},
 	}
@@ -75,6 +78,13 @@ func TestIsMergeReady(t *testing.T) {
 			threads: threadsClean,
 			checks:  checksPass,
 			reviews: reviewsChangesRequested,
+			want:    false,
+		},
+		{
+			name:    "stale changes requested still blocks until dismissed",
+			threads: threadsClean,
+			checks:  checksPass,
+			reviews: reviewsStaleChangesRequested,
 			want:    false,
 		},
 		{
@@ -162,6 +172,14 @@ func TestIsMergeReady(t *testing.T) {
 			threads: threadsClean,
 			checks:  checksPass,
 			reviews: reviewsChangesRequested,
+			solo:    true,
+			want:    false,
+		},
+		{
+			name:    "solo: stale changes requested still blocks",
+			threads: threadsClean,
+			checks:  checksPass,
+			reviews: reviewsStaleChangesRequested,
 			solo:    true,
 			want:    false,
 		},

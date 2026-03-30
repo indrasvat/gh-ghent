@@ -14,11 +14,19 @@ const reviewsQuery = `
 query($owner: String!, $repo: String!, $pr: Int!, $after: String) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $pr) {
+      headRefOid
       reviews(first: 100, after: $after) {
         nodes {
           id
-          author { login }
+          databaseId
+          author {
+            login
+            __typename
+          }
           state
+          commit {
+            oid
+          }
           body
           submittedAt
         }
@@ -35,7 +43,8 @@ query($owner: String!, $repo: String!, $pr: Int!, $after: String) {
 type reviewsResponse struct {
 	Repository struct {
 		PullRequest *struct {
-			Reviews struct {
+			HeadRefOID string `json:"headRefOid"`
+			Reviews    struct {
 				Nodes    []reviewNode `json:"nodes"`
 				PageInfo struct {
 					HasNextPage bool   `json:"hasNextPage"`
@@ -47,10 +56,15 @@ type reviewsResponse struct {
 }
 
 type reviewNode struct {
-	ID     string `json:"id"`
-	Author struct {
-		Login string `json:"login"`
+	ID         string `json:"id"`
+	DatabaseID int64  `json:"databaseId"`
+	Author     struct {
+		Login    string `json:"login"`
+		TypeName string `json:"__typename"`
 	} `json:"author"`
+	Commit struct {
+		OID string `json:"oid"`
+	} `json:"commit"`
 	State       string `json:"state"`
 	Body        string `json:"body"`
 	SubmittedAt string `json:"submittedAt"`
@@ -66,6 +80,7 @@ func (c *Client) FetchReviews(ctx context.Context, owner, repo string, pr int) (
 
 	var allNodes []reviewNode
 	var cursor *string
+	var headRefOID string
 
 	for {
 		vars := map[string]interface{}{
@@ -89,6 +104,7 @@ func (c *Client) FetchReviews(ctx context.Context, owner, repo string, pr int) (
 			}
 		}
 
+		headRefOID = resp.Repository.PullRequest.HeadRefOID
 		allNodes = append(allNodes, resp.Repository.PullRequest.Reviews.Nodes...)
 
 		if !resp.Repository.PullRequest.Reviews.PageInfo.HasNextPage {
@@ -99,11 +115,11 @@ func (c *Client) FetchReviews(ctx context.Context, owner, repo string, pr int) (
 
 	slog.Debug("fetched reviews", "count", len(allNodes), "duration", time.Since(start))
 
-	return mapReviewsToDomain(allNodes)
+	return mapReviewsToDomain(allNodes, headRefOID)
 }
 
 // mapReviewsToDomain converts GraphQL review nodes to domain Review types.
-func mapReviewsToDomain(nodes []reviewNode) ([]domain.Review, error) {
+func mapReviewsToDomain(nodes []reviewNode, headRefOID string) ([]domain.Review, error) {
 	reviews := make([]domain.Review, 0, len(nodes))
 	for _, n := range nodes {
 		var submittedAt time.Time
@@ -117,8 +133,13 @@ func mapReviewsToDomain(nodes []reviewNode) ([]domain.Review, error) {
 
 		reviews = append(reviews, domain.Review{
 			ID:          n.ID,
+			DatabaseID:  n.DatabaseID,
 			Author:      n.Author.Login,
+			AuthorType:  n.Author.TypeName,
+			IsBot:       domain.IsBot(n.Author.TypeName, n.Author.Login),
 			State:       domain.ReviewState(n.State),
+			CommitID:    n.Commit.OID,
+			IsStale:     n.Commit.OID != "" && headRefOID != "" && n.Commit.OID != headRefOID,
 			Body:        n.Body,
 			SubmittedAt: submittedAt,
 		})
