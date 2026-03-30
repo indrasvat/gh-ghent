@@ -375,7 +375,14 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 	// Compare fingerprints.
 	newHash := ghub.Fingerprint(msg.snapshot)
 	sawActivity := false
-	if newHash != m.prevHash {
+	if m.prevHash == "" {
+		m.prevHash = newHash
+		if msg.snapshot.ThreadCount > 0 {
+			m.lastActivityAt = now
+			m.reviewArmed = true
+			m.addEvent(now, yellowStyle.Render("●"), "Existing review state detected", "")
+		}
+	} else if newHash != m.prevHash {
 		m.lastActivityAt = now
 		m.activityCount++
 		m.reviewArmed = true
@@ -403,6 +410,9 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 	// empty watch window — the reviewer may still be working (e.g., Codex
 	// shows 👀 for 2-4 min before posting comments).
 	idleDuration := now.Sub(m.lastActivityAt)
+	if !m.reviewDeadline.IsZero() && !now.Before(m.reviewDeadline) {
+		return m.finishReviewWait(domain.ReviewPhaseTimeout, now)
+	}
 	if m.reviewTailIndex >= 0 && !sawActivity {
 		m.reviewTailProbes++
 		if m.reviewTailIndex == len(m.reviewTailIntervals)-1 {
@@ -418,11 +428,6 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 		m.reviewTailIndex = 0
 		m.addEvent(now, yellowStyle.Render("◎"), "Review activity quiet — confirming stability", "")
 		return m, m.scheduleNextReviewPoll()
-	}
-
-	// Check hard timeout.
-	if !m.reviewDeadline.IsZero() && !now.Before(m.reviewDeadline) {
-		return m.finishReviewWait(domain.ReviewPhaseTimeout, now)
 	}
 
 	return m, m.scheduleNextReviewPoll()

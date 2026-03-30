@@ -538,6 +538,49 @@ func TestWatcherReviewSettled(t *testing.T) {
 	}
 }
 
+func TestWatcherReviewFirstSuccessfulPollSeedsBaseline(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.state = watchStateAwaitingReview
+	m.reviewStartAt = time.Now().Add(-20 * time.Second)
+	m.reviewDeadline = time.Now().Add(2 * time.Minute)
+	m.lastActivityAt = time.Now().Add(-20 * time.Second)
+	m.reviewTimeout = 5 * time.Minute
+	m.initialHeadSHA = "abc123"
+	m.baselineHash = ghub.Fingerprint(&domain.ActivitySnapshot{HeadSHA: "abc123"})
+
+	snap := &domain.ActivitySnapshot{
+		HeadSHA:     "abc123",
+		ThreadCount: 1,
+		ThreadIDs:   []string{"t1"},
+	}
+	m, cmd := m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
+
+	if m.activityCount != 0 {
+		t.Fatalf("activityCount = %d, want 0 on first successful poll", m.activityCount)
+	}
+	if !m.reviewArmed {
+		t.Fatal("expected reviewArmed to be true when existing review state is discovered")
+	}
+	if m.prevHash != ghub.Fingerprint(snap) {
+		t.Fatal("expected prevHash to be seeded from first successful poll")
+	}
+	if cmd == nil {
+		t.Fatal("expected next review poll to be scheduled")
+	}
+
+	found := false
+	for _, e := range m.events {
+		if strings.Contains(e.name, "Existing review state detected") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("missing existing review state event")
+	}
+}
+
 func TestWatcherReviewNoActivityWaitsForTimeout(t *testing.T) {
 	m := newWatcherModel(10 * time.Second)
 	m.setSize(100, 30)
@@ -613,6 +656,38 @@ func TestWatcherReviewTimeout(t *testing.T) {
 	}
 	if !found {
 		t.Error("missing 'Review timeout' event")
+	}
+}
+
+func TestWatcherReviewDeadlineBeatsTailSettle(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.state = watchStateAwaitingReview
+	m.reviewStartAt = time.Now().Add(-2 * time.Minute)
+	m.reviewTimeout = 5 * time.Minute
+	m.reviewDeadline = time.Now().Add(-1 * time.Second)
+	m.lastActivityAt = time.Now().Add(-35 * time.Second)
+	m.initialHeadSHA = "abc123"
+	m.reviewArmed = true
+	m.reviewTailIndex = len(m.reviewTailIntervals) - 1
+	m.reviewTailProbes = 1
+	snap := &domain.ActivitySnapshot{HeadSHA: "abc123"}
+	m.prevHash = ghub.Fingerprint(snap)
+
+	m, _ = m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
+
+	if m.state != watchStateDone {
+		t.Fatalf("state = %d, want watchStateDone", m.state)
+	}
+	found := false
+	for _, e := range m.events {
+		if strings.Contains(e.name, "Review timeout") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("missing review timeout event")
 	}
 }
 

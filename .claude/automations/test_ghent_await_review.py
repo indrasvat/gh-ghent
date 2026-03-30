@@ -147,10 +147,12 @@ async def capture_screenshot(window, name: str) -> str:
 
     frame = await window.async_get_frame()
     window_id = find_quartz_window_id(frame.origin.x, frame.size.width, frame.size.height)
-    if window_id is not None:
-        subprocess.run(["screencapture", "-x", "-l", str(window_id), filepath], check=True)
-    else:
-        subprocess.run(["screencapture", "-x", filepath], check=True)
+    if window_id is None:
+        raise RuntimeError(
+            "failed to resolve iTerm2 window id for targeted screenshot "
+            f"{name} at x={frame.origin.x} w={frame.size.width} h={frame.size.height}"
+        )
+    subprocess.run(["screencapture", "-x", "-l", str(window_id), filepath], check=True)
 
     return filepath
 
@@ -287,6 +289,7 @@ async def run_cli_visual_scenario(
     connection,
     *,
     name: str,
+    session_name: str | None = None,
     x_pos: int,
     screenshot_name: str,
     command: str,
@@ -294,7 +297,7 @@ async def run_cli_visual_scenario(
 ) -> int:
     window, session = await create_test_window(
         connection,
-        name=name,
+        name=session_name or name,
         x_pos=x_pos,
     )
     try:
@@ -441,6 +444,7 @@ async def run_cli_visual_tests(connection) -> int:
     if await run_cli_visual_scenario(
         connection,
         name="CLI timeout visual path",
+        session_name=f"{SESSION_PREFIX}cli-timeout",
         x_pos=80,
         screenshot_name="ghent_await_review_cli_timeout",
         command=timeout_command,
@@ -473,6 +477,7 @@ async def run_cli_visual_tests(connection) -> int:
     if await run_cli_visual_scenario(
         connection,
         name="CLI settled visual path",
+        session_name=f"{SESSION_PREFIX}cli-settled",
         x_pos=1400,
         screenshot_name="ghent_await_review_cli_settled",
         command=settled_command,

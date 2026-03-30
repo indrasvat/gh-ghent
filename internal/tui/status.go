@@ -296,7 +296,7 @@ func (m statusModel) renderReviewMonitorSection() string {
 		Padding(0, 1).
 		Width(max(m.width-2, 10)).
 		Render(
-			lipgloss.NewStyle().Bold(true).Foreground(accent).Render(title) + "\n" +
+			lipgloss.NewStyle().Bold(true).Foreground(accent).Render(title) + styles.ANSIReset + "\n" +
 				dimStyle.Render(body),
 		)
 }
