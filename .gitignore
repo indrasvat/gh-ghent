@@ -51,6 +51,7 @@ __debug_bin*
 Thumbs.db
 
 .local/
+.cass/
 .codemap/
 .claude/screenshots/
 .claude/worktrees/

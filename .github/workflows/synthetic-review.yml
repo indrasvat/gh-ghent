@@ -52,7 +52,7 @@ jobs:
               });
 
               if (!pulls.data.length) {
-                core.setFailed(`No open pull request found for branch ${branch}`);
+                core.notice(`No open pull request found for branch ${branch}; skipping synthetic review.`);
                 return;
               }
               pull_number = pulls.data[0].number;
