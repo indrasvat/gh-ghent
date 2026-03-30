@@ -113,6 +113,29 @@ func DefaultReviewWatchConfig() ReviewWatchConfig {
 	}
 }
 
+func normalizeReviewWatchConfig(cfg ReviewWatchConfig) ReviewWatchConfig {
+	defaults := DefaultReviewWatchConfig()
+	if cfg.PollInterval == 0 {
+		cfg.PollInterval = defaults.PollInterval
+	}
+	if cfg.DebounceWindow == 0 {
+		cfg.DebounceWindow = defaults.DebounceWindow
+	}
+	if cfg.HardTimeout == 0 {
+		cfg.HardTimeout = defaults.HardTimeout
+	}
+	if cfg.LateActivityGrace == 0 {
+		cfg.LateActivityGrace = cfg.DebounceWindow
+	}
+	if cfg.MaxLateActivityExtensions == 0 {
+		cfg.MaxLateActivityExtensions = defaults.MaxLateActivityExtensions
+	}
+	if len(cfg.TailIntervals) == 0 {
+		cfg.TailIntervals = append([]time.Duration(nil), defaults.TailIntervals...)
+	}
+	return cfg
+}
+
 // WatchReviewResult carries the outcome of the review-await phase.
 type WatchReviewResult struct {
 	Settlement  domain.ReviewSettlement
@@ -143,24 +166,7 @@ func (c *Client) WatchReviews(
 	if clock == nil {
 		clock = time.Now
 	}
-	if cfg.PollInterval == 0 {
-		cfg.PollInterval = 15 * time.Second
-	}
-	if cfg.DebounceWindow == 0 {
-		cfg.DebounceWindow = 30 * time.Second
-	}
-	if cfg.HardTimeout == 0 {
-		cfg.HardTimeout = 5 * time.Minute
-	}
-	if cfg.LateActivityGrace == 0 {
-		cfg.LateActivityGrace = cfg.DebounceWindow
-	}
-	if cfg.MaxLateActivityExtensions == 0 {
-		cfg.MaxLateActivityExtensions = 1
-	}
-	if len(cfg.TailIntervals) == 0 {
-		cfg.TailIntervals = []time.Duration{30 * time.Second, 60 * time.Second}
-	}
+	cfg = normalizeReviewWatchConfig(cfg)
 
 	startAt := clock()
 	lastActivityAt := startAt
@@ -206,9 +212,7 @@ func (c *Client) WatchReviews(
 				ReviewPhase:      domain.ReviewPhaseTimeout,
 				ReviewConfidence: domain.ReviewConfidenceLow,
 				ReviewTailProbes: tailProbes,
-				Final:            true,
 			}
-			_ = f.FormatWatchStatus(w, status)
 			monitor := domain.NewReviewMonitor(
 				domain.ReviewPhaseTimeout,
 				activityCount,
@@ -216,9 +220,7 @@ func (c *Client) WatchReviews(
 				tailProbes,
 				tailRearmed,
 			)
-			return &WatchReviewResult{
-				Settlement: monitor,
-			}, nil
+			return emitFinalReviewWatchStatus(w, f, status, monitor), nil
 		}
 		sleepDur := min(currentInterval, remaining)
 		if tailIndex >= 0 && tailIndex < len(cfg.TailIntervals) {
@@ -267,9 +269,7 @@ func (c *Client) WatchReviews(
 					tailProbes,
 					tailRearmed,
 				)
-				return &WatchReviewResult{
-					Settlement: monitor,
-				}, nil
+				return &WatchReviewResult{Settlement: monitor}, nil
 			}
 			continue
 		}
@@ -336,11 +336,7 @@ func (c *Client) WatchReviews(
 					tailProbes,
 					tailRearmed,
 				)
-				status.ReviewPhase = domain.ReviewPhaseSettled
-				status.ReviewConfidence = monitor.Confidence
-				status.Final = true
-				_ = f.FormatWatchStatus(w, status)
-				return &WatchReviewResult{Settlement: monitor}, nil
+				return emitFinalReviewWatchStatus(w, f, status, monitor), nil
 			}
 			_ = f.FormatWatchStatus(w, status)
 			continue
@@ -360,11 +356,7 @@ func (c *Client) WatchReviews(
 					tailProbes,
 					tailRearmed,
 				)
-				status.ReviewPhase = domain.ReviewPhaseSettled
-				status.ReviewConfidence = monitor.Confidence
-				status.Final = true
-				_ = f.FormatWatchStatus(w, status)
-				return &WatchReviewResult{Settlement: monitor}, nil
+				return emitFinalReviewWatchStatus(w, f, status, monitor), nil
 			}
 			tailIndex = 0
 			status.ReviewConfidence = domain.ReviewConfidenceMedium
@@ -381,15 +373,25 @@ func (c *Client) WatchReviews(
 				tailProbes,
 				tailRearmed,
 			)
-			status.ReviewPhase = domain.ReviewPhaseTimeout
-			status.ReviewConfidence = monitor.Confidence
-			status.Final = true
-			_ = f.FormatWatchStatus(w, status)
-			return &WatchReviewResult{Settlement: monitor}, nil
+			return emitFinalReviewWatchStatus(w, f, status, monitor), nil
 		}
 
 		_ = f.FormatWatchStatus(w, status)
 	}
+}
+
+func emitFinalReviewWatchStatus(
+	w io.Writer,
+	f domain.Formatter,
+	status *domain.WatchStatus,
+	monitor domain.ReviewMonitor,
+) *WatchReviewResult {
+	status.ReviewPhase = monitor.Phase
+	status.ReviewConfidence = monitor.Confidence
+	status.ReviewTailProbes = monitor.TailProbes
+	status.Final = true
+	_ = f.FormatWatchStatus(w, status)
+	return &WatchReviewResult{Settlement: monitor}
 }
 
 // buildWatchStatus constructs a WatchStatus from a ChecksResult,

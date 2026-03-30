@@ -102,6 +102,8 @@ type watcherModel struct {
 	awaitReview          bool
 	reviewTimeout        time.Duration
 	reviewFetchFn        ReviewPollFunc
+	reviewPollInterval   time.Duration
+	reviewDebounceWindow time.Duration
 	reviewStartAt        time.Time
 	reviewDeadline       time.Time
 	lastActivityAt       time.Time
@@ -114,6 +116,7 @@ type watcherModel struct {
 	reviewTailProbes     int
 	reviewTailRearmed    bool
 	reviewLateGrace      time.Duration
+	reviewMaxLateExt     int
 	reviewLateExtensions int
 
 	// Status transition: when true, emit watchDoneMsg on terminal state.
@@ -121,18 +124,22 @@ type watcherModel struct {
 }
 
 func newWatcherModel(interval time.Duration) watcherModel {
+	reviewCfg := ghub.DefaultReviewWatchConfig()
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color(string(styles.Blue)))
 	return watcherModel{
-		state:               watchStatePolling,
-		spinner:             s,
-		startAt:             time.Now(),
-		interval:            interval,
-		seen:                make(map[int64]string),
-		reviewTailIntervals: append([]time.Duration(nil), ghub.DefaultReviewWatchConfig().TailIntervals...),
-		reviewTailIndex:     -1,
-		reviewLateGrace:     ghub.DefaultReviewWatchConfig().LateActivityGrace,
+		state:                watchStatePolling,
+		spinner:              s,
+		startAt:              time.Now(),
+		interval:             interval,
+		seen:                 make(map[int64]string),
+		reviewPollInterval:   reviewCfg.PollInterval,
+		reviewDebounceWindow: reviewCfg.DebounceWindow,
+		reviewTailIntervals:  append([]time.Duration(nil), reviewCfg.TailIntervals...),
+		reviewTailIndex:      -1,
+		reviewLateGrace:      reviewCfg.LateActivityGrace,
+		reviewMaxLateExt:     reviewCfg.MaxLateActivityExtensions,
 	}
 }
 
@@ -179,12 +186,7 @@ func (m watcherModel) Update(msg tea.Msg) (watcherModel, tea.Cmd) {
 
 func (m watcherModel) handlePollResult(msg watchResultMsg) (watcherModel, tea.Cmd) {
 	if msg.err != nil {
-		m.events = append(m.events, watchEvent{
-			timestamp: time.Now(),
-			icon:      redStyle.Render("✗"),
-			name:      "poll error",
-			detail:    msg.err.Error(),
-		})
+		m.addEvent(time.Now(), redStyle.Render("✗"), "poll error", msg.err.Error())
 		return m, m.scheduleNextPoll()
 	}
 
@@ -228,46 +230,25 @@ func (m watcherModel) handlePollResult(msg watchResultMsg) (watcherModel, tea.Cm
 				m.prevHash = ghub.Fingerprint(snap)
 				if m.baselineHash != "" && m.prevHash != m.baselineHash {
 					m.activityCount++
-					m.events = append(m.events, watchEvent{
-						timestamp: time.Now(),
-						icon:      yellowStyle.Render("●"),
-						name:      "Review activity detected during CI",
-					})
+					m.addEvent(time.Now(), yellowStyle.Render("●"), "Review activity detected during CI", "")
 				} else if snap.ThreadCount > 0 {
 					m.activityCount++
-					m.events = append(m.events, watchEvent{
-						timestamp: time.Now(),
-						icon:      yellowStyle.Render("●"),
-						name:      "Existing review threads detected",
-					})
+					m.addEvent(time.Now(), yellowStyle.Render("●"), "Existing review threads detected", "")
 				}
 			}
 
-			m.events = append(m.events, watchEvent{
-				timestamp: time.Now(),
-				icon:      yellowStyle.Render("◎"),
-				name:      "CI passed — awaiting reviews",
-			})
+			m.addEvent(time.Now(), yellowStyle.Render("◎"), "CI passed — awaiting reviews", "")
 			return m, m.scheduleNextReviewPoll()
 		}
 		m.state = watchStateDone
-		m.events = append(m.events, watchEvent{
-			timestamp: time.Now(),
-			icon:      greenStyle.Render("✓"),
-			name:      "All checks passed",
-		})
+		m.addEvent(time.Now(), greenStyle.Render("✓"), "All checks passed", "")
 		if m.statusTransition {
 			return m, func() tea.Msg { return watchDoneMsg{} }
 		}
 		return m, nil
 	case domain.StatusFail:
 		m.state = watchStateFailed
-		m.events = append(m.events, watchEvent{
-			timestamp: time.Now(),
-			icon:      redStyle.Render("✗"),
-			name:      "Check failure detected",
-			detail:    "fail-fast triggered",
-		})
+		m.addEvent(time.Now(), redStyle.Render("✗"), "Check failure detected", "fail-fast triggered")
 		if m.statusTransition {
 			return m, func() tea.Msg { return watchDoneMsg{} }
 		}
@@ -297,6 +278,16 @@ func (m watcherModel) makeEvent(ch domain.CheckRun) watchEvent {
 		detail:     detail,
 		conclusion: ch.Conclusion,
 	}
+}
+
+func (m *watcherModel) addEvent(timestamp time.Time, icon, name, detail string) {
+	m.events = append(m.events, watchEvent{
+		timestamp: timestamp,
+		icon:      icon,
+		name:      name,
+		detail:    detail,
+	})
+	m.logOffset = max(len(m.events)-m.eventLogHeight(), 0)
 }
 
 func (m watcherModel) pollCmd() tea.Cmd {
@@ -331,7 +322,10 @@ func (m watcherModel) reviewPollCmd() tea.Cmd {
 }
 
 func (m watcherModel) scheduleNextReviewPoll() tea.Cmd {
-	interval := 15 * time.Second
+	interval := m.reviewPollInterval
+	if interval <= 0 {
+		interval = ghub.DefaultReviewWatchConfig().PollInterval
+	}
 	if m.reviewTailIndex >= 0 && m.reviewTailIndex < len(m.reviewTailIntervals) {
 		interval = m.reviewTailIntervals[m.reviewTailIndex]
 	}
@@ -350,13 +344,7 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 	}
 
 	if msg.err != nil {
-		m.events = append(m.events, watchEvent{
-			timestamp: now,
-			icon:      redStyle.Render("✗"),
-			name:      "review poll error",
-			detail:    msg.err.Error(),
-		})
-		m.logOffset = max(len(m.events)-m.eventLogHeight(), 0)
+		m.addEvent(now, redStyle.Render("✗"), "review poll error", msg.err.Error())
 
 		// Hard timeout still applies during errors.
 		if !m.reviewDeadline.IsZero() && !now.Before(m.reviewDeadline) {
@@ -368,12 +356,7 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 	// Check for head SHA change (new push).
 	if msg.snapshot.HeadSHA != m.initialHeadSHA {
 		m.state = watchStatePolling
-		m.events = append(m.events, watchEvent{
-			timestamp: now,
-			icon:      yellowStyle.Render("↻"),
-			name:      "New push detected — restarting CI watch",
-		})
-		m.logOffset = max(len(m.events)-m.eventLogHeight(), 0)
+		m.addEvent(now, yellowStyle.Render("↻"), "New push detected — restarting CI watch", "")
 		// Reset CI watch state for new head.
 		m.seen = make(map[int64]string)
 		m.completed = 0
@@ -392,33 +375,21 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 		if m.reviewTailIndex >= 0 {
 			m.reviewTailIndex = -1
 			m.reviewTailRearmed = true
-			m.events = append(m.events, watchEvent{
-				timestamp: now,
-				icon:      yellowStyle.Render("↺"),
-				name:      "New review activity detected — resuming active watch",
-			})
+			m.addEvent(now, yellowStyle.Render("↺"), "New review activity detected — resuming active watch", "")
 		} else {
-			m.events = append(m.events, watchEvent{
-				timestamp: now,
-				icon:      yellowStyle.Render("●"),
-				name:      "New review activity detected",
-			})
+			m.addEvent(now, yellowStyle.Render("●"), "New review activity detected", "")
 		}
-		if !m.reviewDeadline.IsZero() && m.reviewDeadline.Sub(now) <= 30*time.Second && m.reviewLateExtensions == 0 {
-			m.reviewDeadline = m.reviewDeadline.Add(max(m.reviewLateGrace, 30*time.Second))
+		if !m.reviewDeadline.IsZero() &&
+			m.reviewDeadline.Sub(now) <= m.reviewDebounceWindow &&
+			m.reviewLateExtensions < m.reviewMaxLateExt {
+			grace := max(m.reviewLateGrace, m.reviewDebounceWindow)
+			m.reviewDeadline = m.reviewDeadline.Add(grace)
 			m.reviewLateExtensions++
-			m.events = append(m.events, watchEvent{
-				timestamp: now,
-				icon:      yellowStyle.Render("⏱"),
-				name:      "Late review activity grace applied",
-				detail:    formatDuration(max(m.reviewLateGrace, 30*time.Second)),
-			})
+			m.addEvent(now, yellowStyle.Render("⏱"), "Late review activity grace applied", formatDuration(grace))
 		}
 	}
 
-	m.logOffset = max(len(m.events)-m.eventLogHeight(), 0)
-
-	// Check debounce: settled when idle for 30s after at least one activity.
+	// Check debounce: settled when idle for the configured window after at least one activity.
 	// Don't settle on zero activity — the reviewer may still be working
 	// (e.g., Codex shows 👀 for 2-4 min before posting comments).
 	idleDuration := now.Sub(m.lastActivityAt)
@@ -430,17 +401,12 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 		m.reviewTailIndex++
 		return m, m.scheduleNextReviewPoll()
 	}
-	if m.activityCount > 0 && idleDuration >= 30*time.Second {
+	if m.activityCount > 0 && idleDuration >= m.reviewDebounceWindow {
 		if len(m.reviewTailIntervals) == 0 {
 			return m.finishReviewWait(domain.ReviewPhaseSettled, now)
 		}
 		m.reviewTailIndex = 0
-		m.events = append(m.events, watchEvent{
-			timestamp: now,
-			icon:      yellowStyle.Render("◎"),
-			name:      "Review activity quiet — confirming stability",
-		})
-		m.logOffset = max(len(m.events)-m.eventLogHeight(), 0)
+		m.addEvent(now, yellowStyle.Render("◎"), "Review activity quiet — confirming stability", "")
 		return m, m.scheduleNextReviewPoll()
 	}
 
@@ -467,13 +433,7 @@ func (m watcherModel) finishReviewWait(phase domain.ReviewWatchPhase, now time.T
 		detail += fmt.Sprintf(" — tail probes %d", m.reviewTailProbes)
 	}
 
-	m.events = append(m.events, watchEvent{
-		timestamp: now,
-		icon:      icon,
-		name:      label,
-		detail:    detail,
-	})
-	m.logOffset = max(len(m.events)-m.eventLogHeight(), 0)
+	m.addEvent(now, icon, label, detail)
 
 	settlement := &domain.ReviewSettlement{}
 	*settlement = domain.NewReviewMonitor(
