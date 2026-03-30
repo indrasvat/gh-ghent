@@ -46,18 +46,16 @@ echo "$GROUPED" | jq -r '.groups[] | .key' | while read FILE; do
 done
 ```
 
-## 2. Monitor CI Until Green
+## 2. Monitor PR Until CI And Reviews Stabilize
 
-Poll CI checks until they complete, then get full status with failure diagnostics.
+Use the same command for CI waiting and review follow-up when comments may still arrive.
 
 ```bash
-# Recommended: status --watch gets everything after CI completes
-gh ghent status --pr 42 --watch --logs --format json --no-tui 2>/dev/null | jq
-# Watch progress → stderr, full status with logs → stdout.
-# After CI completes, parse failures from the status output:
-# jq '.checks.checks[] | select(.log_excerpt) | {name, conclusion, log_excerpt, annotations}'
+# Recommended when review comments may still matter:
+gh ghent status --pr 42 --await-review --logs --format json --no-tui 2>/dev/null | jq
+# Watch progress → stderr, full status with review_monitor + logs → stdout.
 
-# Alternative: checks --watch for CI-only monitoring
+# CI-only alternative when review state is irrelevant:
 gh ghent checks --pr 42 --watch --format json --no-tui
 # Exit 0 = all pass, 1 = failure, 3 = still pending after timeout.
 ```
@@ -86,36 +84,20 @@ Complete cycle: assess state, fix comments, fix CI, resolve, verify.
 ```bash
 PR=42
 
-# Step 1: Assess current state
-STATUS=$(gh ghent status --pr $PR --compact --format json --no-tui)
-echo "$STATUS" | jq '{merge_ready: .is_merge_ready, unresolved: .unresolved, checks: .check_status}'
+# Step 1: Run the single blessed command
+STATUS=$(gh ghent status --pr $PR --await-review --solo --logs --format json --no-tui)
 
-# Step 2: Fix review comments (if any)
-UNRESOLVED=$(echo "$STATUS" | jq '.unresolved')
-if [ "$UNRESOLVED" -gt 0 ]; then
-  THREADS=$(gh ghent comments --pr $PR --format json --no-tui)
-  # ... read each thread, apply fixes ...
-  gh ghent resolve --pr $PR --all --format json --no-tui
-fi
+# Step 2: Inspect CI failures if present
+echo "$STATUS" | jq '.checks.checks[] | select(.log_excerpt) | {name, annotations, log_excerpt}'
 
-# Step 3: Fix CI failures (if any)
-CHECK_STATUS=$(echo "$STATUS" | jq -r '.check_status')
-if [ "$CHECK_STATUS" = "failure" ]; then
-  gh ghent checks --pr $PR --format json --no-tui --logs | \
-    jq -r '.checks[] | select(.log_excerpt or (.conclusion | IN("failure","timed_out","cancelled"))) | .annotations[]? | "\(.path):\(.start_line) \(.message)"'
-  # ... apply fixes based on annotations ...
-fi
+# Step 3: Inspect unanswered review threads if present
+echo "$STATUS" | jq '.comments.threads[] | {id, path, line, author: .comments[0].author, body: .comments[0].body}'
 
-# Step 4: Wait for new CI run
-sleep 10
-gh ghent checks --pr $PR --watch --format json --no-tui
+# Step 4: Push fixes, then run the same command again
+STATUS=$(gh ghent status --pr $PR --await-review --solo --logs --format json --no-tui)
 
-# Step 5: Final verification
-if gh ghent status --pr $PR --format json --no-tui > /dev/null 2>&1; then
-  echo "PR is merge-ready!"
-else
-  echo "Still needs work"
-fi
+# Step 5: Stop only when merge-ready and review monitoring is not low-confidence
+echo "$STATUS" | jq '{merge_ready: .is_merge_ready, review_monitor: .review_monitor}'
 ```
 
 ## 4. Incremental Delta Check

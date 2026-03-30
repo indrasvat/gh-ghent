@@ -211,8 +211,14 @@ func (f *MarkdownFormatter) FormatWatchStatus(w io.Writer, status *domain.WatchS
 		fmt.Fprintf(w, " | %s→%s", ev.Name, ev.Conclusion)
 	}
 	if status.ReviewPhase != "" {
-		fmt.Fprintf(w, " review:%s idle:%ds timeout:%ds",
-			status.ReviewPhase, status.ReviewIdleSecs, status.ReviewTimeoutIn)
+		fmt.Fprintf(w, " review:%s", status.ReviewPhase)
+		if status.ReviewConfidence != "" {
+			fmt.Fprintf(w, "/%s", status.ReviewConfidence)
+		}
+		fmt.Fprintf(w, " idle:%ds timeout:%ds", status.ReviewIdleSecs, status.ReviewTimeoutIn)
+		if status.ReviewTailProbes > 0 {
+			fmt.Fprintf(w, " tail:%d", status.ReviewTailProbes)
+		}
 	}
 	_, err := fmt.Fprintln(w)
 	return err
@@ -266,13 +272,24 @@ func (f *MarkdownFormatter) FormatStatus(w io.Writer, result *domain.StatusResul
 		fmt.Fprintln(w)
 	}
 
-	// Review settlement section (if --await-review was used).
-	if result.ReviewSettled != nil {
-		fmt.Fprintf(w, "## Review Settlement\n\n")
-		fmt.Fprintf(w, "**Phase:** %s | **Activity:** %d changes | **Wait:** %s\n\n",
-			result.ReviewSettled.Phase,
-			result.ReviewSettled.ActivityCount,
-			formatSettlementDuration(result.ReviewSettled.WaitSeconds))
+	// Review monitor section (if --await-review was used).
+	if result.ReviewMonitor != nil {
+		fmt.Fprintf(w, "## Review Monitor\n\n")
+		fmt.Fprintf(w, "**Phase:** %s | **Confidence:** %s | **Activity:** %d changes | **Wait:** %s",
+			result.ReviewMonitor.Phase,
+			result.ReviewMonitor.Confidence,
+			result.ReviewMonitor.ActivityCount,
+			formatSettlementDuration(result.ReviewMonitor.WaitSeconds))
+		if result.ReviewMonitor.TailProbes > 0 {
+			fmt.Fprintf(w, " | **Tail Probes:** %d", result.ReviewMonitor.TailProbes)
+		}
+		fmt.Fprintln(w)
+		if result.ReviewMonitor.Phase == domain.ReviewPhaseTimeout {
+			fmt.Fprintf(w, "\nWarning: additional bot reviews may still arrive after this timeout.\n")
+		} else if result.ReviewMonitor.Confidence == domain.ReviewConfidenceHigh {
+			fmt.Fprintf(w, "\nReview activity stabilized through bounded confirmation probes.\n")
+		}
+		fmt.Fprintln(w)
 	}
 
 	// Reviews/Approvals section.

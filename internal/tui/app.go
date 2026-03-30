@@ -302,6 +302,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Watch phase complete — transition to status view with fresh data.
 		a.activeView = ViewStatus
 		a.status.loading = true
+		a.status.reviewMonitor = typedMsg.settlement
 		a.status.recomputeMaxScroll()
 
 		// Fire async fetches for the final status data.

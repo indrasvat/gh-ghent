@@ -7,11 +7,11 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 12: Bot Sweep |
-| **Current Task** | Bot-aware filtering + reply-resolve combo DONE. PR #11. |
+| **Current Phase** | Phase 13: Review Monitor Hardening |
+| **Current Task** | Task 035 complete: smart `--await-review` + skill hardening for issue #13 shipped and verified against real PRs. |
 | **Blocker** | None |
-| **Last Action** | Bot detection via __typename, --bots-only/--humans-only/--unanswered flags, reply --resolve, SKILL.md rewrite. 680 tests. |
-| **Last Updated** | 2026-03-26 |
+| **Last Action** | Implemented smart review stabilization, hardened the ghent skill around a single `status --await-review` loop, and completed L1/L3/L4 verification with real PRs plus reviewed screenshots. |
+| **Last Updated** | 2026-03-29 |
 
 ## How to Resume
 
@@ -19,8 +19,8 @@
 2. Read the task file at the path above
 3. Read CLAUDE.md (auto-loaded)
 4. Read PRD sections referenced in the task file
-5. Change task status to `IN PROGRESS`
-6. Execute, verify, update this file, mark task `DONE`, commit
+5. Pick the next task or issue
+6. Change that task status to `IN PROGRESS`, execute, verify, update this file, mark task `DONE`, commit
 
 ## Phase Progress
 
@@ -90,11 +90,44 @@
 
 > **Milestone: Status Enhancement complete** — `status` is now a complete single-command entry point for PR monitoring
 
+### Phase 13: Review Monitor Hardening
+- [x] Task 13.1: Smart await-review + skill hardening → `docs/tasks/035-smart-await-review.md`
+
+> **Milestone: Review Monitor Hardening complete** — `status --await-review` is now the single blessed agent review loop with bounded confirmation and explicit provisional-vs-stable output semantics
+
 ## Blockers
 
 (None currently)
 
 ## Session Log
+
+### 2026-03-29 (Phase 13: Review Monitor Hardening — Task 035)
+- **Task 035 (Smart await-review + skill hardening):** Implemented bounded review stabilization in both pipe mode and TUI.
+  - Added `review_monitor` to status output with `phase`, `confidence`, `activity_count`, `wait_seconds`, and tail metadata, while keeping `review_settled` as a compatibility alias.
+  - `internal/github/watcher.go` now supports late-activity grace, bounded tail confirmation probes, and re-arming when new review activity appears during confirmation.
+  - `internal/tui/watcher.go` and `internal/tui/status.go` now render distinct `confirming review quiet`, `Review activity stabilized`, and `Review monitor provisional` states.
+  - The watcher now treats pre-existing review threads as meaningful observed activity for stabilization purposes, which avoids false low-confidence timeouts on stable bot-reviewed PRs.
+- **Skill / docs hardening:** Rewrote the agent loop in `skill/SKILL.md`, `skill/references/command-reference.md`, `skill/references/agent-workflows.md`, and `README.md` so agents always return to `gh ghent status --pr <N> --await-review --solo --logs --format json --no-tui` after every push, and explicitly do not switch to bare `--watch` for review follow-up cycles.
+- **External review pass:** Ran a `dootsabha` council review with Claude and Gemini before PR stage and incorporated the substantive findings.
+  - Separated **historical review state** from **fresh review activity** so pre-existing threads no longer inflate `activity_count` or produce false `confidence=high`.
+  - Fixed TUI review poll scheduling to cap by **remaining deadline time**, not the configured total timeout.
+  - Added backend behavioral coverage for `WatchReviews` tail confirmation, tail re-arm, and late-activity grace via the new internal `watchReviewsWithProbe(...)` helper.
+  - Clarified docs that `review_settled` is still emitted today as a compatibility alias.
+- **Verification:**
+  - `make ci-fast` PASS (`DONE 684 tests, 1 skipped`)
+  - L3 real PR checks PASS:
+    - `indrasvat/doot#1` with `--review-timeout 5s` returns `review_monitor.phase=timeout`, `confidence=low`, `activity_count=0`
+    - `indrasvat/yathaavat#1` returns `review_monitor.phase=settled`, `confidence=medium`, `tail_probes=2`, `activity_count=0`
+  - L4 PASS: `uv run .claude/automations/test_ghent_await_review.py` → 11/11 PASS, with reviewed screenshots for CLI markdown timeout/settled output, TUI initial watch, awaiting review, tail confirmation, settled summary, and provisional timeout summary.
+  - Cleanup verified twice: the harness' own janitor reported zero surviving prefixed sessions, and an external `uv run --with iterm2 --with pyobjc python ...` check also returned `0` lingering `ghent-await-review-*` sessions.
+
+### 2026-03-29 (Phase 13 planning — Task 035 spec)
+- **Task 035 spec drafted:** Created `docs/tasks/035-smart-await-review.md` for issue #13.
+  - Centers the agent workflow on one command: `gh ghent status --await-review --solo --logs --format json --no-tui`
+  - Explicitly prohibits switching to bare `--watch` during review-comment follow-up cycles
+  - Proposes smarter internal `--await-review` behavior: late-activity grace, bounded tail confirmation probes, and re-arming when new review activity appears
+  - Proposes a compact machine-readable `review_monitor` object so the skill can distinguish stable settle from provisional timeout without exposing many knobs
+- **Implementation status:** Not started. This session produced the spec only; code changes and verification remain to be done.
 
 ### 2026-02-24 (Phase 10: Status Enhancement — Task 034)
 - **Task 034 (Status --logs, --watch, --quiet):** Enhanced `gh ghent status` to be a complete single-command entry point for PR monitoring.

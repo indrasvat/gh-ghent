@@ -434,8 +434,9 @@ func TestWatcherBaselineSameNoFalseActivity(t *testing.T) {
 }
 
 func TestWatcherBaselineActivityArmsDebounce(t *testing.T) {
-	// When baseline detected activity (activityCount=1 at start), the debounce
-	// should fire after 30s of idle — not wait for the full timeout.
+	// When baseline detected activity (activityCount=1 at start), the watcher
+	// should enter tail confirmation after 30s of idle instead of exiting
+	// immediately on the first quiet poll.
 	snapWithThreads := &domain.ActivitySnapshot{
 		HeadSHA:     "abc123",
 		ThreadCount: 2,
@@ -449,13 +450,20 @@ func TestWatcherBaselineActivityArmsDebounce(t *testing.T) {
 	m.lastActivityAt = time.Now().Add(-35 * time.Second) // 35s idle
 	m.reviewTimeout = 5 * time.Minute
 	m.initialHeadSHA = "abc123"
-	m.activityCount = 1 // baseline detected activity → debounce armed
+	m.activityCount = 1
+	m.reviewArmed = true // baseline detected activity → quiet detector armed
 	m.prevHash = ghub.Fingerprint(snapWithThreads)
 
-	m, _ = m.handleReviewPollResult(reviewPollResultMsg{snapshot: snapWithThreads})
+	m, cmd := m.handleReviewPollResult(reviewPollResultMsg{snapshot: snapWithThreads})
 
-	if m.state != watchStateDone {
-		t.Errorf("state = %d, want watchStateDone (baseline activity + 35s idle → should settle)", m.state)
+	if m.state != watchStateAwaitingReview {
+		t.Errorf("state = %d, want watchStateAwaitingReview (should enter tail confirmation)", m.state)
+	}
+	if cmd == nil {
+		t.Error("expected follow-up review poll cmd during tail confirmation")
+	}
+	if m.reviewTailIndex != 0 {
+		t.Errorf("reviewTailIndex = %d, want 0", m.reviewTailIndex)
 	}
 }
 
@@ -484,12 +492,30 @@ func TestWatcherReviewSettled(t *testing.T) {
 	m.lastActivityAt = time.Now().Add(-35 * time.Second) // 35s idle > 30s debounce
 	m.reviewTimeout = 5 * time.Minute
 	m.initialHeadSHA = "abc123"
-	m.activityCount = 1 // must have seen at least one activity for debounce to fire
+	m.activityCount = 1
+	m.reviewArmed = true // must have seen review state for debounce to fire
 
 	// Set prevHash to match what an empty snapshot would produce,
 	// so the fingerprint doesn't change (which would reset lastActivityAt).
 	snap := &domain.ActivitySnapshot{HeadSHA: "abc123"}
 	m.prevHash = ghub.Fingerprint(snap) // same hash → no activity reset
+
+	var cmd tea.Cmd
+	m, cmd = m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
+	if m.state != watchStateAwaitingReview {
+		t.Fatalf("state after entering tail = %d, want watchStateAwaitingReview", m.state)
+	}
+	if cmd == nil {
+		t.Fatal("expected tail confirmation cmd")
+	}
+
+	m, cmd = m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
+	if m.state != watchStateAwaitingReview {
+		t.Fatalf("state after first tail probe = %d, want watchStateAwaitingReview", m.state)
+	}
+	if cmd == nil {
+		t.Fatal("expected second tail confirmation cmd")
+	}
 
 	m, _ = m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
 
@@ -506,6 +532,52 @@ func TestWatcherReviewSettled(t *testing.T) {
 	}
 	if !found {
 		t.Error("missing 'Reviews settled' event")
+	}
+	if m.reviewTailProbes != 2 {
+		t.Errorf("reviewTailProbes = %d, want 2", m.reviewTailProbes)
+	}
+}
+
+func TestWatcherReviewFirstSuccessfulPollSeedsBaseline(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.state = watchStateAwaitingReview
+	m.reviewStartAt = time.Now().Add(-20 * time.Second)
+	m.reviewDeadline = time.Now().Add(2 * time.Minute)
+	m.lastActivityAt = time.Now().Add(-20 * time.Second)
+	m.reviewTimeout = 5 * time.Minute
+	m.initialHeadSHA = "abc123"
+	m.baselineHash = ghub.Fingerprint(&domain.ActivitySnapshot{HeadSHA: "abc123"})
+
+	snap := &domain.ActivitySnapshot{
+		HeadSHA:     "abc123",
+		ThreadCount: 1,
+		ThreadIDs:   []string{"t1"},
+	}
+	m, cmd := m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
+
+	if m.activityCount != 0 {
+		t.Fatalf("activityCount = %d, want 0 on first successful poll", m.activityCount)
+	}
+	if !m.reviewArmed {
+		t.Fatal("expected reviewArmed to be true when existing review state is discovered")
+	}
+	if m.prevHash != ghub.Fingerprint(snap) {
+		t.Fatal("expected prevHash to be seeded from first successful poll")
+	}
+	if cmd == nil {
+		t.Fatal("expected next review poll to be scheduled")
+	}
+
+	found := false
+	for _, e := range m.events {
+		if strings.Contains(e.name, "Existing review state detected") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("missing existing review state event")
 	}
 }
 
@@ -584,6 +656,71 @@ func TestWatcherReviewTimeout(t *testing.T) {
 	}
 	if !found {
 		t.Error("missing 'Review timeout' event")
+	}
+}
+
+func TestWatcherReviewDeadlineBeatsTailSettle(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.state = watchStateAwaitingReview
+	m.reviewStartAt = time.Now().Add(-2 * time.Minute)
+	m.reviewTimeout = 5 * time.Minute
+	m.reviewDeadline = time.Now().Add(-1 * time.Second)
+	m.lastActivityAt = time.Now().Add(-35 * time.Second)
+	m.initialHeadSHA = "abc123"
+	m.reviewArmed = true
+	m.reviewTailIndex = len(m.reviewTailIntervals) - 1
+	m.reviewTailProbes = 1
+	snap := &domain.ActivitySnapshot{HeadSHA: "abc123"}
+	m.prevHash = ghub.Fingerprint(snap)
+
+	m, _ = m.handleReviewPollResult(reviewPollResultMsg{snapshot: snap})
+
+	if m.state != watchStateDone {
+		t.Fatalf("state = %d, want watchStateDone", m.state)
+	}
+	found := false
+	for _, e := range m.events {
+		if strings.Contains(e.name, "Review timeout") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("missing review timeout event")
+	}
+}
+
+func TestWatcherReviewNewActivityRearmsTail(t *testing.T) {
+	m := newWatcherModel(10 * time.Second)
+	m.setSize(100, 30)
+	m.state = watchStateAwaitingReview
+	m.reviewStartAt = time.Now().Add(-2 * time.Minute)
+	m.reviewTimeout = 5 * time.Minute
+	m.reviewDeadline = time.Now().Add(2 * time.Minute)
+	m.lastActivityAt = time.Now().Add(-35 * time.Second)
+	m.initialHeadSHA = "abc123"
+	m.activityCount = 1
+	m.reviewArmed = true
+	baseSnap := &domain.ActivitySnapshot{HeadSHA: "abc123"}
+	m.prevHash = ghub.Fingerprint(baseSnap)
+
+	m, _ = m.handleReviewPollResult(reviewPollResultMsg{snapshot: baseSnap})
+	if m.reviewTailIndex != 0 {
+		t.Fatalf("reviewTailIndex = %d, want 0 after entering tail", m.reviewTailIndex)
+	}
+
+	newSnap := &domain.ActivitySnapshot{HeadSHA: "abc123", ThreadCount: 1, ThreadIDs: []string{"t1"}}
+	m, cmd := m.handleReviewPollResult(reviewPollResultMsg{snapshot: newSnap})
+
+	if m.reviewTailIndex != -1 {
+		t.Errorf("reviewTailIndex = %d, want -1 after rearm", m.reviewTailIndex)
+	}
+	if !m.reviewTailRearmed {
+		t.Error("expected reviewTailRearmed to be true")
+	}
+	if cmd == nil {
+		t.Error("expected follow-up poll cmd after rearm")
 	}
 }
 
