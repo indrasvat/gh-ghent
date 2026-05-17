@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/indrasvat/gh-ghent/internal/domain"
@@ -20,6 +21,16 @@ query($owner: String!, $repo: String!, $pr: Int!) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $pr) {
       headRefOid
+      body
+      updatedAt
+      lastEditedAt
+      reviewDecision
+      reactionGroups {
+        content
+        reactors {
+          totalCount
+        }
+      }
       reviewThreads(first: 100) {
         totalCount
         nodes {
@@ -56,7 +67,17 @@ query($owner: String!, $repo: String!, $pr: Int!) {
 type activityResponse struct {
 	Repository struct {
 		PullRequest *struct {
-			HeadRefOid    string `json:"headRefOid"`
+			HeadRefOid     string  `json:"headRefOid"`
+			Body           string  `json:"body"`
+			UpdatedAt      string  `json:"updatedAt"`
+			LastEditedAt   *string `json:"lastEditedAt"`
+			ReviewDecision string  `json:"reviewDecision"`
+			ReactionGroups []struct {
+				Content  string `json:"content"`
+				Reactors struct {
+					TotalCount int `json:"totalCount"`
+				} `json:"reactors"`
+			} `json:"reactionGroups"`
 			ReviewThreads struct {
 				TotalCount int `json:"totalCount"`
 				Nodes      []struct {
@@ -130,8 +151,12 @@ func (c *Client) ProbeActivity(ctx context.Context, owner, repo string, pr int) 
 
 	// Build thread entries — keep ID and metadata together for correct sorting.
 	threads := make([]threadEntry, 0, len(pr_.ReviewThreads.Nodes))
+	unresolvedThreadCount := 0
 	for _, t := range pr_.ReviewThreads.Nodes {
 		entry := threadEntry{id: t.ID, resolved: t.IsResolved}
+		if !t.IsResolved {
+			unresolvedThreadCount++
+		}
 		if len(t.Comments.Nodes) > 0 {
 			c := t.Comments.Nodes[0]
 			// Prefer updatedAt (tracks edits); fall back to createdAt.
@@ -188,9 +213,24 @@ func (c *Client) ProbeActivity(ctx context.Context, owner, repo string, pr int) 
 
 	// Build snapshot from sorted entries.
 	snap := &domain.ActivitySnapshot{
-		HeadSHA:     pr_.HeadRefOid,
-		ThreadCount: pr_.ReviewThreads.TotalCount,
-		ReviewCount: pr_.Reviews.TotalCount,
+		HeadSHA:               pr_.HeadRefOid,
+		ThreadCount:           pr_.ReviewThreads.TotalCount,
+		UnresolvedThreadCount: unresolvedThreadCount,
+		ReviewCount:           pr_.Reviews.TotalCount,
+		PRReviewSignal:        classifyPRReviewSignal(pr_.Body),
+		ReviewDecision:        pr_.ReviewDecision,
+	}
+	if pr_.UpdatedAt != "" {
+		snap.PRUpdatedAt, _ = time.Parse(time.RFC3339, pr_.UpdatedAt)
+	}
+	if pr_.LastEditedAt != nil && *pr_.LastEditedAt != "" {
+		snap.PRLastEditedAt, _ = time.Parse(time.RFC3339, *pr_.LastEditedAt)
+	}
+	for _, r := range pr_.ReactionGroups {
+		snap.ReactionCounts = append(snap.ReactionCounts, domain.ReactionStat{
+			Content:    r.Content,
+			TotalCount: r.Reactors.TotalCount,
+		})
 	}
 	for _, t := range threads {
 		snap.ThreadIDs = append(snap.ThreadIDs, t.id)
@@ -206,13 +246,94 @@ func (c *Client) ProbeActivity(ctx context.Context, owner, repo string, pr int) 
 	return snap, nil
 }
 
+// CanFastSettleReview reports whether a PR-level signal says the bot review is done.
+// The final status fetch still decides merge readiness; this only shortens the await phase.
+func CanFastSettleReview(snap *domain.ActivitySnapshot) bool {
+	if snap == nil {
+		return false
+	}
+	if snap.PRReviewSignal != domain.PRReviewSignalApproved {
+		return false
+	}
+	if snap.ThreadCount != len(snap.ThreadIDs) {
+		return false
+	}
+	if snap.UnresolvedThreadCount > 0 {
+		return false
+	}
+	if snap.ReviewDecision == string(domain.ReviewChangesRequested) {
+		return false
+	}
+	return true
+}
+
+func classifyPRReviewSignal(body string) domain.PRReviewSignal {
+	for _, line := range strings.Split(body, "\n") {
+		line = strings.TrimSpace(line)
+		line = strings.Trim(line, "-*#> \t")
+		if line == "" {
+			continue
+		}
+		lower := strings.ToLower(line)
+		hasReviewContext := strings.Contains(lower, "codex") ||
+			strings.Contains(lower, "review") ||
+			strings.Contains(lower, "reviewed") ||
+			strings.Contains(lower, "complete") ||
+			strings.Contains(lower, "done")
+
+		if hasThumbsUpToken(line, lower) {
+			if isStandaloneThumbsUp(line, lower) || hasReviewContext {
+				return domain.PRReviewSignalApproved
+			}
+		}
+		if hasEyesToken(line, lower) {
+			if isStandaloneEyes(line, lower) || hasReviewContext {
+				return domain.PRReviewSignalReviewing
+			}
+		}
+	}
+	return domain.PRReviewSignalNone
+}
+
+func hasEyesToken(line, lower string) bool {
+	return strings.Contains(line, "👀") || strings.Contains(lower, ":eyes:")
+}
+
+func hasThumbsUpToken(line, lower string) bool {
+	return strings.Contains(line, "👍") ||
+		strings.Contains(lower, ":+1:") ||
+		strings.Contains(lower, ":thumbsup:") ||
+		strings.Contains(lower, ":thumbs_up:") ||
+		strings.Contains(lower, "thumbs up")
+}
+
+func isStandaloneEyes(line, lower string) bool {
+	return line == "👀" || lower == ":eyes:"
+}
+
+func isStandaloneThumbsUp(line, lower string) bool {
+	return line == "👍" ||
+		lower == ":+1:" ||
+		lower == ":thumbsup:" ||
+		lower == ":thumbs_up:" ||
+		lower == "thumbs up"
+}
+
 // Fingerprint computes a SHA-256 hash of the activity snapshot for change detection.
 // Any structural change — new thread, edited thread, resolved thread, new review,
 // review state change, or new push — produces a different hash.
 func Fingerprint(snap *domain.ActivitySnapshot) string {
 	h := sha256.New()
 	fmt.Fprintf(h, "head:%s\n", snap.HeadSHA)
-	fmt.Fprintf(h, "tc:%d rc:%d\n", snap.ThreadCount, snap.ReviewCount)
+	fmt.Fprintf(h, "pr:%d:%d:%s:%s\n",
+		snap.PRUpdatedAt.UnixNano(),
+		snap.PRLastEditedAt.UnixNano(),
+		snap.PRReviewSignal,
+		snap.ReviewDecision)
+	fmt.Fprintf(h, "tc:%d utc:%d rc:%d\n", snap.ThreadCount, snap.UnresolvedThreadCount, snap.ReviewCount)
+	for _, r := range snap.ReactionCounts {
+		fmt.Fprintf(h, "reaction:%s:%d\n", r.Content, r.TotalCount)
+	}
 	for i, id := range snap.ThreadIDs {
 		resolved := false
 		if i < len(snap.ThreadStates) {

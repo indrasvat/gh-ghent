@@ -163,3 +163,97 @@ func TestFingerprintEmptySnapshot(t *testing.T) {
 		t.Error("fingerprint should not be empty for empty snapshot")
 	}
 }
+
+func TestFingerprintChangesOnPRSignal(t *testing.T) {
+	base := &domain.ActivitySnapshot{
+		HeadSHA:        "abc123",
+		PRReviewSignal: domain.PRReviewSignalReviewing,
+	}
+	h1 := Fingerprint(base)
+
+	modified := &domain.ActivitySnapshot{
+		HeadSHA:        "abc123",
+		PRReviewSignal: domain.PRReviewSignalApproved,
+	}
+	h2 := Fingerprint(modified)
+
+	if h1 == h2 {
+		t.Error("PR review signal change should change fingerprint")
+	}
+}
+
+func TestClassifyPRReviewSignal(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want domain.PRReviewSignal
+	}{
+		{
+			name: "standalone eyes",
+			body: "Implementation notes\n\n👀",
+			want: domain.PRReviewSignalReviewing,
+		},
+		{
+			name: "codex reviewing line",
+			body: "- Codex review 👀",
+			want: domain.PRReviewSignalReviewing,
+		},
+		{
+			name: "standalone thumbs up",
+			body: "Ready\n\n👍",
+			want: domain.PRReviewSignalApproved,
+		},
+		{
+			name: "codex complete line",
+			body: "Codex review complete :thumbsup:",
+			want: domain.PRReviewSignalApproved,
+		},
+		{
+			name: "incidental thumbs up prose",
+			body: "This feature gives users a thumbs up affordance.",
+			want: domain.PRReviewSignalNone,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := classifyPRReviewSignal(tt.body); got != tt.want {
+				t.Fatalf("classifyPRReviewSignal() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCanFastSettleReview(t *testing.T) {
+	if !CanFastSettleReview(&domain.ActivitySnapshot{
+		HeadSHA:        "abc123",
+		PRReviewSignal: domain.PRReviewSignalApproved,
+	}) {
+		t.Fatal("approved PR signal with no unresolved threads should fast-settle")
+	}
+
+	if CanFastSettleReview(&domain.ActivitySnapshot{
+		HeadSHA:        "abc123",
+		PRReviewSignal: domain.PRReviewSignalApproved,
+		ThreadCount:    101,
+		ThreadIDs:      make([]string, 100),
+	}) {
+		t.Fatal("incomplete thread probe should block fast-settle")
+	}
+
+	if CanFastSettleReview(&domain.ActivitySnapshot{
+		HeadSHA:               "abc123",
+		PRReviewSignal:        domain.PRReviewSignalApproved,
+		UnresolvedThreadCount: 1,
+	}) {
+		t.Fatal("unresolved threads should block fast-settle")
+	}
+
+	if CanFastSettleReview(&domain.ActivitySnapshot{
+		HeadSHA:        "abc123",
+		PRReviewSignal: domain.PRReviewSignalApproved,
+		ReviewDecision: string(domain.ReviewChangesRequested),
+	}) {
+		t.Fatal("changes-requested review decision should block fast-settle")
+	}
+}

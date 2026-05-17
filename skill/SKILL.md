@@ -46,6 +46,9 @@ It waits for CI, performs bounded review monitoring, and returns everything in o
 
 **Drop `--solo`** for org repos with required review policies.
 **Always include `--await-review`** when review comments may still arrive.
+`--await-review` understands Codex-style PR body review signals: eyes means the reviewer is
+still active, thumbs up can end the wait early, and the final status fetch still checks all
+threads, reviews, stale blockers, and CI.
 **Do not switch to bare `--watch`** after the first cycle if review comments still matter — `--watch` is CI-only and can miss follow-up bot comments.
 **Drop `--logs`** only on narrow re-checks where CI failure detail is definitely not needed.
 

@@ -232,6 +232,27 @@ func watchReviewsWithProbe(
 		slog.Debug("existing review state detected at review-watch start",
 			"thread_count", snap.ThreadCount)
 	}
+	if CanFastSettleReview(snap) {
+		if activityCount == 0 {
+			activityCount = 1
+		}
+		now := clock()
+		status := &domain.WatchStatus{
+			Timestamp:        now,
+			OverallStatus:    domain.StatusPass,
+			ReviewPhase:      domain.ReviewPhaseSettled,
+			ReviewConfidence: domain.ReviewConfidenceMedium,
+			Final:            true,
+		}
+		monitor := domain.NewReviewMonitor(
+			domain.ReviewPhaseSettled,
+			activityCount,
+			int(now.Sub(startAt).Seconds()),
+			tailProbes,
+			tailRearmed,
+		)
+		return emitFinalReviewWatchStatus(w, f, status, monitor), nil
+	}
 
 	for {
 		// Cap poll interval to remaining timeout so we don't oversleep.
@@ -357,6 +378,11 @@ func watchReviewsWithProbe(
 			ReviewTailProbes: tailProbes,
 		}
 
+		if snap.PRReviewSignal == domain.PRReviewSignalReviewing {
+			_ = f.FormatWatchStatus(w, status)
+			continue
+		}
+
 		if tailIndex >= 0 && !sawActivity {
 			tailProbes++
 			status.ReviewConfidence = domain.ReviewConfidenceMedium
@@ -374,6 +400,20 @@ func watchReviewsWithProbe(
 			}
 			_ = f.FormatWatchStatus(w, status)
 			continue
+		}
+
+		if CanFastSettleReview(snap) {
+			if !sawActivity {
+				activityCount++
+			}
+			monitor := domain.NewReviewMonitor(
+				domain.ReviewPhaseSettled,
+				activityCount,
+				int(totalElapsed.Seconds()),
+				tailProbes,
+				tailRearmed,
+			)
+			return emitFinalReviewWatchStatus(w, f, status, monitor), nil
 		}
 
 		// Check debounce: settled when idle for the debounce window.

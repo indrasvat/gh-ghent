@@ -403,8 +403,8 @@ In TTY mode, launches the interactive watch TUI.
 
 After CI checks complete, continues polling for review activity (comments, reviews) to settle.
 Uses a lightweight GraphQL activity probe with fingerprint-based change detection — any new
-thread, edited thread (via `updatedAt`), resolved thread, new review, or review state change
-resets the debounce timer.
+thread, edited thread (via `updatedAt`), resolved thread, new review, review state change,
+or PR-level review signal resets the debounce timer.
 
 **Baseline comparison:** A fingerprint is taken *before* CI watch starts. When the review
 phase begins, the current snapshot is compared against this baseline. If different (e.g., a
@@ -415,6 +415,12 @@ wasted timeout waiting for activity that already happened.
 after at least one activity change has been detected — prevents premature settlement while a
 bot is still working.
 
+**PR review signals:** The activity probe also reads PR body status markers and PR reactions.
+Codex-style `eyes` markers keep review-await active. Codex-style `thumbs up` completion
+markers can settle the review wait early when there are no unresolved threads and GitHub does
+not report `CHANGES_REQUESTED`. The command still performs the normal final status fetch before
+reporting merge readiness.
+
 **Tail confirmation:** After the first quiet period, ghent performs bounded sparse confirmation
 probes before treating the review window as stable. If new activity appears during those probes,
 ghent re-arms active review polling automatically.
@@ -423,7 +429,7 @@ ghent re-arms active review polling automatically.
 the deadline by a small bounded grace window so it does not cut off a burst mid-stream.
 
 **Hard timeout:** Configurable via `--review-timeout` (default 5m). Safety valve when no
-activity is ever detected (e.g., no bot configured, or bot gave silent approval via emoji).
+activity or completion signal is ever detected.
 
 **Head SHA change:** If a new push is detected during review wait, restarts CI watch automatically
 (max 3 restarts).

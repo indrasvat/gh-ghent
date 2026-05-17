@@ -392,3 +392,85 @@ func TestWatchReviewsLateActivityGraceAllowsTailToFinish(t *testing.T) {
 		t.Fatalf("Confidence = %q, want high", result.Settlement.Confidence)
 	}
 }
+
+func TestWatchReviewsApprovedPRSignalSettlesImmediately(t *testing.T) {
+	base := time.Unix(1_700_000_000, 0)
+	clock := &fakeReviewClock{now: base, step: 100 * time.Millisecond}
+	cfg := ReviewWatchConfig{
+		DebounceWindow:            30 * time.Second,
+		HardTimeout:               5 * time.Minute,
+		PollInterval:              time.Nanosecond,
+		LateActivityGrace:         30 * time.Second,
+		MaxLateActivityExtensions: 1,
+		TailIntervals:             []time.Duration{30 * time.Second, 60 * time.Second},
+	}
+	snap := &domain.ActivitySnapshot{
+		HeadSHA:        "abc123",
+		PRReviewSignal: domain.PRReviewSignalApproved,
+	}
+	f, _ := formatter.New("json")
+
+	result, err := watchReviewsWithProbe(
+		context.Background(),
+		&bytes.Buffer{},
+		f,
+		"owner",
+		"repo",
+		1,
+		"abc123",
+		Fingerprint(&domain.ActivitySnapshot{HeadSHA: "abc123"}),
+		cfg,
+		clock.Now,
+		scriptedProbe([]*domain.ActivitySnapshot{snap}, nil),
+	)
+	if err != nil {
+		t.Fatalf("watchReviewsWithProbe: %v", err)
+	}
+	if result.Settlement.Phase != domain.ReviewPhaseSettled {
+		t.Fatalf("Phase = %q, want settled", result.Settlement.Phase)
+	}
+	if result.Settlement.WaitSeconds > 1 {
+		t.Fatalf("WaitSeconds = %d, want immediate settle", result.Settlement.WaitSeconds)
+	}
+	if result.Settlement.ActivityCount == 0 {
+		t.Fatal("ActivityCount = 0, want approved signal to count as activity")
+	}
+}
+
+func TestWatchReviewsReviewingPRSignalDoesNotDebounceSettle(t *testing.T) {
+	base := time.Unix(1_700_000_000, 0)
+	clock := &fakeReviewClock{now: base, step: 100 * time.Millisecond}
+	cfg := ReviewWatchConfig{
+		DebounceWindow:            150 * time.Millisecond,
+		HardTimeout:               350 * time.Millisecond,
+		PollInterval:              time.Nanosecond,
+		LateActivityGrace:         100 * time.Millisecond,
+		MaxLateActivityExtensions: 1,
+		TailIntervals:             []time.Duration{time.Nanosecond},
+	}
+	snap := &domain.ActivitySnapshot{
+		HeadSHA:        "abc123",
+		PRReviewSignal: domain.PRReviewSignalReviewing,
+	}
+	f, _ := formatter.New("json")
+
+	result, err := watchReviewsWithProbe(
+		context.Background(),
+		&bytes.Buffer{},
+		f,
+		"owner",
+		"repo",
+		1,
+		"abc123",
+		Fingerprint(&domain.ActivitySnapshot{HeadSHA: "abc123"}),
+		cfg,
+		clock.Now,
+		scriptedProbe([]*domain.ActivitySnapshot{snap, snap, snap, snap, snap}, nil),
+	)
+	if err != nil {
+		t.Fatalf("watchReviewsWithProbe: %v", err)
+	}
+	if result.Settlement.Phase != domain.ReviewPhaseTimeout {
+		t.Fatalf("Phase = %q, want timeout while reviewing signal remains active", result.Settlement.Phase)
+	}
+}
