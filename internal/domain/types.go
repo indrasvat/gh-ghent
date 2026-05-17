@@ -248,6 +248,14 @@ const (
 	ReviewConfidenceHigh   ReviewConfidence = "high"
 )
 
+type PRReviewSignal string
+
+const (
+	PRReviewSignalNone      PRReviewSignal = ""
+	PRReviewSignalReviewing PRReviewSignal = "reviewing"
+	PRReviewSignalApproved  PRReviewSignal = "approved"
+)
+
 // ReviewMonitor carries the result of the review-await phase.
 // Durations stored as integer seconds; formatters handle human-readable display.
 type ReviewMonitor struct {
@@ -305,15 +313,28 @@ func reviewConfidenceFor(
 // ActivitySnapshot captures lightweight review activity metadata for settlement fingerprinting.
 // A single GraphQL query populates this; changes in any field produce a different fingerprint hash.
 type ActivitySnapshot struct {
-	HeadSHA      string      `json:"head_sha"`
-	ThreadCount  int         `json:"thread_count"`
-	ReviewCount  int         `json:"review_count"`
-	ThreadIDs    []string    `json:"thread_ids"`
-	ThreadStates []bool      `json:"thread_states"` // isResolved per thread
-	ThreadEdits  []time.Time `json:"thread_edits"`  // updatedAt per thread
-	ReviewIDs    []string    `json:"review_ids"`
-	ReviewStates []string    `json:"review_states"` // state per review
-	ReviewTimes  []time.Time `json:"review_times"`  // submittedAt per review
+	HeadSHA               string         `json:"head_sha"`
+	PRUpdatedAt           time.Time      `json:"pr_updated_at,omitempty"`
+	PRLastEditedAt        time.Time      `json:"pr_last_edited_at,omitempty"`
+	PREditorLogin         string         `json:"pr_editor_login,omitempty"`
+	PREditorType          string         `json:"pr_editor_type,omitempty"`
+	PRReviewSignal        PRReviewSignal `json:"pr_review_signal,omitempty"`
+	ReviewDecision        string         `json:"review_decision,omitempty"`
+	ThreadCount           int            `json:"thread_count"`
+	UnresolvedThreadCount int            `json:"unresolved_thread_count,omitempty"`
+	ReviewCount           int            `json:"review_count"`
+	ThreadIDs             []string       `json:"thread_ids"`
+	ThreadStates          []bool         `json:"thread_states"` // isResolved per thread
+	ThreadEdits           []time.Time    `json:"thread_edits"`  // updatedAt per thread
+	ReviewIDs             []string       `json:"review_ids"`
+	ReviewStates          []string       `json:"review_states"` // state per review
+	ReviewTimes           []time.Time    `json:"review_times"`  // submittedAt per review
+	ReactionCounts        []ReactionStat `json:"reaction_counts,omitempty"`
+}
+
+type ReactionStat struct {
+	Content    string `json:"content"`
+	TotalCount int    `json:"total_count"`
 }
 
 // WatchEvent represents a single check status change during watch mode.

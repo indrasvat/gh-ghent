@@ -238,6 +238,16 @@ func (m watcherModel) handlePollResult(msg watchResultMsg) (watcherModel, tea.Cm
 					m.reviewArmed = true
 					m.addEvent(time.Now(), yellowStyle.Render("●"), "Existing review state detected", "")
 				}
+				if ghub.CanFastSettleReview(snap) {
+					if m.activityCount == 0 {
+						m.activityCount = 1
+					}
+					m.addEvent(time.Now(), greenStyle.Render("✓"), "PR review signal complete", "")
+					return m.finishReviewWait(domain.ReviewPhaseSettled, time.Now())
+				}
+				if snap.PRReviewSignal == domain.PRReviewSignalReviewing {
+					m.addEvent(time.Now(), yellowStyle.Render("◎"), "PR review signal active", "")
+				}
 			}
 
 			m.addEvent(time.Now(), yellowStyle.Render("◎"), "CI passed — awaiting reviews", "")
@@ -412,6 +422,16 @@ func (m watcherModel) handleReviewPollResult(msg reviewPollResultMsg) (watcherMo
 	idleDuration := now.Sub(m.lastActivityAt)
 	if !m.reviewDeadline.IsZero() && !now.Before(m.reviewDeadline) {
 		return m.finishReviewWait(domain.ReviewPhaseTimeout, now)
+	}
+	if ghub.CanFastSettleReview(msg.snapshot) {
+		if !sawActivity {
+			m.activityCount++
+		}
+		m.addEvent(now, greenStyle.Render("✓"), "PR review signal complete", "")
+		return m.finishReviewWait(domain.ReviewPhaseSettled, now)
+	}
+	if msg.snapshot.PRReviewSignal == domain.PRReviewSignalReviewing {
+		return m, m.scheduleNextReviewPoll()
 	}
 	if m.reviewTailIndex >= 0 && !sawActivity {
 		m.reviewTailProbes++
