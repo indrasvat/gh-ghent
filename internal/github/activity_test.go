@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/indrasvat/gh-ghent/internal/domain"
 )
 
@@ -258,24 +260,54 @@ func TestClassifyPRReviewSignal(t *testing.T) {
 }
 
 func TestClassifyPRReactionSignal(t *testing.T) {
-	if got := classifyPRReactionSignal(codexReactionConnection(), reactionConnection{}); got != domain.PRReviewSignalReviewing {
-		t.Fatalf("eyes reaction signal = %q, want %q", got, domain.PRReviewSignalReviewing)
+	tests := []struct {
+		name string
+		got  func() domain.PRReviewSignal
+		want domain.PRReviewSignal
+	}{
+		{
+			name: "eyes reaction signal",
+			got: func() domain.PRReviewSignal {
+				return classifyPRReactionSignal(codexReactionConnection(), reactionConnection{})
+			},
+			want: domain.PRReviewSignalReviewing,
+		},
+		{
+			name: "thumbs-up reaction signal",
+			got: func() domain.PRReviewSignal {
+				return classifyPRReactionSignal(reactionConnection{}, codexReactionConnection())
+			},
+			want: domain.PRReviewSignalApproved,
+		},
+		{
+			name: "eyes dominate thumbs-up reaction",
+			got: func() domain.PRReviewSignal {
+				return classifyPRReactionSignal(codexReactionConnection(), codexReactionConnection())
+			},
+			want: domain.PRReviewSignalReviewing,
+		},
+		{
+			name: "human eyes do not block codex thumbs-up",
+			got: func() domain.PRReviewSignal {
+				return classifyPRReactionSignal(humanReactionConnection(), codexReactionConnection())
+			},
+			want: domain.PRReviewSignalApproved,
+		},
+		{
+			name: "eyes dominate combined signals",
+			got: func() domain.PRReviewSignal {
+				return combinePRReviewSignals(domain.PRReviewSignalApproved, domain.PRReviewSignalReviewing)
+			},
+			want: domain.PRReviewSignalReviewing,
+		},
 	}
 
-	if got := classifyPRReactionSignal(reactionConnection{}, codexReactionConnection()); got != domain.PRReviewSignalApproved {
-		t.Fatalf("thumbs-up reaction signal = %q, want %q", got, domain.PRReviewSignalApproved)
-	}
-
-	if got := classifyPRReactionSignal(codexReactionConnection(), codexReactionConnection()); got != domain.PRReviewSignalReviewing {
-		t.Fatalf("eyes should dominate thumbs-up reaction, got %q", got)
-	}
-
-	if got := classifyPRReactionSignal(humanReactionConnection(), codexReactionConnection()); got != domain.PRReviewSignalApproved {
-		t.Fatalf("non-codex eyes reaction should not block codex thumbs-up, got %q", got)
-	}
-
-	if got := combinePRReviewSignals(domain.PRReviewSignalApproved, domain.PRReviewSignalReviewing); got != domain.PRReviewSignalReviewing {
-		t.Fatalf("eyes should dominate combined signals, got %q", got)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if diff := cmp.Diff(tt.want, tt.got()); diff != "" {
+				t.Fatalf("mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
