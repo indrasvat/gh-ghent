@@ -35,6 +35,22 @@ query($owner: String!, $repo: String!, $pr: Int!) {
           totalCount
         }
       }
+      eyesReactions: reactions(content: EYES, first: 100) {
+        nodes {
+          user {
+            __typename
+            login
+          }
+        }
+      }
+      thumbsUpReactions: reactions(content: THUMBS_UP, first: 100) {
+        nodes {
+          user {
+            __typename
+            login
+          }
+        }
+      }
       reviewThreads(first: 100) {
         totalCount
         nodes {
@@ -86,7 +102,9 @@ type activityResponse struct {
 					TotalCount int `json:"totalCount"`
 				} `json:"reactors"`
 			} `json:"reactionGroups"`
-			ReviewThreads struct {
+			EyesReactions     reactionConnection `json:"eyesReactions"`
+			ThumbsUpReactions reactionConnection `json:"thumbsUpReactions"`
+			ReviewThreads     struct {
 				TotalCount int `json:"totalCount"`
 				Nodes      []struct {
 					ID         string `json:"id"`
@@ -116,6 +134,15 @@ type activityResponse struct {
 			} `json:"latestReviews"`
 		} `json:"pullRequest"`
 	} `json:"repository"`
+}
+
+type reactionConnection struct {
+	Nodes []struct {
+		User *struct {
+			TypeName string `json:"__typename"`
+			Login    string `json:"login"`
+		} `json:"user"`
+	} `json:"nodes"`
 }
 
 // threadEntry groups thread metadata for sorted fingerprinting.
@@ -231,7 +258,10 @@ func (c *Client) ProbeActivity(ctx context.Context, owner, repo string, pr int) 
 		snap.PREditorLogin = pr_.Editor.Login
 		snap.PREditorType = pr_.Editor.TypeName
 	}
-	snap.PRReviewSignal = classifyPRReviewSignal(pr_.Body, snap.PREditorType, snap.PREditorLogin)
+	snap.PRReviewSignal = combinePRReviewSignals(
+		classifyPRReviewSignal(pr_.Body, snap.PREditorType, snap.PREditorLogin),
+		classifyPRReactionSignal(pr_.EyesReactions, pr_.ThumbsUpReactions),
+	)
 	if pr_.UpdatedAt != "" {
 		snap.PRUpdatedAt, _ = time.Parse(time.RFC3339, pr_.UpdatedAt)
 	}
@@ -283,6 +313,8 @@ func classifyPRReviewSignal(body, editorType, editorLogin string) domain.PRRevie
 	if !isCodexBotEditor(editorType, editorLogin) {
 		return domain.PRReviewSignalNone
 	}
+	foundReviewing := false
+	foundApproved := false
 	for _, line := range strings.Split(body, "\n") {
 		line = strings.TrimSpace(line)
 		line = strings.Trim(line, "-*#> \t")
@@ -291,13 +323,57 @@ func classifyPRReviewSignal(body, editorType, editorLogin string) domain.PRRevie
 		}
 		lower := strings.ToLower(line)
 		if hasThumbsUpToken(line, lower) && isCompactReviewMarkerLine(line, lower, stripThumbsUpTokens) {
-			return domain.PRReviewSignalApproved
+			foundApproved = true
 		}
 		if hasEyesToken(line, lower) && isCompactReviewMarkerLine(line, lower, stripEyesTokens) {
-			return domain.PRReviewSignalReviewing
+			foundReviewing = true
 		}
 	}
+	if foundReviewing {
+		return domain.PRReviewSignalReviewing
+	}
+	if foundApproved {
+		return domain.PRReviewSignalApproved
+	}
 	return domain.PRReviewSignalNone
+}
+
+func classifyPRReactionSignal(eyes, thumbsUp reactionConnection) domain.PRReviewSignal {
+	if hasCodexReaction(eyes) {
+		return domain.PRReviewSignalReviewing
+	}
+	if hasCodexReaction(thumbsUp) {
+		return domain.PRReviewSignalApproved
+	}
+	return domain.PRReviewSignalNone
+}
+
+func combinePRReviewSignals(signals ...domain.PRReviewSignal) domain.PRReviewSignal {
+	foundApproved := false
+	for _, signal := range signals {
+		switch signal {
+		case domain.PRReviewSignalReviewing:
+			return domain.PRReviewSignalReviewing
+		case domain.PRReviewSignalApproved:
+			foundApproved = true
+		}
+	}
+	if foundApproved {
+		return domain.PRReviewSignalApproved
+	}
+	return domain.PRReviewSignalNone
+}
+
+func hasCodexReaction(reactions reactionConnection) bool {
+	for _, reaction := range reactions.Nodes {
+		if reaction.User == nil {
+			continue
+		}
+		if isCodexBotEditor(reaction.User.TypeName, reaction.User.Login) {
+			return true
+		}
+	}
+	return false
 }
 
 func isCodexBotEditor(typeName, login string) bool {

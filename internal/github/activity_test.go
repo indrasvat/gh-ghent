@@ -219,6 +219,13 @@ func TestClassifyPRReviewSignal(t *testing.T) {
 			want:        domain.PRReviewSignalApproved,
 		},
 		{
+			name:        "codex editor eyes dominate earlier thumbs up",
+			body:        "Codex review complete 👍\nCodex review 👀",
+			editorType:  "Bot",
+			editorLogin: "chatgpt-codex-connector",
+			want:        domain.PRReviewSignalReviewing,
+		},
+		{
 			name:        "non codex editor standalone thumbs up",
 			body:        "👍",
 			editorType:  "Bot",
@@ -250,36 +257,106 @@ func TestClassifyPRReviewSignal(t *testing.T) {
 	}
 }
 
+func TestClassifyPRReactionSignal(t *testing.T) {
+	if got := classifyPRReactionSignal(codexReactionConnection(), reactionConnection{}); got != domain.PRReviewSignalReviewing {
+		t.Fatalf("eyes reaction signal = %q, want %q", got, domain.PRReviewSignalReviewing)
+	}
+
+	if got := classifyPRReactionSignal(reactionConnection{}, codexReactionConnection()); got != domain.PRReviewSignalApproved {
+		t.Fatalf("thumbs-up reaction signal = %q, want %q", got, domain.PRReviewSignalApproved)
+	}
+
+	if got := classifyPRReactionSignal(codexReactionConnection(), codexReactionConnection()); got != domain.PRReviewSignalReviewing {
+		t.Fatalf("eyes should dominate thumbs-up reaction, got %q", got)
+	}
+
+	if got := classifyPRReactionSignal(humanReactionConnection(), codexReactionConnection()); got != domain.PRReviewSignalApproved {
+		t.Fatalf("non-codex eyes reaction should not block codex thumbs-up, got %q", got)
+	}
+
+	if got := combinePRReviewSignals(domain.PRReviewSignalApproved, domain.PRReviewSignalReviewing); got != domain.PRReviewSignalReviewing {
+		t.Fatalf("eyes should dominate combined signals, got %q", got)
+	}
+}
+
 func TestCanFastSettleReview(t *testing.T) {
-	if !CanFastSettleReview(&domain.ActivitySnapshot{
-		HeadSHA:        "abc123",
-		PRReviewSignal: domain.PRReviewSignalApproved,
-	}) {
-		t.Fatal("approved PR signal with no unresolved threads should fast-settle")
+	tests := []struct {
+		name string
+		snap *domain.ActivitySnapshot
+		want bool
+	}{
+		{
+			name: "approved signal with no unresolved threads",
+			snap: &domain.ActivitySnapshot{
+				HeadSHA:        "abc123",
+				PRReviewSignal: domain.PRReviewSignalApproved,
+			},
+			want: true,
+		},
+		{
+			name: "incomplete thread probe",
+			snap: &domain.ActivitySnapshot{
+				HeadSHA:        "abc123",
+				PRReviewSignal: domain.PRReviewSignalApproved,
+				ThreadCount:    101,
+				ThreadIDs:      make([]string, 100),
+			},
+			want: false,
+		},
+		{
+			name: "unresolved threads",
+			snap: &domain.ActivitySnapshot{
+				HeadSHA:               "abc123",
+				PRReviewSignal:        domain.PRReviewSignalApproved,
+				UnresolvedThreadCount: 1,
+			},
+			want: false,
+		},
+		{
+			name: "changes requested decision",
+			snap: &domain.ActivitySnapshot{
+				HeadSHA:        "abc123",
+				PRReviewSignal: domain.PRReviewSignalApproved,
+				ReviewDecision: string(domain.ReviewChangesRequested),
+			},
+			want: false,
+		},
 	}
 
-	if CanFastSettleReview(&domain.ActivitySnapshot{
-		HeadSHA:        "abc123",
-		PRReviewSignal: domain.PRReviewSignalApproved,
-		ThreadCount:    101,
-		ThreadIDs:      make([]string, 100),
-	}) {
-		t.Fatal("incomplete thread probe should block fast-settle")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CanFastSettleReview(tt.snap); got != tt.want {
+				t.Fatalf("CanFastSettleReview() = %v, want %v", got, tt.want)
+			}
+		})
 	}
+}
 
-	if CanFastSettleReview(&domain.ActivitySnapshot{
-		HeadSHA:               "abc123",
-		PRReviewSignal:        domain.PRReviewSignalApproved,
-		UnresolvedThreadCount: 1,
-	}) {
-		t.Fatal("unresolved threads should block fast-settle")
-	}
+func codexReactionConnection() reactionConnection {
+	return reactionConnectionWithUser("Bot", "chatgpt-codex-connector")
+}
 
-	if CanFastSettleReview(&domain.ActivitySnapshot{
-		HeadSHA:        "abc123",
-		PRReviewSignal: domain.PRReviewSignalApproved,
-		ReviewDecision: string(domain.ReviewChangesRequested),
-	}) {
-		t.Fatal("changes-requested review decision should block fast-settle")
+func humanReactionConnection() reactionConnection {
+	return reactionConnectionWithUser("User", "alice")
+}
+
+func reactionConnectionWithUser(typeName, login string) reactionConnection {
+	return reactionConnection{
+		Nodes: []struct {
+			User *struct {
+				TypeName string `json:"__typename"`
+				Login    string `json:"login"`
+			} `json:"user"`
+		}{
+			{
+				User: &struct {
+					TypeName string `json:"__typename"`
+					Login    string `json:"login"`
+				}{
+					TypeName: typeName,
+					Login:    login,
+				},
+			},
+		},
 	}
 }

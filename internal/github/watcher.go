@@ -238,11 +238,9 @@ func watchReviewsWithProbe(
 		}
 		now := clock()
 		status := &domain.WatchStatus{
-			Timestamp:        now,
-			OverallStatus:    domain.StatusPass,
-			ReviewPhase:      domain.ReviewPhaseSettled,
-			ReviewConfidence: domain.ReviewConfidenceMedium,
-			Final:            true,
+			Timestamp:     now,
+			OverallStatus: domain.StatusPass,
+			Final:         true,
 		}
 		monitor := domain.NewReviewMonitor(
 			domain.ReviewPhaseSettled,
