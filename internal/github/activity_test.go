@@ -184,40 +184,66 @@ func TestFingerprintChangesOnPRSignal(t *testing.T) {
 
 func TestClassifyPRReviewSignal(t *testing.T) {
 	tests := []struct {
-		name string
-		body string
-		want domain.PRReviewSignal
+		name        string
+		body        string
+		editorType  string
+		editorLogin string
+		want        domain.PRReviewSignal
 	}{
 		{
-			name: "standalone eyes",
-			body: "Implementation notes\n\n👀",
-			want: domain.PRReviewSignalReviewing,
+			name:        "codex editor standalone eyes",
+			body:        "Implementation notes\n\n👀",
+			editorType:  "Bot",
+			editorLogin: "chatgpt-codex-connector",
+			want:        domain.PRReviewSignalReviewing,
 		},
 		{
-			name: "codex reviewing line",
-			body: "- Codex review 👀",
-			want: domain.PRReviewSignalReviewing,
+			name:        "codex editor reviewing line",
+			body:        "- Codex review 👀",
+			editorType:  "Bot",
+			editorLogin: "chatgpt-codex-connector",
+			want:        domain.PRReviewSignalReviewing,
 		},
 		{
-			name: "standalone thumbs up",
-			body: "Ready\n\n👍",
-			want: domain.PRReviewSignalApproved,
+			name:        "codex editor standalone thumbs up",
+			body:        "Ready\n\n👍",
+			editorType:  "Bot",
+			editorLogin: "chatgpt-codex-connector",
+			want:        domain.PRReviewSignalApproved,
 		},
 		{
-			name: "codex complete line",
-			body: "Codex review complete :thumbsup:",
-			want: domain.PRReviewSignalApproved,
+			name:        "codex editor complete line",
+			body:        "Codex review complete :thumbsup:",
+			editorType:  "Bot",
+			editorLogin: "chatgpt-codex-connector",
+			want:        domain.PRReviewSignalApproved,
 		},
 		{
-			name: "incidental thumbs up prose",
-			body: "This feature gives users a thumbs up affordance.",
-			want: domain.PRReviewSignalNone,
+			name:        "non codex editor standalone thumbs up",
+			body:        "👍",
+			editorType:  "Bot",
+			editorLogin: "coderabbitai",
+			want:        domain.PRReviewSignalNone,
+		},
+		{
+			name:        "codex editor incidental thumbs up prose",
+			body:        "This feature gives users a thumbs up affordance.",
+			editorType:  "Bot",
+			editorLogin: "chatgpt-codex-connector",
+			want:        domain.PRReviewSignalNone,
+		},
+		{
+			name:        "repo without codex has no signal",
+			body:        "👀",
+			editorType:  "User",
+			editorLogin: "alice",
+			want:        domain.PRReviewSignalNone,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := classifyPRReviewSignal(tt.body); got != tt.want {
+			if got := classifyPRReviewSignal(tt.body, tt.editorType, tt.editorLogin); got != tt.want {
 				t.Fatalf("classifyPRReviewSignal() = %q, want %q", got, tt.want)
 			}
 		})

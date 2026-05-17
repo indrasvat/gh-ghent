@@ -415,11 +415,12 @@ wasted timeout waiting for activity that already happened.
 after at least one activity change has been detected — prevents premature settlement while a
 bot is still working.
 
-**PR review signals:** The activity probe also reads PR body status markers and PR reactions.
-Codex-style `eyes` markers keep review-await active. Codex-style `thumbs up` completion
-markers can settle the review wait early when there are no unresolved threads and GitHub does
-not report `CHANGES_REQUESTED`. The command still performs the normal final status fetch before
-reporting merge readiness.
+**PR review signals:** The activity probe also reads PR body status markers, the PR body editor,
+and PR reactions. Only Codex-owned markers are actionable: Codex `eyes` markers keep
+review-await active, and Codex `thumbs up` completion markers can settle the review wait early
+when there are no unresolved threads and GitHub does not report `CHANGES_REQUESTED`. Repos
+without Codex keep the conservative thread/review polling behavior. The command still performs
+the normal final status fetch before reporting merge readiness.
 
 **Tail confirmation:** After the first quiet period, ghent performs bounded sparse confirmation
 probes before treating the review window as stable. If new activity appears during those probes,

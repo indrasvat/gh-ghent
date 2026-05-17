@@ -316,6 +316,8 @@ type ActivitySnapshot struct {
 	HeadSHA               string         `json:"head_sha"`
 	PRUpdatedAt           time.Time      `json:"pr_updated_at,omitempty"`
 	PRLastEditedAt        time.Time      `json:"pr_last_edited_at,omitempty"`
+	PREditorLogin         string         `json:"pr_editor_login,omitempty"`
+	PREditorType          string         `json:"pr_editor_type,omitempty"`
 	PRReviewSignal        PRReviewSignal `json:"pr_review_signal,omitempty"`
 	ReviewDecision        string         `json:"review_decision,omitempty"`
 	ThreadCount           int            `json:"thread_count"`

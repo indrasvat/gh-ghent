@@ -170,9 +170,11 @@ With `--solo`, the approval requirement is skipped (but `CHANGES_REQUESTED` stil
 Stale `CHANGES_REQUESTED` reviews still block until explicitly dismissed. `status` surfaces them in
 `stale_reviews` and suggests a safe `gh ghent dismiss` command.
 
-`--await-review` watches PR-level review signals as well as threads and reviews. A Codex-style
-`eyes` marker keeps the review wait open; a Codex-style `thumbs up` completion marker can end
-the wait early, after which `status` still performs the normal full threads/checks/reviews fetch.
+`--await-review` watches Codex-owned PR-level review signals as well as threads and reviews.
+On repos with Codex enabled, an `eyes` marker keeps the review wait open; a Codex-owned
+`thumbs up` completion marker can end the wait early, after which `status` still performs
+the normal full threads/checks/reviews fetch. Repos without Codex keep the conservative
+thread/review polling behavior.
 
 Exit codes: `0` = merge-ready, `1` = not merge-ready.
 

@@ -24,6 +24,10 @@ query($owner: String!, $repo: String!, $pr: Int!) {
       body
       updatedAt
       lastEditedAt
+      editor {
+        __typename
+        login
+      }
       reviewDecision
       reactionGroups {
         content
@@ -67,11 +71,15 @@ query($owner: String!, $repo: String!, $pr: Int!) {
 type activityResponse struct {
 	Repository struct {
 		PullRequest *struct {
-			HeadRefOid     string  `json:"headRefOid"`
-			Body           string  `json:"body"`
-			UpdatedAt      string  `json:"updatedAt"`
-			LastEditedAt   *string `json:"lastEditedAt"`
-			ReviewDecision string  `json:"reviewDecision"`
+			HeadRefOid   string  `json:"headRefOid"`
+			Body         string  `json:"body"`
+			UpdatedAt    string  `json:"updatedAt"`
+			LastEditedAt *string `json:"lastEditedAt"`
+			Editor       *struct {
+				TypeName string `json:"__typename"`
+				Login    string `json:"login"`
+			} `json:"editor"`
+			ReviewDecision string `json:"reviewDecision"`
 			ReactionGroups []struct {
 				Content  string `json:"content"`
 				Reactors struct {
@@ -217,9 +225,13 @@ func (c *Client) ProbeActivity(ctx context.Context, owner, repo string, pr int) 
 		ThreadCount:           pr_.ReviewThreads.TotalCount,
 		UnresolvedThreadCount: unresolvedThreadCount,
 		ReviewCount:           pr_.Reviews.TotalCount,
-		PRReviewSignal:        classifyPRReviewSignal(pr_.Body),
 		ReviewDecision:        pr_.ReviewDecision,
 	}
+	if pr_.Editor != nil {
+		snap.PREditorLogin = pr_.Editor.Login
+		snap.PREditorType = pr_.Editor.TypeName
+	}
+	snap.PRReviewSignal = classifyPRReviewSignal(pr_.Body, snap.PREditorType, snap.PREditorLogin)
 	if pr_.UpdatedAt != "" {
 		snap.PRUpdatedAt, _ = time.Parse(time.RFC3339, pr_.UpdatedAt)
 	}
@@ -267,7 +279,10 @@ func CanFastSettleReview(snap *domain.ActivitySnapshot) bool {
 	return true
 }
 
-func classifyPRReviewSignal(body string) domain.PRReviewSignal {
+func classifyPRReviewSignal(body, editorType, editorLogin string) domain.PRReviewSignal {
+	if !isCodexBotEditor(editorType, editorLogin) {
+		return domain.PRReviewSignalNone
+	}
 	for _, line := range strings.Split(body, "\n") {
 		line = strings.TrimSpace(line)
 		line = strings.Trim(line, "-*#> \t")
@@ -275,24 +290,22 @@ func classifyPRReviewSignal(body string) domain.PRReviewSignal {
 			continue
 		}
 		lower := strings.ToLower(line)
-		hasReviewContext := strings.Contains(lower, "codex") ||
-			strings.Contains(lower, "review") ||
-			strings.Contains(lower, "reviewed") ||
-			strings.Contains(lower, "complete") ||
-			strings.Contains(lower, "done")
-
-		if hasThumbsUpToken(line, lower) {
-			if isStandaloneThumbsUp(line, lower) || hasReviewContext {
-				return domain.PRReviewSignalApproved
-			}
+		if hasThumbsUpToken(line, lower) && isCompactReviewMarkerLine(line, lower, stripThumbsUpTokens) {
+			return domain.PRReviewSignalApproved
 		}
-		if hasEyesToken(line, lower) {
-			if isStandaloneEyes(line, lower) || hasReviewContext {
-				return domain.PRReviewSignalReviewing
-			}
+		if hasEyesToken(line, lower) && isCompactReviewMarkerLine(line, lower, stripEyesTokens) {
+			return domain.PRReviewSignalReviewing
 		}
 	}
 	return domain.PRReviewSignalNone
+}
+
+func isCodexBotEditor(typeName, login string) bool {
+	normalizedLogin := strings.TrimSuffix(strings.ToLower(login), "[bot]")
+	if normalizedLogin == "chatgpt-codex-connector" {
+		return true
+	}
+	return typeName == "Bot" && strings.Contains(normalizedLogin, "codex")
 }
 
 func hasEyesToken(line, lower string) bool {
@@ -307,16 +320,33 @@ func hasThumbsUpToken(line, lower string) bool {
 		strings.Contains(lower, "thumbs up")
 }
 
-func isStandaloneEyes(line, lower string) bool {
-	return line == "👀" || lower == ":eyes:"
+func isCompactReviewMarkerLine(line, lower string, stripToken func(string) string) bool {
+	if len([]rune(line)) > 64 {
+		return false
+	}
+	remaining := stripToken(lower)
+	for _, token := range []string{
+		"codex", "openai", "review", "reviewer", "status", "bot",
+		"complete", "completed", "done", "approved", "running",
+		"started", "starting", "in progress", "reviewing",
+	} {
+		remaining = strings.ReplaceAll(remaining, token, "")
+	}
+	remaining = strings.Trim(remaining, " \t:-_[](){}|/\\.,;")
+	return remaining == ""
 }
 
-func isStandaloneThumbsUp(line, lower string) bool {
-	return line == "👍" ||
-		lower == ":+1:" ||
-		lower == ":thumbsup:" ||
-		lower == ":thumbs_up:" ||
-		lower == "thumbs up"
+func stripEyesTokens(lower string) string {
+	lower = strings.ReplaceAll(lower, "👀", "")
+	lower = strings.ReplaceAll(lower, ":eyes:", "")
+	return lower
+}
+
+func stripThumbsUpTokens(lower string) string {
+	for _, token := range []string{"👍", ":+1:", ":thumbsup:", ":thumbs_up:", "thumbs up"} {
+		lower = strings.ReplaceAll(lower, token, "")
+	}
+	return lower
 }
 
 // Fingerprint computes a SHA-256 hash of the activity snapshot for change detection.
@@ -325,9 +355,10 @@ func isStandaloneThumbsUp(line, lower string) bool {
 func Fingerprint(snap *domain.ActivitySnapshot) string {
 	h := sha256.New()
 	fmt.Fprintf(h, "head:%s\n", snap.HeadSHA)
-	fmt.Fprintf(h, "pr:%d:%d:%s:%s\n",
+	fmt.Fprintf(h, "pr:%d:%d:%s:%s:%s\n",
 		snap.PRUpdatedAt.UnixNano(),
 		snap.PRLastEditedAt.UnixNano(),
+		snap.PREditorType+"/"+snap.PREditorLogin,
 		snap.PRReviewSignal,
 		snap.ReviewDecision)
 	fmt.Fprintf(h, "tc:%d utc:%d rc:%d\n", snap.ThreadCount, snap.UnresolvedThreadCount, snap.ReviewCount)
