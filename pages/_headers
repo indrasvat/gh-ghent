@@ -1,0 +1,17 @@
+# Cloudflare Pages headers for gh-ghent.pages.dev.
+# CSP: self everywhere, plus Google Fonts for webfonts. Inline style
+# and script are used by the single-file site, so 'unsafe-inline' is
+# allowed for those two directives only.
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'
+
+# Asset URLs are not fingerprinted, so no immutable/year-long cache:
+# a changed screenshot or og-card must reach returning visitors.
+# One hour is plenty behind Cloudflare's edge cache.
+/assets/*
+  Cache-Control: public, max-age=3600

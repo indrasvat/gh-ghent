@@ -1,0 +1,65 @@
+<!doctype html>
+<!-- Source for og-card.png. Render at exactly 1200x630, screenshot,
+     commit the PNG next to this file. Not linked from the site. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1200px;height:630px;overflow:hidden}
+  :root{--bg:#16161e;--fg:#c0caf5;--soft:#a9b1d6;--dim:#565f89;--line:#2c3047;--line2:#3b4261;
+        --blue:#7aa2f7;--purple:#bb9af7;--green:#9ece6a;}
+  body{background:var(--bg);color:var(--fg);font-family:"JetBrains Mono",monospace;position:relative}
+  .glow{position:absolute;inset:0;background:
+    radial-gradient(720px 380px at 84% -8%, rgba(122,162,247,.12), transparent 62%),
+    radial-gradient(560px 380px at -4% 4%, rgba(187,154,247,.08), transparent 60%)}
+  .card{position:relative;height:100%;padding:64px 72px;display:flex;flex-direction:column}
+  .brand{display:flex;align-items:center;gap:14px;font-weight:600;font-size:30px}
+  .mk{width:40px;height:40px;border-radius:9px;background:linear-gradient(135deg,var(--blue),var(--purple));
+      display:grid;place-items:center;color:#16161e;font-weight:700;font-size:24px}
+  .p2{color:var(--purple)}
+  h1{margin-top:54px;font-size:104px;font-weight:700;letter-spacing:-.05em;line-height:.98}
+  .gr{background:linear-gradient(100deg,var(--blue),var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{margin-top:26px;font-size:30px;color:var(--soft);font-weight:500}
+  .track{margin-top:auto;position:relative}
+  .marks{display:flex;justify-content:space-between;font-size:22px;color:var(--dim);margin-bottom:14px;padding:0 4px}
+  .marks .done{color:var(--soft)}
+  .marks .ic{color:var(--green)}
+  .rail{position:relative;height:3px;background:var(--line2)}
+  .fill{position:absolute;left:0;top:0;height:100%;width:100%;background:linear-gradient(90deg,var(--blue),var(--green))}
+  .runner{position:absolute;right:62px;top:50%;width:16px;height:16px;border-radius:50%;background:var(--green);
+    transform:translate(50%,-50%);box-shadow:0 0 0 6px rgba(158,206,106,.2)}
+  .tape{position:absolute;right:54px;top:-12px;bottom:-12px;width:9px;
+    background:repeating-linear-gradient(0deg,#c0caf5 0 5px,#16161e 5px 10px)}
+  .foot{display:flex;align-items:center;justify-content:space-between;margin-top:36px}
+  .cmd{font-size:24px;color:var(--soft);background:#1a1b26;border:1px solid var(--line2);border-radius:6px;padding:14px 20px;white-space:nowrap}
+  .cmd .d{color:var(--dim)}
+  .verdict{font-size:24px;font-weight:700;color:var(--green);white-space:nowrap}
+  .verdict .ex{color:var(--dim);font-weight:500;margin-left:14px}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="card">
+  <div class="brand"><span class="mk">g</span><span>gh-<span class="p2">ghent</span></span></div>
+  <h1>cross the<br><span class="gr">finish line.</span></h1>
+  <div class="sub">merge-ready verdicts for AI coding agents.</div>
+  <div class="track">
+    <div class="marks">
+      <span class="done"><span class="ic">✓</span> lint</span>
+      <span class="done"><span class="ic">✓</span> test</span>
+      <span class="done"><span class="ic">✓</span> build</span>
+      <span class="done"><span class="ic">✓</span> threads</span>
+      <span class="done"><span class="ic">✓</span> review</span>
+      <span class="done">⚑ merge</span>
+    </div>
+    <div class="rail"><span class="fill"></span><span class="tape"></span><span class="runner"></span></div>
+  </div>
+  <div class="foot">
+    <div class="cmd"><span class="d">$</span> gh extension install indrasvat/gh-ghent</div>
+    <div class="verdict">is_merge_ready: true<span class="ex">exit 0</span></div>
+  </div>
+</div>
+</body>
+</html>

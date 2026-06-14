@@ -1,0 +1,82 @@
+name: Deploy Pages Preview
+
+# Preview deploy path for PRs that touch the website. The Pages
+# project is direct-upload (no git integration), so Cloudflare never
+# sees branch pushes; this workflow uploads a preview deployment and
+# comments the alias URL on the PR. Production stays exclusively with
+# deploy-pages.yml (--branch=production sentinel).
+#
+# Secrets are only exposed to same-repo PRs (fork PRs skip the job).
+# github.head_ref is passed through env, never interpolated into
+# shell, mirroring the injection posture in deploy-pages.yml.
+
+on:
+  pull_request:
+    paths:
+      - 'pages/**'
+      - 'install.sh'
+      - '.github/workflows/deploy-pages-preview.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage pages content
+        run: |
+          mkdir -p deploy
+          cp -r pages/. deploy/
+
+      - name: Stage install script + version marker
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          latest="$(gh release list --repo "$REPO" --limit 1 \
+                     --json tagName --jq '.[0].tagName // ""')"
+          if [[ -n "$latest" ]]; then
+            published_at="$(gh release view "$latest" --repo "$REPO" \
+                            --json publishedAt --jq '.publishedAt')"
+            {
+              printf '{\n'
+              printf '  "version": "%s",\n' "$latest"
+              printf '  "published_at": "%s",\n' "$published_at"
+              printf '  "release_url": "https://github.com/%s/releases/tag/%s"\n' "$REPO" "$latest"
+              printf '}\n'
+            } > deploy/version.json
+            echo "Stamped deploy/version.json for $latest."
+          fi
+
+          cp install.sh deploy/install.sh
+          chmod +x deploy/install.sh
+
+      - name: Deploy preview to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # head_ref is attacker-influenced in general; quoted env
+          # expansion keeps it data, never shell syntax.
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          npx wrangler@4 pages deploy deploy \
+            --project-name=gh-ghent --branch="$BRANCH" | tee wrangler.log
+
+      - name: Comment preview URL
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          url="$(grep -Eo 'https://[a-z0-9-]+\.gh-ghent\.pages\.dev' wrangler.log | tail -1)"
+          [[ -n "$url" ]] || { echo "no deployment URL found"; exit 1; }
+          gh pr comment "$PR" --repo "$REPO" --edit-last --create-if-none \
+            --body "Pages preview deployed: $url"

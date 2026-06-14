@@ -1,0 +1,75 @@
+name: Deploy Pages
+
+# Production deploy path for gh-ghent.pages.dev. Triggers on Release
+# workflow completion, on pages/** pushes to main, and via manual
+# dispatch. The Pages project is direct-upload (no git integration);
+# this workflow's `wrangler pages deploy --branch=production` is the
+# sole production path.
+#
+# Only `github.repository` (non-attacker-controlled) is read from the
+# github context. No event payloads are interpolated into shell.
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - 'pages/**'
+      - '.github/workflows/deploy-pages.yml'
+      - 'install.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: >-
+      ${{ github.event_name != 'workflow_run'
+          || (github.event.workflow_run.conclusion == 'success'
+              && (github.event.workflow_run.head_branch == 'main'
+                  || startsWith(github.event.workflow_run.head_branch, 'v'))) }}
+    env:
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage pages content
+        run: |
+          mkdir -p deploy
+          cp -r pages/. deploy/
+
+      - name: Stage install script + version marker
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          latest="$(gh release list --repo "$REPO" --limit 1 \
+                     --json tagName --jq '.[0].tagName // ""')"
+          if [[ -n "$latest" ]]; then
+            published_at="$(gh release view "$latest" --repo "$REPO" \
+                            --json publishedAt --jq '.publishedAt')"
+            {
+              printf '{\n'
+              printf '  "version": "%s",\n' "$latest"
+              printf '  "published_at": "%s",\n' "$published_at"
+              printf '  "release_url": "https://github.com/%s/releases/tag/%s"\n' "$REPO" "$latest"
+              printf '}\n'
+            } > deploy/version.json
+            echo "Stamped deploy/version.json for $latest."
+          fi
+
+          # Ship the canonical repo-root install.sh: single source of
+          # truth, same file the README points at.
+          cp install.sh deploy/install.sh
+          chmod +x deploy/install.sh
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy deploy --project-name=gh-ghent --branch=production
