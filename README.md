@@ -5,6 +5,8 @@
   <br>
   <em>Interactive TUI for humans, structured output for AI agents</em>
   <br><br>
+  <a href="https://gh-ghent.pages.dev"><strong>gh-ghent.pages.dev</strong></a>
+  <br><br>
   <a href="#install">Install</a> · <a href="#quick-start">Quick Start</a> · <a href="#how-it-works">How It Works</a> · <a href="#commands">Commands</a> · <a href="#global-flags">Global Flags</a> · <a href="#agent-integration">Agent Integration</a> · <a href="#for-ai-agents-agent-skill">Agent Skill</a> · <a href="#development">Development</a>
 </p>
 

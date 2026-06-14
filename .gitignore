@@ -57,3 +57,7 @@ Thumbs.db
 .agent/
 
 .DS_Store
+
+# Cloudflare Pages staging output
+deploy/
+.wrangler/

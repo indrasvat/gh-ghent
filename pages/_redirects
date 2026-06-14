@@ -1,0 +1,14 @@
+# Cloudflare Pages redirects for gh-ghent.pages.dev.
+# Operator-friendly short URLs. /install.sh itself is staged by the
+# deploy workflow from the repo-root installer.
+
+/install              /install.sh                                                  200
+
+/docs                 https://github.com/indrasvat/gh-ghent/tree/main/docs          302
+/skill                https://github.com/indrasvat/gh-ghent/tree/main/skill         302
+/agent                https://github.com/indrasvat/gh-ghent/tree/main/skill         302
+/source               https://github.com/indrasvat/gh-ghent                         302
+/repo                 https://github.com/indrasvat/gh-ghent                         302
+/issues               https://github.com/indrasvat/gh-ghent/issues                  302
+/changelog            https://github.com/indrasvat/gh-ghent/releases                302
+/releases             https://github.com/indrasvat/gh-ghent/releases                302
