@@ -17,7 +17,8 @@ description: >
 
 Get PR number: `gh pr view --json number -q .number`
 
-Working in another repo? Add `-R owner/repo` to every command (see
+Working in another repo? Add `-R owner/repo` to every command — and give
+`gh pr view` the branch too (see
 [Targeting another repository](#targeting-another-repository)).
 
 ## First Command After PR Creation Or Review-Fix Push
@@ -25,7 +26,7 @@ Working in another repo? Add `-R owner/repo` to every command (see
 ```bash
 PR=$(gh pr view --json number -q .number)
 gh ghent status --pr $PR --await-review --solo --logs --format json --no-tui
-# In another repo: add -R owner/repo to both lines (see "Targeting another repository")
+# In another repo: -R owner/repo on the ghent line; gh pr view also needs the branch (see "Targeting another repository")
 ```
 
 This is the **single blessed command** for PR review handling.
@@ -69,15 +70,21 @@ gh ghent status -R oven-sh/bun --pr <N> --await-review --logs --format json --no
 Get the PR number for that repo with `gh pr view` pointed at it:
 
 ```bash
-PR=$(gh pr view -R oven-sh/bun --json number -q .number)
+PR=$(gh pr view -R oven-sh/bun "$(git branch --show-current)" --json number -q .number)
 ```
 
-That form works in a checkout of the repo, on the PR branch. From anywhere
-else (no checkout of that repo), discover the number instead:
+That form works in a checkout of the repo, on the PR branch. `-R` with no
+PR argument fails (`argument required when using the --repo flag`), so
+always pass the branch (or a number). From anywhere else (no checkout of
+that repo), discover the number instead:
 
 ```bash
-PR=$(gh pr list -R oven-sh/bun --head <branch> --json number -q '.[0].number')
+PR=$(gh pr list -R oven-sh/bun --head <branch> --json number,headRepositoryOwner -q 'if length == 1 then .[0].number else error("expected exactly one PR for head branch <branch>, found \(length)") end')
 ```
+
+Different forks can share a branch name, so never take the first match —
+this fails loudly unless exactly one PR matches. Check
+`headRepositoryOwner.login` to pick the right fork when it does.
 
 Or just use a PR number you already know — `-R` is the only part that
 matters.

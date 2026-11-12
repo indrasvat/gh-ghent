@@ -122,9 +122,13 @@ never committed (see issue #21 evidence rule).
   NOT verified in this cloud: targeting is proven via `--debug` only (401s
   on the dummy token). Needs gh auth (one-time creds offered by the user).
 - [ ] The skill's PR-number step returns the right PR number for a foreign
-  repo (`gh pr view -R owner/repo ...`).
-  NOT verified in this cloud: `gh pr view -R` needs gh auth. Needs one-time
-  creds.
+  repo (`gh pr view -R owner/repo <branch>` — the bare form with no selector
+  fails client-side: `argument required when using the --repo flag`).
+  NOT fully verified in this cloud: the fixed forms pass client-side
+  validation (dummy token reaches the API call, then 401s); a real
+  authenticated run is still blocked by the Bearer/`token` scheme gap.
+  The right numbers were confirmed via direct authenticated API calls
+  (`oven-sh/bun#48758`, `cli/cli#15003`).
 - [x] README Quick Start shows a `-R` foreign-repo example.
 - [x] `GH_REPO` fallback is documented (flag > env > remote), with a note
   that `GH_GHENT_REPO` is unrelated.
