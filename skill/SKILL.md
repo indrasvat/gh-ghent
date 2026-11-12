@@ -79,12 +79,14 @@ always pass the branch (or a number). From anywhere else (no checkout of
 that repo), discover the number instead:
 
 ```bash
-PR=$(gh pr list -R oven-sh/bun --head <branch> --json number,headRepositoryOwner -q 'if length == 1 then .[0].number else error("expected exactly one PR for head branch <branch>, found \(length)") end')
+PR=$(gh pr list -R oven-sh/bun --head <branch> --json number,headRepositoryOwner -q '[.[] | select(.headRepositoryOwner.login == "<fork-owner>")] | if length == 1 then .[0].number else error("expected exactly one PR for head branch <branch> from <fork-owner>, found \(length)") end')
 ```
 
-Different forks can share a branch name, so never take the first match —
-this fails loudly unless exactly one PR matches. Check
-`headRepositoryOwner.login` to pick the right fork when it does.
+Different forks can share a branch name, so filter by the owner of the
+fork that opened the PR first (`<fork-owner>` — the repo owner, e.g.
+`oven-sh`, for a PR from the repo itself), then require exactly one match.
+A single match from the wrong fork is still the wrong PR, so the owner
+check comes before the count check — never take the first match unfiltered.
 
 Or just use a PR number you already know — `-R` is the only part that
 matters.
