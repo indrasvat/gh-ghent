@@ -28,6 +28,7 @@
 - **2026-03-26 (bot-sweep):** Compute merge-readiness BEFORE applying display filters (--bots-only) — filtering mutates thread counts, which would make the PR appear merge-ready when unresolved human threads are hidden.
 - **2026-03-26 (bot-sweep):** Codex bot review comments use `**<sub><sub>![P1 Badge]...` markup with "Useful? React with 👍 / 👎" footer. CodeRabbit uses `_⚠️ Potential issue_ | _🔴 Critical_` severity markers with `<!-- fingerprinting:... -->` HTML comments.
 - **2026-03-29 (task 035):** Review stabilization cannot rely only on fingerprint deltas after CI. If a PR already has review threads when review-wait begins, treat existing thread presence as observed activity or the smart waiter will incorrectly fall through to low-confidence timeout on otherwise stable PRs.
+- **2026-11-12 (task 038):** go-gh `repository.Current()` resolves `GH_REPO` first, then git remotes filtered by *known hosts* — in an environment without gh auth, `KnownHosts()` is empty, so even a checkout with a github remote fails resolution. Tests that depend on remote detection must skip when `Current()` errors; `GH_REPO` is the hermetic fallback for tests.
 - **2026-03-29 (task 035):** Historical review state and fresh review activity are different signals. Existing threads at watch start can justify a bounded quiet-check, but they must not increment `activity_count` or upgrade the result to `confidence=high`; only fingerprint changes during the watch window should do that.
 - **2026-03-30 (task 036):** GitHub's documented `dismiss_stale_reviews_on_push` rule only auto-dismisses **approvals** on new reviewable pushes. It does not clear stale `CHANGES_REQUESTED` reviews, so ghent must treat stale blockers as an explicit dismissal workflow, not a passive branch-protection side effect.
 - **2026-03-30 (task 036):** The stale-review feature should target **blocking review states**, not "bots" as the primary abstraction. GitHub's own Copilot review docs say Copilot always leaves `COMMENT` reviews, so bot-ness alone does not imply merge blocking.
@@ -42,6 +43,8 @@
 - **2026-02-24 (task 031):** Set `cmd.Version` to the raw version string (e.g., `version.Version`), not `version.String()` — custom version templates compose their own layout from `.Version` + helper funcs, so a pre-formatted string causes duplication.
 - **2026-02-23 (task 009):** `gh` extension wrapper may duplicate output to stderr on non-zero exit codes — this is a gh CLI artifact, not a binary bug. Always test with `./bin/gh-ghent` directly to verify.
 - **2026-02-23 (task 009):** Test repos without real PR approvals will have `is_merge_ready=false` even with clean threads and passing checks — the IsMergeReady logic correctly requires at least 1 APPROVED review.
+- **2026-11-12 (task 038):** `strings.SplitN(flag, "/", 2)` silently accepts `a/b/c` as owner `a`, repo `b/c` — validate `OWNER/REPO` flags with `strings.Split` plus an exact segment-count check.
+- **2026-11-12 (task 038):** A test that runs a Cobra command only to assert flag wiring must fail before any API call in every environment: run subcommands without `--pr` so each `RunE` fails fast on its own missing-flag validation (auth or no auth, no network).
 
 ## TUI / Bubble Tea
 
@@ -56,6 +59,8 @@
 
 - **2026-02-22 (tasks 005/007/008):** `make install` symlinks bin/gh-ghent into gh extensions dir — always use `gh ghent` (not `./bin/gh-ghent`) for L3 testing to match real user experience
 - **2026-02-22 (task 017):** L4 iterm2-driver tests may fail to find JSON markers if output is very long and scrolls off screen — check for multiple possible markers including end-of-output fields
+- **2026-11-12 (task 038):** Bash `pipefail` makes a pipeline fail on the binary's non-zero exit even when `grep` matches — in `scripts/test-binary.sh`, capture output to a variable first (`OUT=$(...) || true`), then grep it.
+- **2026-11-12 (task 038):** With a dummy token, API calls fail 401 — but `--debug` logs which repo each subcommand targeted before the call, so `GH_TOKEN=dummy ... --debug` plus a grep is a real no-auth targeting proof for every subcommand.
 
 ## Parallel Agents / Worktrees
 

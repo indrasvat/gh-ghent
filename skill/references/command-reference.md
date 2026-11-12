@@ -7,12 +7,21 @@ Complete reference for all gh-ghent commands, flags, and output schemas.
 | Flag | Short | Type | Default | Description |
 |------|-------|------|---------|-------------|
 | `--pr` | | int | (required) | Pull request number |
-| `--repo` | `-R` | string | current repo | Repository in `OWNER/REPO` format |
+| `--repo` | `-R` | string | current repo (`GH_REPO` if set) | Repository in `OWNER/REPO` format |
 | `--format` | `-f` | string | `json` | Output format: `json`, `md`, `xml` |
 | `--no-tui` | | bool | `false` | Force pipe mode even in TTY |
 | `--since` | | string | | Filter by time (ISO 8601 or relative: `1h`, `30m`, `2d`, `1w`) |
 | `--verbose` | | bool | `false` | Show additional context (diff hunks, debug info) |
 | `--debug` | | bool | `false` | Enable debug logging to stderr |
+
+### Repository resolution
+
+Precedence: `-R` / `--repo` flag → `GH_REPO` environment variable → git
+remote (`repository.Current()`). With no flag, no `GH_REPO`, and no remote,
+commands fail with `could not determine repository: ... (use -R owner/repo)`.
+
+`GH_GHENT_REPO` does not select the target repo — it overrides the release
+repo in `install.sh`.
 
 ---
 

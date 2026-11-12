@@ -29,6 +29,9 @@ gh ghent checks --pr 42
 
 # Full PR dashboard with merge readiness
 gh ghent status --pr 42
+
+# A PR in another repo — no checkout needed
+gh ghent status -R oven-sh/bun --pr 42 --format json --no-tui
 ```
 
 ## How It Works
@@ -186,13 +189,17 @@ These flags work with all commands:
 
 | Flag | Short | Description | Default |
 |------|-------|-------------|---------|
-| `--repo` | `-R` | Repository in OWNER/REPO format | current repo |
+| `--repo` | `-R` | Repository in OWNER/REPO format (flag beats `GH_REPO`, which beats the git remote) | current repo (`GH_REPO` if set) |
 | `--format` | `-f` | Output format: `json`, `md`, `xml` | `json` |
 | `--no-tui` | | Force pipe mode even in TTY | `false` |
 | `--verbose` | | Show additional context | `false` |
 | `--debug` | | Debug logging to stderr | `false` |
 | `--solo` | | Skip approval requirement (`GH_GHENT_SOLO=1`) | `false` |
 | `--pr` | | Pull request number | |
+
+Set `GH_REPO=owner/repo` to target one repo for a whole session without
+passing `-R` every time. (`GH_GHENT_REPO` is unrelated: it overrides the
+release repo in `install.sh`.)
 
 ## Agent Integration
 

@@ -17,11 +17,15 @@ description: >
 
 Get PR number: `gh pr view --json number -q .number`
 
+Working in another repo? Add `-R owner/repo` to every command (see
+[Targeting another repository](#targeting-another-repository)).
+
 ## First Command After PR Creation Or Review-Fix Push
 
 ```bash
 PR=$(gh pr view --json number -q .number)
 gh ghent status --pr $PR --await-review --solo --logs --format json --no-tui
+# In another repo: add -R owner/repo to both lines (see "Targeting another repository")
 ```
 
 This is the **single blessed command** for PR review handling.
@@ -52,6 +56,43 @@ status fetch still checks all threads, reviews, stale blockers, and CI. Without 
 the conservative thread/review polling behavior.
 **Do not switch to bare `--watch`** after the first cycle if review comments still matter — `--watch` is CI-only and can miss follow-up bot comments.
 **Drop `--logs`** only on narrow re-checks where CI failure detail is definitely not needed.
+
+## Targeting another repository
+
+By default ghent targets the repo of the current checkout. To work on a PR in
+another repo — no checkout needed — pass `-R owner/repo` to every command:
+
+```bash
+gh ghent status -R oven-sh/bun --pr <N> --await-review --logs --format json --no-tui
+```
+
+Get the PR number for that repo with `gh pr view` pointed at it:
+
+```bash
+PR=$(gh pr view -R oven-sh/bun --json number -q .number)
+```
+
+That form works in a checkout of the repo, on the PR branch. From anywhere
+else (no checkout of that repo), discover the number instead:
+
+```bash
+PR=$(gh pr list -R oven-sh/bun --head <branch> --json number -q '.[0].number')
+```
+
+Or just use a PR number you already know — `-R` is the only part that
+matters.
+
+Repo resolution order: `-R` flag beats the `GH_REPO` environment variable,
+which beats the git remote. `GH_REPO` is handy for a whole session aimed at
+one foreign repo:
+
+```bash
+export GH_REPO=oven-sh/bun
+gh ghent status --pr <N> --await-review --logs --format json --no-tui
+```
+
+Do not use `GH_GHENT_REPO` for this — that variable is unrelated (it
+overrides the release repo in `install.sh`).
 
 ## Response Shape (status)
 
