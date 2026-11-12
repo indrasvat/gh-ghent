@@ -47,6 +47,50 @@ if echo "$COMMENTS_HELP" | grep -q "review threads"; then pass "comments help"; 
 CHECKS_HELP=$("$BINARY" checks --help 2>&1)
 if echo "$CHECKS_HELP" | grep -q "check status"; then pass "checks help"; else fail "checks help"; fi
 
+# --- Repo flag tests (no gh auth needed) ---
+# With a dummy token, API calls fail 401 — but --debug logs which repo each
+# subcommand targeted before the call, which is exactly what these checks
+# assert. Run from a bare directory so the git remote cannot mask a -R miss.
+echo ""
+echo "--- Repo Flag Tests ---"
+BIN_ABS="$(pwd)/$BINARY"
+NOGIT_DIR="$(mktemp -d)"
+debug_targets() {
+    # $1 = description, $2.. = binary args; passes if --debug logs the
+    # expected owner/repo for the targeted repo.
+    local desc="$1"; shift
+    local out
+    out=$(cd "$NOGIT_DIR" && GH_TOKEN=dummy "$BIN_ABS" "$@" --debug 2>&1) || true
+    if echo "$out" | grep -q "owner=oven-sh repo=bun"; then
+        pass "$desc targets oven-sh/bun"
+    else
+        fail "$desc targets oven-sh/bun"
+    fi
+}
+debug_targets "comments -R" comments -R oven-sh/bun --pr 27364 --format json --no-tui
+debug_targets "checks -R" checks -R oven-sh/bun --pr 27364 --format json --no-tui
+debug_targets "status -R" status -R oven-sh/bun --pr 27364 --format json --no-tui
+debug_targets "resolve -R --dry-run" resolve -R oven-sh/bun --pr 27364 --all --dry-run --format json --no-tui
+debug_targets "reply -R" reply -R oven-sh/bun --pr 27364 --thread PRRT_dummy --body test --format json --no-tui
+debug_targets "dismiss -R --dry-run" dismiss -R oven-sh/bun --pr 27364 --dry-run --format json --no-tui
+
+# Invalid -R is rejected before any API call.
+ERR_OUT=$(cd "$NOGIT_DIR" && GH_TOKEN=dummy "$BIN_ABS" status -R cli --pr 1 --format json --no-tui 2>&1) || true
+if echo "$ERR_OUT" | grep -q 'invalid repo format "cli"'; then
+    pass "invalid -R rejected"
+else
+    fail "invalid -R rejected"
+fi
+
+# No -R and no checkout: clear error naming -R.
+ERR_OUT=$(cd "$NOGIT_DIR" && GH_TOKEN=dummy GH_REPO= "$BIN_ABS" status --pr 1 --format json --no-tui 2>&1) || true
+if echo "$ERR_OUT" | grep -q "use -R owner/repo"; then
+    pass "no-repo error names -R"
+else
+    fail "no-repo error names -R"
+fi
+rm -rf "$NOGIT_DIR"
+
 # --- Real repo tests (require gh auth) ---
 echo ""
 echo "--- Real Repo Tests ---"
