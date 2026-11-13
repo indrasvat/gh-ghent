@@ -7,11 +7,11 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 14: Stale Review Dismissal follow-up |
-| **Current Task** | Task 037 DONE: synthetic review workflow now skips cleanly when a tagged push lands on a branch without an open PR. |
+| **Current Phase** | Phase 15: Repo-flag agent surface |
+| **Current Task** | Task 038 IN PROGRESS: `-R` / `--repo` in the agent surface (SKILL.md, README, tests) for issue #21. |
 | **Blocker** | None |
-| **Last Action** | Verified the synthetic-review no-PR path against GitHub Actions itself: a `[synthetic-review]` push on `fix/037-synthetic-review-no-pr-noise` completed successfully with a skip notice instead of a red failure. |
-| **Last Updated** | 2026-03-30 |
+| **Last Action** | `resolveRepo` hardened + unit-tested; SKILL.md / README / command-reference now teach `-R` and `GH_REPO`; `scripts/test-binary.sh` Repo Flag Tests 8/8 with no auth. Cold-context review (2026-11-12): added `-R` comment to the blessed command, README default column now matches command-reference, flag-beats-`GH_REPO` precedence test added; `make ci` green. Authenticated JSON verification (issue Done items 1–2) still pending — needs one-time GH creds. |
+| **Last Updated** | 2026-11-12 |
 
 ## How to Resume
 
@@ -99,11 +99,20 @@
 - [x] Task 14.1: Dismiss stale blocking reviews + status surfacing → `docs/tasks/036-review-dismissal.md`
 - [x] Task 14.2: Synthetic review no-PR skip → `docs/tasks/037-synthetic-review-no-pr-noise.md`
 
+### Phase 15: Repo-flag agent surface
+- [ ] Task 15.1: `-R` / `--repo` in the agent surface (skill, docs, tests) → `docs/tasks/038-repo-flag-agent-surface.md`
+
 ## Blockers
 
 (None currently)
 
 ## Session Log
+
+### 2026-11-12 (Phase 15: Task 038 repo-flag agent surface)
+- **Issue:** #21 — `-R` / `--repo` works in the released binary but is missing from the agent surface.
+- **Change:** `resolveRepo` now rejects anything but exactly `OWNER/REPO`; `SKILL.md` teaches `-R` (blessed command, `gh pr view` step, "Targeting another repository"); README Quick Start + Global Flags and `skill/references/command-reference.md` document `GH_REPO` fallback (flag beats env beats remote) and note `GH_GHENT_REPO` is unrelated.
+- **Tests:** new `internal/cli/repo_test.go` (`resolveRepo` cases, `GH_REPO` fallback, no-repo error, per-subcommand flag wiring); `scripts/test-binary.sh` gains a no-auth Repo Flag Tests section (dummy token + `--debug`).
+- **Verification:** `go test -race -shuffle=on ./...` PASS; Repo Flag Tests 8/8 PASS. Authenticated JSON runs and interactive TUI PR rendering were NOT possible in this cloud (no gh auth) — verified targeting via `--debug` only.
 
 ### 2026-03-30 (Phase 14: Task 036 stale blocking review dismissal)
 - **Feature implementation:** Added stale-review metadata (`DatabaseID`, `AuthorType`, `IsBot`, `CommitID`, `IsStale`) to the review model and review fetch path.

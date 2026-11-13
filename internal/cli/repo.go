@@ -8,9 +8,11 @@ import (
 )
 
 // resolveRepo returns owner and repo name from the flag value or git remote.
+// Precedence: -R/--repo flag beats the GH_REPO environment variable, which
+// beats the git remote (the latter two via repository.Current).
 func resolveRepo(flag string) (string, string, error) {
 	if flag != "" {
-		parts := strings.SplitN(flag, "/", 2)
+		parts := strings.Split(flag, "/")
 		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 			return "", "", fmt.Errorf("invalid repo format %q, expected OWNER/REPO", flag)
 		}
