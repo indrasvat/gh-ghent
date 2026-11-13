@@ -1,0 +1,4 @@
+{"total_count":3,"jobs":[
+{"id":131632216881,"run_id":43348095280,"name":"passes","status":"completed","conclusion":"success","started_at":"2026-11-13T01:52:39Z","completed_at":"2026-11-13T01:52:44Z","html_url":"https://github.com/indrasvat/ghent-cloud-sandbox/actions/runs/43348095280/job/131632216881"},
+{"id":131632217242,"run_id":43348095280,"name":"fails","status":"completed","conclusion":"failure","started_at":"2026-11-13T01:52:39Z","completed_at":"2026-11-13T01:52:43Z","html_url":"https://github.com/indrasvat/ghent-cloud-sandbox/actions/runs/43348095280/job/131632217242"},
+{"id":131632266549,"run_id":43348095280,"name":"probe","status":"in_progress","conclusion":null,"started_at":"2026-11-13T01:52:47Z","completed_at":null,"html_url":"https://github.com/indrasvat/ghent-cloud-sandbox/actions/runs/43348095280/job/131632266549"}]}
