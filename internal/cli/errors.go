@@ -3,6 +3,8 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/indrasvat/gh-ghent/internal/github"
@@ -14,7 +16,21 @@ import (
 func FormatError(err error) (string, int) {
 	var authErr *github.AuthError
 	if errors.As(err, &authErr) {
-		return "Not authenticated. Run `gh auth login` first.", 2
+		if authErr.NoToken {
+			return "No GitHub token found. ghent needs one even for public repos: review threads " +
+				"come from GitHub's GraphQL API, which rejects anonymous requests. " +
+				"Set GH_TOKEN (or GITHUB_TOKEN), or run `gh auth login`.", 2
+		}
+		msg := "GitHub rejected the token (401 Bad credentials). Check GH_TOKEN, or run `gh auth status`."
+		if !strings.EqualFold(os.Getenv("GH_GHENT_AUTH_SCHEME"), "bearer") {
+			msg += " If a vault or proxy swaps the real token in only on Bearer requests, set GH_GHENT_AUTH_SCHEME=bearer."
+		}
+		return msg, 2
+	}
+
+	var permErr *github.PermissionError
+	if errors.As(err, &permErr) {
+		return fmt.Sprintf("GitHub denied the request (403: %s). The token is valid but lacks a permission this command needs.", permErr.Message), 2
 	}
 
 	var rlErr *github.RateLimitError

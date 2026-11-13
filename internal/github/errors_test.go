@@ -84,7 +84,7 @@ func TestClassifyError_HTTPErrors(t *testing.T) {
 	}{
 		{name: "401 auth", statusCode: 401, message: "Bad credentials", wantType: "auth"},
 		{name: "403 rate limit", statusCode: 403, message: "API rate limit exceeded", wantType: "ratelimit"},
-		{name: "403 permissions", statusCode: 403, message: "Resource not accessible", wantType: "auth"},
+		{name: "403 permissions", statusCode: 403, message: "Resource not accessible", wantType: "permission"},
 		{name: "404 not found", statusCode: 404, message: "Not Found", wantType: "notfound"},
 		{name: "429 throttle", statusCode: 429, message: "Too Many Requests", wantType: "ratelimit"},
 		{name: "500 passthrough", statusCode: 500, message: "Internal Server Error", wantType: "other"},
@@ -104,6 +104,11 @@ func TestClassifyError_HTTPErrors(t *testing.T) {
 				var target *AuthError
 				if !errors.As(classified, &target) {
 					t.Errorf("expected AuthError, got %T: %v", classified, classified)
+				}
+			case "permission":
+				var target *PermissionError
+				if !errors.As(classified, &target) {
+					t.Errorf("expected PermissionError, got %T: %v", classified, classified)
 				}
 			case "ratelimit":
 				var target *RateLimitError

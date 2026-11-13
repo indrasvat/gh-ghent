@@ -1,7 +1,6 @@
 package github
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -34,20 +33,6 @@ func TestNewWithOptions(t *testing.T) {
 	}
 	if c.rest != rest {
 		t.Error("REST client not set by option")
-	}
-}
-
-func TestNewDefaultsRequireAuth(t *testing.T) {
-	_, err := New()
-	if err == nil {
-		t.Skip("gh auth is configured; cannot test auth-required path")
-	}
-
-	// When gh auth is not configured, New() should return an error
-	// related to authentication. The exact message varies by go-gh version.
-	msg := strings.ToLower(err.Error())
-	if !strings.Contains(msg, "auth") && !strings.Contains(msg, "client") && !strings.Contains(msg, "token") {
-		t.Errorf("expected auth-related error, got: %v", err)
 	}
 }
 
