@@ -14,8 +14,9 @@ import (
 
 func newCommentsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "comments",
-		Short: "Show unresolved review threads",
+		Use:         "comments",
+		Annotations: map[string]string{needsPRAnnotation: "true"},
+		Short:       "Show unresolved review threads",
 		Long: `Show unresolved review threads for a pull request.
 
 In TTY mode, launches an interactive TUI with thread navigation,
@@ -41,10 +42,6 @@ Exit codes: 0 = no unresolved threads, 1 = has unresolved threads.`,
   # Markdown summary
   gh ghent comments -R owner/repo --pr 42 --format md`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if Flags.PR == 0 {
-				return fmt.Errorf("--pr flag is required")
-			}
-
 			owner, repo, err := resolveRepo(Flags.Repo)
 			if err != nil {
 				return err

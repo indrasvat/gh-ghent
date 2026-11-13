@@ -26,8 +26,9 @@ func newStatusCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "status",
-		Short: "PR status dashboard",
+		Use:         "status",
+		Annotations: map[string]string{needsPRAnnotation: "true"},
+		Short:       "PR status dashboard",
 		Long: `Show a combined status dashboard for a pull request.
 
 Fetches review threads, CI checks, and approvals in parallel, then
@@ -68,10 +69,6 @@ Exit codes: 0 = merge-ready, 1 = not merge-ready.`,
   # Custom review timeout
   gh ghent status --pr 42 --await-review --review-timeout 3m`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if Flags.PR == 0 {
-				return fmt.Errorf("--pr flag is required")
-			}
-
 			owner, repo, err := resolveRepo(Flags.Repo)
 			if err != nil {
 				return err
