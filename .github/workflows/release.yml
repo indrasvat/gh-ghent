@@ -17,3 +17,10 @@ jobs:
         with:
           go_version_file: go.mod
           build_script_override: scripts/build-release.sh
+
+      # install.sh refuses binaries without checksums.txt; fail the release
+      # loudly if the upload ever stops including it.
+      - name: Verify published checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/verify-release-checksums.sh "${{ github.ref_name }}"
