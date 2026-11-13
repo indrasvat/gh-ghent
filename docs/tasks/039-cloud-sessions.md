@@ -31,7 +31,9 @@ Make ghent usable from a cloud session: no `gh`, no TTY, a token from a vault
 - **Checks fallback only on 403** from check-runs: Actions jobs (job ID =
   check-run ID, so `--logs` keeps working) + combined commit status. Anything
   else, including the fallback itself being denied, fails loudly. Output
-  carries `fallback` (`checks_fallback` in compact status).
+  carries `fallback` (`checks_fallback` in compact status, also on watch
+  lines), and `is_merge_ready` stays false under the fallback: other apps'
+  check runs are invisible, so a visible "pass" proves nothing.
 - **Release checksums.** No release since at least v0.6.0 shipped
   `checksums.txt`, so `install.sh` always failed at its checksum step:
   gh-extension-precompile writes checksums only when GPG signing is set up.

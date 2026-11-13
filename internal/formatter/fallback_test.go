@@ -24,6 +24,7 @@ func TestChecksFallbackIsVisibleInEveryFormat(t *testing.T) {
 			"checks":         func(b *bytes.Buffer) error { return f.FormatChecks(b, &checks) },
 			"status":         func(b *bytes.Buffer) error { return f.FormatStatus(b, status) },
 			"compact status": func(b *bytes.Buffer) error { return f.FormatCompactStatus(b, status) },
+			"watch status":   func(b *bytes.Buffer) error { return f.FormatWatchStatus(b, &domain.WatchStatus{Fallback: note}) },
 		}
 		for name, render := range outputs {
 			t.Run(format+"/"+name, func(t *testing.T) {

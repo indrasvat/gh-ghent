@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -70,9 +71,10 @@ func TestFetchChecksFallsBackWhenCheckRunsDenied(t *testing.T) {
 		{131632216881, "passes", "completed", "success"},
 		{131632217242, "fails", "completed", "failure"},
 		{131632266549, "probe", "in_progress", ""},
-		{0, "preview/deploy", "completed", "success"},
+		// Real status IDs: watch mode tells checks apart by ID.
+		{58799506255, "preview/deploy", "completed", "success"},
 		// A status in "error" is a failure, not something to wait on.
-		{0, "deploy/prod", "completed", "failure"},
+		{58799506256, "deploy/prod", "completed", "failure"},
 	}
 	if diff := cmp.Diff(want, rows); diff != "" {
 		t.Errorf("checks (-want +got):\n%s", diff)
@@ -118,5 +120,14 @@ func TestFetchChecksNoFallbackOnOtherErrors(t *testing.T) {
 		if strings.Contains(call, "actions/runs") {
 			t.Errorf("fell back on a 500: called %s", call)
 		}
+	}
+}
+
+// Watch output streams to agents too; the note must not stop at the final report.
+func TestWatchStatusCarriesFallback(t *testing.T) {
+	result := &domain.ChecksResult{OverallStatus: domain.StatusPass, Fallback: "check runs denied"}
+	got := buildWatchStatus(time.Now(), result, map[int64]string{})
+	if got.Fallback != result.Fallback {
+		t.Errorf("WatchStatus.Fallback = %q, want %q", got.Fallback, result.Fallback)
 	}
 }

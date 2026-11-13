@@ -497,5 +497,6 @@ func buildWatchStatus(now time.Time, result *domain.ChecksResult, seen map[int64
 		FailCount:     result.FailCount,
 		PendingCount:  result.PendingCount,
 		Events:        events,
+		Fallback:      result.Fallback,
 	}
 }

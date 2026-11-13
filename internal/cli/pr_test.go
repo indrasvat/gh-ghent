@@ -33,6 +33,8 @@ func TestResolvePR(t *testing.T) {
 		{name: "branch defaults head owner to repo owner", arg: "feat/x", nums: []int{7}, want: 7, wantHeadOwner: "base", wantBranch: "feat/x"},
 		{name: "owner:branch targets a fork", arg: "fork:feat/x", nums: []int{8}, want: 8, wantHeadOwner: "fork", wantBranch: "feat/x"},
 		{name: "omitted uses current branch", arg: "", current: "feat/y", nums: []int{9}, want: 9, wantHeadOwner: "base", wantBranch: "feat/y"},
+		// A branch literally named "123" is a branch, not PR #123.
+		{name: "inferred numeric branch is looked up, not taken as a number", arg: "", current: "123", nums: []int{456}, want: 456, wantHeadOwner: "base", wantBranch: "123"},
 		{name: "omitted on detached HEAD", arg: "", current: "", wantErr: "--pr is required"},
 		{name: "no open PR names the head and the fork form", arg: "feat/x", nums: nil, wantErr: "no open PR for base:feat/x"},
 		{name: "two open PRs is ambiguous", arg: "feat/x", nums: []int{3, 5}, wantErr: "#3, #5"},

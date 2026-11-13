@@ -111,7 +111,8 @@ Branch on the error text (all exit `2`):
 
 If `checks.fallback` is present, check runs were denied (fine-grained token on a
 private repo) and checks came from Actions jobs + commit statuses. Third-party
-check runs and annotations are missing: don't call CI green on that alone.
+check runs and annotations are missing, so `is_merge_ready` stays false. Don't
+call CI green on that alone; ask for a token with Checks access or check the PR page.
 
 ## Response Shape (status)
 

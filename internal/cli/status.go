@@ -384,6 +384,11 @@ func IsMergeReady(threads *domain.CommentsResult, checks *domain.ChecksResult, r
 	if checks != nil && checks.OverallStatus != domain.StatusPass {
 		return false
 	}
+	// Checks rebuilt from Actions jobs and statuses can't see other apps'
+	// check runs, so a visible "pass" doesn't prove CI is green.
+	if checks != nil && checks.Fallback != "" {
+		return false
+	}
 
 	// Condition 3: At least 1 approval and no changes_requested.
 	// If reviews fetch failed (nil), don't block on approvals.

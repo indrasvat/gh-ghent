@@ -31,22 +31,20 @@ func gitCurrentBranch(ctx context.Context) (string, error) {
 // current git branch is used. A branch's head owner defaults to the target
 // repo's owner, and exactly one open PR must match.
 func resolvePR(ctx context.Context, finder prFinder, currentBranch func(context.Context) (string, error), owner, repo, arg string) (int, error) {
+	headOwner, branch := owner, arg
 	if arg == "" {
-		branch, err := currentBranch(ctx)
+		// An inferred branch is always a branch, even one named "123".
+		current, err := currentBranch(ctx)
 		if err != nil {
 			return 0, fmt.Errorf("--pr is required: no current branch to look up (%w)", err)
 		}
-		arg = branch
-	}
-	if n, err := strconv.Atoi(arg); err == nil {
+		branch = current
+	} else if n, err := strconv.Atoi(arg); err == nil {
 		if n <= 0 {
 			return 0, fmt.Errorf("invalid --pr %q: want a PR number, BRANCH, or OWNER:BRANCH", arg)
 		}
 		return n, nil
-	}
-
-	headOwner, branch := owner, arg
-	if o, b, ok := strings.Cut(arg, ":"); ok {
+	} else if o, b, ok := strings.Cut(arg, ":"); ok {
 		headOwner, branch = o, b
 	}
 	if headOwner == "" || branch == "" {

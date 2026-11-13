@@ -438,6 +438,7 @@ func (f *XMLFormatter) FormatWatchStatus(w io.Writer, status *domain.WatchStatus
 		FailCount:        status.FailCount,
 		PendingCount:     status.PendingCount,
 		Final:            status.Final,
+		Fallback:         status.Fallback,
 		ReviewPhase:      string(status.ReviewPhase),
 		ReviewConfidence: string(status.ReviewConfidence),
 		ReviewIdleSecs:   status.ReviewIdleSecs,
@@ -479,6 +480,7 @@ type xmlWatchStatus struct {
 	ReviewIdleSecs   int             `xml:"review_idle_secs,attr,omitempty"`
 	ReviewTimeoutIn  int             `xml:"review_timeout_in,attr,omitempty"`
 	ReviewTailProbes int             `xml:"review_tail_probes,attr,omitempty"`
+	Fallback         string          `xml:"fallback,omitempty"`
 	Events           []xmlWatchEvent `xml:"event,omitempty"`
 }
 

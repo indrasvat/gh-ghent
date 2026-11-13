@@ -208,8 +208,9 @@ Show CI check runs, their status, annotations, and log excerpts.
 - `fallback` — present only when check runs were denied (403, e.g. a
   fine-grained token on a private repo) and checks were rebuilt from Actions
   jobs and commit statuses. Check runs from other apps and annotations are
-  missing then; treat the list as incomplete. (`checks_fallback` in
-  `status --compact`.)
+  missing then; treat the list as incomplete. `status` keeps
+  `is_merge_ready` false while it is set. (`checks_fallback` in
+  `status --compact`; `fallback` on `--watch` lines.)
 
 ### Watch Mode (--watch)
 

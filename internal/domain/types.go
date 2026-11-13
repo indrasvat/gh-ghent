@@ -359,6 +359,7 @@ type WatchStatus struct {
 	PendingCount  int           `json:"pending_count"`
 	Events        []WatchEvent  `json:"events,omitempty"`
 	Final         bool          `json:"final"`
+	Fallback      string        `json:"fallback,omitempty"` // see ChecksResult.Fallback
 
 	// Review-await phase fields (populated only during --await-review).
 	ReviewPhase      ReviewWatchPhase `json:"review_phase,omitempty"`

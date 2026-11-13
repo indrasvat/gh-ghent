@@ -247,6 +247,9 @@ func (f *MarkdownFormatter) FormatWatchStatus(w io.Writer, status *domain.WatchS
 	for _, ev := range status.Events {
 		fmt.Fprintf(w, " | %s→%s", ev.Name, ev.Conclusion)
 	}
+	if status.Fallback != "" {
+		fmt.Fprintf(w, " checks-fallback:%q", status.Fallback)
+	}
 	if status.ReviewPhase != "" {
 		fmt.Fprintf(w, " review:%s", status.ReviewPhase)
 		if status.ReviewConfidence != "" {

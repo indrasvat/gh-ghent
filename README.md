@@ -78,8 +78,9 @@ an error that says what to pass instead.
 grant, so on private repos GitHub denies check runs (403). ghent then rebuilds
 the checks from GitHub Actions jobs and commit statuses (needs `actions: read`
 and `commit statuses: read`) and says so in a `fallback` field. Check runs from
-other apps (not Actions) and annotations are not visible that way; job logs
-still are.
+other apps (not Actions) and annotations are not visible that way, so
+`is_merge_ready` stays `false` while the fallback is in use; job logs still
+work.
 
 **Errors say which problem you hit** (all exit `2`): no token found; token
 rejected (401, with the Bearer hint); or token valid but missing a permission
