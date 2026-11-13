@@ -4,7 +4,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -20,7 +19,6 @@ type fakeResponse struct {
 // records every path it was asked for. Unknown paths are a 404, so a test
 // fails loudly when code calls an endpoint the test did not expect.
 type fakeREST struct {
-	mu     sync.Mutex
 	routes map[string]fakeResponse
 	calls  []string
 }
@@ -30,10 +28,8 @@ func (f *fakeREST) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.URL.RawQuery != "" {
 		key += "?" + req.URL.RawQuery
 	}
-	f.mu.Lock()
 	f.calls = append(f.calls, key)
 	r, ok := f.routes[key]
-	f.mu.Unlock()
 	if !ok {
 		r = fakeResponse{status: 404, body: `{"message":"Not Found"}`}
 	}

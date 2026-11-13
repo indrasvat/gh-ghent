@@ -21,7 +21,7 @@ func isolateAuthEnv(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("GH_ENTERPRISE_TOKEN", "")
 	t.Setenv("GITHUB_ENTERPRISE_TOKEN", "")
-	t.Setenv(authSchemeEnv, "")
+	t.Setenv(AuthSchemeEnv, "")
 }
 
 type captureTransport struct{ got http.Header }
@@ -48,7 +48,7 @@ func TestAuthSchemeOnTheWire(t *testing.T) {
 		t.Run("scheme="+tt.scheme, func(t *testing.T) {
 			isolateAuthEnv(t)
 			t.Setenv("GH_TOKEN", "s3cret")
-			t.Setenv(authSchemeEnv, tt.scheme)
+			t.Setenv(AuthSchemeEnv, tt.scheme)
 
 			opts, err := clientOptions()
 			if err != nil {
@@ -73,7 +73,7 @@ func TestAuthSchemeOnTheWire(t *testing.T) {
 func TestAuthSchemeInvalid(t *testing.T) {
 	isolateAuthEnv(t)
 	t.Setenv("GH_TOKEN", "s3cret")
-	t.Setenv(authSchemeEnv, "basic")
+	t.Setenv(AuthSchemeEnv, "basic")
 	if _, err := clientOptions(); err == nil {
 		t.Fatal("want error for unsupported scheme, got nil")
 	}

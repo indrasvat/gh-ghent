@@ -15,22 +15,17 @@ type workflowRunsResponse struct {
 	} `json:"workflow_runs"`
 }
 
+// jobsResponse lists a workflow run's jobs. A job carries the same fields as
+// its check run, and its ID is that check run's ID, so job logs still resolve.
 type jobsResponse struct {
-	TotalCount int `json:"total_count"`
-	Jobs       []struct {
-		ID          int64   `json:"id"`
-		Name        string  `json:"name"`
-		Status      string  `json:"status"`
-		Conclusion  *string `json:"conclusion"`
-		StartedAt   string  `json:"started_at"`
-		CompletedAt *string `json:"completed_at"`
-		HTMLURL     string  `json:"html_url"`
-	} `json:"jobs"`
+	TotalCount int            `json:"total_count"`
+	Jobs       []checkRunNode `json:"jobs"`
 }
 
 type combinedStatusResponse struct {
 	TotalCount int `json:"total_count"`
 	Statuses   []struct {
+		ID        int64   `json:"id"`
 		State     string  `json:"state"` // error, failure, pending, success
 		Context   string  `json:"context"`
 		TargetURL *string `json:"target_url"`
@@ -44,21 +39,15 @@ type combinedStatusResponse struct {
 // check runs (apps that are not Actions) and annotations are not visible
 // this way, which the result's Fallback text says.
 func (c *Client) fetchChecksFallback(ctx context.Context, owner, repo string, pr int, sha string, denied *PermissionError) (*domain.ChecksResult, error) {
-	var nodes []checkRunNode
-
 	jobs, err := c.fetchActionsJobs(ctx, owner, repo, sha)
 	if err != nil {
 		return nil, fallbackError(denied, "Actions jobs", "actions: read", err)
 	}
-	nodes = append(nodes, jobs...)
-
 	statuses, err := c.fetchCommitStatuses(ctx, owner, repo, sha)
 	if err != nil {
 		return nil, fallbackError(denied, "commit statuses", "commit statuses: read", err)
 	}
-	nodes = append(nodes, statuses...)
-
-	result, err := mapChecksToDomain(ctx, c, owner, repo, pr, sha, nodes)
+	result, err := mapChecksToDomain(ctx, c, owner, repo, pr, sha, append(jobs, statuses...))
 	if err != nil {
 		return nil, err
 	}
@@ -109,17 +98,7 @@ func (c *Client) fetchActionsJobs(ctx context.Context, owner, repo, sha string) 
 			if err := doWithRetry(func() error { return c.rest.DoWithContext(ctx, "GET", path, nil, &resp) }); err != nil {
 				return nil, classifyError(err)
 			}
-			for _, j := range resp.Jobs {
-				nodes = append(nodes, checkRunNode{
-					ID:          j.ID, // a job's ID is its check run's ID, so job logs still resolve
-					Name:        j.Name,
-					Status:      j.Status,
-					Conclusion:  j.Conclusion,
-					StartedAt:   j.StartedAt,
-					CompletedAt: j.CompletedAt,
-					HTMLURL:     j.HTMLURL,
-				})
-			}
+			nodes = append(nodes, resp.Jobs...)
 			seen += len(resp.Jobs)
 			if len(resp.Jobs) == 0 || seen >= resp.TotalCount {
 				break
@@ -139,7 +118,7 @@ func (c *Client) fetchCommitStatuses(ctx context.Context, owner, repo, sha strin
 			return nil, classifyError(err)
 		}
 		for _, s := range resp.Statuses {
-			n := checkRunNode{Name: s.Context, Status: "completed", StartedAt: s.CreatedAt}
+			n := checkRunNode{ID: s.ID, Name: s.Context, Status: "completed", StartedAt: s.CreatedAt}
 			if s.TargetURL != nil {
 				n.HTMLURL = *s.TargetURL
 			}

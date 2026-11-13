@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cli/go-gh/v2/pkg/api"
+
 	"github.com/indrasvat/gh-ghent/internal/github"
 )
 
@@ -21,9 +23,13 @@ func FormatError(err error) (string, int) {
 				"come from GitHub's GraphQL API, which rejects anonymous requests. " +
 				"Set GH_TOKEN (or GITHUB_TOKEN), or run `gh auth login`.", 2
 		}
+		var httpErr *api.HTTPError
+		if !errors.As(err, &httpErr) || httpErr.StatusCode != 401 {
+			return fmt.Sprintf("Authentication failed: %v", authErr.Err), 2
+		}
 		msg := "GitHub rejected the token (401 Bad credentials). Check GH_TOKEN, or run `gh auth status`."
-		if !strings.EqualFold(os.Getenv("GH_GHENT_AUTH_SCHEME"), "bearer") {
-			msg += " If a vault or proxy swaps the real token in only on Bearer requests, set GH_GHENT_AUTH_SCHEME=bearer."
+		if !strings.EqualFold(os.Getenv(github.AuthSchemeEnv), "bearer") {
+			msg += " If a vault or proxy swaps the real token in only on Bearer requests, set " + github.AuthSchemeEnv + "=bearer."
 		}
 		return msg, 2
 	}

@@ -63,14 +63,12 @@ func WithRESTClient(c *api.RESTClient) Option {
 	}
 }
 
-// authSchemeEnv selects the Authorization scheme: "token" (default, what
+// AuthSchemeEnv selects the Authorization scheme: "token" (default, what
 // gh sends) or "bearer", for credential vaults that only swap the real token
 // into Bearer headers.
-const authSchemeEnv = "GH_GHENT_AUTH_SCHEME"
+const AuthSchemeEnv = "GH_GHENT_AUTH_SCHEME"
 
-// clientOptions resolves the host and token the way gh does, and applies the
-// auth scheme from GH_GHENT_AUTH_SCHEME. A missing token is an *AuthError
-// with NoToken set, so the CLI can say that a token is needed at all.
+// clientOptions resolves the host and token the way gh does.
 func clientOptions() (api.ClientOptions, error) {
 	host, _ := auth.DefaultHost()
 	token, _ := auth.TokenForHost(host)
@@ -78,7 +76,7 @@ func clientOptions() (api.ClientOptions, error) {
 		return api.ClientOptions{}, &AuthError{NoToken: true, Err: fmt.Errorf("no token for host %s", host)}
 	}
 	opts := api.ClientOptions{Host: host, AuthToken: token}
-	switch scheme := os.Getenv(authSchemeEnv); strings.ToLower(scheme) {
+	switch scheme := os.Getenv(AuthSchemeEnv); strings.ToLower(scheme) {
 	case "", "token":
 		// go-gh sends "token <token>" itself.
 	case "bearer":
@@ -86,7 +84,7 @@ func clientOptions() (api.ClientOptions, error) {
 		// sends it to the resolved host.
 		opts.Headers = map[string]string{"Authorization": "Bearer " + token}
 	default:
-		return api.ClientOptions{}, fmt.Errorf("%s=%q is not supported: use \"token\" or \"bearer\"", authSchemeEnv, scheme)
+		return api.ClientOptions{}, fmt.Errorf("%s=%q is not supported: use \"token\" or \"bearer\"", AuthSchemeEnv, scheme)
 	}
 	if debug.Enabled() {
 		opts.Log = os.Stderr

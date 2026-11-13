@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/cli/go-gh/v2/pkg/api"
 
 	"github.com/indrasvat/gh-ghent/internal/github"
 )
@@ -25,16 +28,22 @@ func TestFormatErrorAuthCases(t *testing.T) {
 		},
 		{
 			name:   "rejected token suggests bearer when not already bearer",
-			err:    &github.AuthError{},
+			err:    &github.AuthError{Err: &api.HTTPError{StatusCode: 401, Message: "Bad credentials"}},
 			scheme: "",
 			want:   []string{"rejected", "GH_GHENT_AUTH_SCHEME=bearer"},
 		},
 		{
 			name:     "rejected bearer token does not suggest bearer again",
-			err:      &github.AuthError{},
+			err:      &github.AuthError{Err: &api.HTTPError{StatusCode: 401, Message: "Bad credentials"}},
 			scheme:   "bearer",
 			want:     []string{"rejected"},
 			dontWant: []string{"set GH_GHENT_AUTH_SCHEME=bearer"},
+		},
+		{
+			name:     "non-401 auth failure (e.g. a proxy) is not called a GitHub 401",
+			err:      &github.AuthError{Err: errors.New("Proxy Authentication Required")},
+			want:     []string{"Proxy Authentication Required"},
+			dontWant: []string{"401", "GH_GHENT_AUTH_SCHEME"},
 		},
 		{
 			name: "403 names the permission problem and GitHub's message",
