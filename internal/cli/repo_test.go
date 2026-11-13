@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -88,7 +89,7 @@ func TestResolveRepoFallsBackToRemote(t *testing.T) {
 // TestResolveRepoGHRepoFallback proves GH_REPO is honored when no -R flag is
 // given, even outside any git checkout.
 func TestResolveRepoGHRepoFallback(t *testing.T) {
-	t.Chdir(t.TempDir())
+	chdirOutsideCheckout(t)
 	t.Setenv("GH_REPO", "cli/cli")
 
 	owner, repo, err := resolveRepo("")
@@ -103,7 +104,7 @@ func TestResolveRepoGHRepoFallback(t *testing.T) {
 // TestResolveRepoGHRepoInvalid proves a malformed GH_REPO surfaces as a
 // resolution error instead of silently targeting the wrong repo.
 func TestResolveRepoGHRepoInvalid(t *testing.T) {
-	t.Chdir(t.TempDir())
+	chdirOutsideCheckout(t)
 	t.Setenv("GH_REPO", "not-a-repo")
 
 	_, _, err := resolveRepo("")
@@ -118,7 +119,7 @@ func TestResolveRepoGHRepoInvalid(t *testing.T) {
 // TestResolveRepoNoRepoError proves the no-flag, no-remote case fails with an
 // error that tells the user to pass -R.
 func TestResolveRepoNoRepoError(t *testing.T) {
-	t.Chdir(t.TempDir())
+	chdirOutsideCheckout(t)
 	t.Setenv("GH_REPO", "")
 
 	_, _, err := resolveRepo("")
@@ -149,5 +150,17 @@ func TestSubcommandsParseRepoFlag(t *testing.T) {
 				t.Errorf("%s: Flags.Repo = %q; want %q", sub, Flags.Repo, "oven-sh/bun")
 			}
 		})
+	}
+}
+
+// chdirOutsideCheckout moves to an empty directory and drops the GIT_DIR /
+// GIT_WORK_TREE a git hook exports, which would otherwise still point git at
+// this repo (lefthook's pre-push runs these tests).
+func chdirOutsideCheckout(t *testing.T) {
+	t.Helper()
+	t.Chdir(t.TempDir())
+	for _, k := range []string{"GIT_DIR", "GIT_WORK_TREE"} {
+		t.Setenv(k, "") // restores the original value after the test
+		os.Unsetenv(k)
 	}
 }
