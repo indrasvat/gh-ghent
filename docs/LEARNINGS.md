@@ -61,6 +61,7 @@
 - **2026-11-12 (task 039):** A fine-grained PAT or a restricted Actions token gets **403 "Resource not accessible by …"** on `commits/{sha}/check-runs` for private repos, while `actions/runs?head_sha=` + `runs/{id}/jobs` and `commits/{sha}/status` stay readable. A job's ID is its check run's ID, so job logs still resolve.
 - **2026-11-12 (task 039):** Anonymous GitHub REST is 60 requests/hour per IP. On a shared egress IP that ran out after five calls, so anonymous mode is not a real option for `status`.
 - **2026-11-12 (task 039):** `cli/gh-extension-precompile@v2` writes `checksums.txt` only when `GPG_FINGERPRINT` is set, but uploads every file in `dist/`. Write checksums in the build script.
+- **2026-11-13:** `install.sh` ended with `gh-ghent version` (not a subcommand), so under `set -e` it exited 1 after a successful install, and `install -d` re-chmods an existing dir (GNU `install` fails outright on `/tmp`). The release workflow now runs `scripts/verify-release-checksums.sh` after upload; all releases back to v0.1.0 were backfilled with checksums of their published assets.
 
 ## Testing
 

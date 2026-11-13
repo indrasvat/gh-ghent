@@ -111,6 +111,10 @@
 
 ## Session Log
 
+### 2026-11-13 (release hardening after v0.12.0)
+- Release workflow fails unless the published `checksums.txt` covers every binary (`scripts/verify-release-checksums.sh`). Backfilled `checksums.txt` onto v0.1.0–v0.11.0 from the published bytes.
+- `install.sh`: final self-check used a nonexistent `version` subcommand (exit 1 after installing); `mkdir -p` instead of `install -d`.
+
 ### 2026-11-12 (Phase 16: Task 039 cloud sessions)
 - **Issue:** #23 — friction running ghent from a cloud session.
 - Bearer scheme (`GH_GHENT_AUTH_SCHEME`), no-token / 401 / 403 errors, `--pr BRANCH|OWNER:BRANCH` with current-branch default, checks fallback, release checksums.
