@@ -27,7 +27,7 @@ fi
 
 missing=0
 for f in gh-ghent_*; do
-  if ! grep -Eq "^[0-9a-f]{64}  ${f}\$" checksums.txt; then
+  if ! awk -v f="$f" '$2 == f && length($1) == 64 && $1 !~ /[^0-9a-f]/ { ok = 1 } END { exit !ok }' checksums.txt; then
     echo "FAIL: $tag checksums.txt has no valid SHA-256 entry for $f" >&2
     missing=1
   fi
