@@ -39,5 +39,9 @@ for platform in "${platforms[@]}"; do
         -o "dist/${EXT_NAME}_${TAG}_${goos}-${goarch}${ext}" ./cmd/ghent
 done
 
+# install.sh verifies downloads against this. gh-extension-precompile only
+# writes one when GPG signing is configured, but uploads everything in dist/.
+(cd dist && shasum -a 256 "${EXT_NAME}"_* > checksums.txt)
+
 echo "Build complete."
 ls -lh dist/
