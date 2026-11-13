@@ -97,14 +97,14 @@ curl -fsSL "$checksums_url" -o "$tmp/checksums.txt"
   shasum -a 256 -c checksums.selected
 )
 
-install -d "$install_dir"
+mkdir -p "$install_dir"
 install -m 755 "$tmp/$asset" "$install_dir/gh-ghent"
 
 if [ "$os" = "darwin" ] && command -v xattr >/dev/null 2>&1; then
   xattr -d com.apple.quarantine "$install_dir/gh-ghent" >/dev/null 2>&1 || true
 fi
 
-"$install_dir/gh-ghent" version >/dev/null
+"$install_dir/gh-ghent" --version >/dev/null
 
 case ":$PATH:" in
   *":$install_dir:"*) ;;
