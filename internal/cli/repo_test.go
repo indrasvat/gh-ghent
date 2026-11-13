@@ -132,15 +132,16 @@ func TestResolveRepoNoRepoError(t *testing.T) {
 }
 
 // TestSubcommandsParseRepoFlag proves every subcommand wires the persistent
-// -R flag through to Flags.Repo. The commands are run without --pr on
-// purpose: each RunE fails fast on its own missing-flag validation (before
-// any API call), so the test makes no network requests with or without auth.
+// -R flag through to Flags.Repo. The commands run without --pr, outside a
+// checkout: with no current branch to look up, --pr resolution fails before
+// any API call, so the test makes no network requests with or without auth.
 // It fails if a subcommand stops inheriting -R or if PersistentPreRunE stops
 // copying it into Flags.
 func TestSubcommandsParseRepoFlag(t *testing.T) {
 	for _, sub := range []string{"comments", "checks", "resolve", "reply", "dismiss", "status"} {
 		t.Run(sub, func(t *testing.T) {
 			Flags = GlobalFlags{}
+			chdirOutsideCheckout(t)
 
 			cmd := NewRootCmd()
 			cmd.SetArgs([]string{sub, "-R", "oven-sh/bun", "--no-tui"})
