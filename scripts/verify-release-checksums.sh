@@ -27,12 +27,12 @@ fi
 
 missing=0
 for f in gh-ghent_*; do
-  if ! grep -q "  ${f}\$" checksums.txt; then
-    echo "FAIL: $tag checksums.txt does not list $f" >&2
+  if ! grep -Eq "^[0-9a-f]{64}  ${f}\$" checksums.txt; then
+    echo "FAIL: $tag checksums.txt has no valid SHA-256 entry for $f" >&2
     missing=1
   fi
 done
 [ "$missing" -eq 0 ] || exit 1
 
-shasum -a 256 -c checksums.txt
+shasum -a 256 --strict -c checksums.txt
 echo "OK: $tag checksums.txt covers $(find . -name 'gh-ghent_*' | wc -l | tr -d ' ') binaries"
