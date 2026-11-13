@@ -13,8 +13,9 @@ import (
 
 func newDismissCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "dismiss",
-		Short: "Dismiss stale blocking reviews",
+		Use:         "dismiss",
+		Annotations: map[string]string{needsPRAnnotation: "true"},
+		Short:       "Dismiss stale blocking reviews",
 		Long: `Dismiss stale CHANGES_REQUESTED pull request reviews.
 
 This command only targets stale blocking reviews whose review commit is
@@ -54,10 +55,6 @@ type dismissClient interface {
 }
 
 func runDismiss(cmd *cobra.Command, _ []string) error {
-	if Flags.PR == 0 {
-		return fmt.Errorf("--pr flag is required")
-	}
-
 	reviewID, err := cmd.Flags().GetString("review")
 	if err != nil {
 		return err

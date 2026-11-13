@@ -14,8 +14,9 @@ import (
 
 func newChecksCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "checks",
-		Short: "Show CI check status",
+		Use:         "checks",
+		Annotations: map[string]string{needsPRAnnotation: "true"},
+		Short:       "Show CI check status",
 		Long: `Show CI check runs, their status, and annotations for a pull request.
 
 In TTY mode, launches an interactive TUI with check list, annotation
@@ -41,10 +42,6 @@ Exit codes: 0 = all pass, 1 = failure, 3 = pending.`,
   # Check overall status
   gh ghent checks --pr 42 --format json | jq '.overall_status'`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if Flags.PR == 0 {
-				return fmt.Errorf("--pr flag is required")
-			}
-
 			owner, repo, err := resolveRepo(Flags.Repo)
 			if err != nil {
 				return err

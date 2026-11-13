@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -100,6 +101,13 @@ func (c *Client) FetchChecks(ctx context.Context, owner, repo string, pr int) (*
 	slog.Debug("resolved head SHA", "sha", sha)
 
 	runs, err := c.fetchCheckRuns(ctx, owner, repo, sha)
+	var denied *PermissionError
+	if errors.As(err, &denied) {
+		// Fine-grained tokens have no Checks permission to grant, so on private
+		// repos check runs are unreadable. Actions jobs and commit statuses are.
+		slog.Debug("check runs denied, falling back to Actions jobs and commit statuses", "reason", denied.Message)
+		return c.fetchChecksFallback(ctx, owner, repo, pr, sha, denied)
+	}
 	if err != nil {
 		return nil, err
 	}

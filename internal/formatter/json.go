@@ -66,34 +66,36 @@ func (f *JSONFormatter) FormatCompactStatus(w io.Writer, result *domain.StatusRe
 		IsStale    bool   `json:"is_stale,omitempty"`
 	}
 	type compactStatus struct {
-		PRNumber      int                      `json:"pr_number"`
-		IsMergeReady  bool                     `json:"is_merge_ready"`
-		PRAge         string                   `json:"pr_age,omitempty"`
-		LastUpdate    string                   `json:"last_update,omitempty"`
-		ReviewCycles  int                      `json:"review_cycles,omitempty"`
-		Unresolved    int                      `json:"unresolved"`
-		CheckStatus   string                   `json:"check_status"`
-		PassCount     int                      `json:"pass_count"`
-		FailCount     int                      `json:"fail_count"`
-		Threads       []compactThread          `json:"threads,omitempty"`
-		FailedChecks  []compactFailedCheck     `json:"failed_checks,omitempty"`
-		StaleReviews  []compactReview          `json:"stale_reviews,omitempty"`
-		ReviewMonitor *domain.ReviewMonitor    `json:"review_monitor,omitempty"`
-		ReviewSettled *domain.ReviewSettlement `json:"review_settled,omitempty"`
+		PRNumber       int                      `json:"pr_number"`
+		IsMergeReady   bool                     `json:"is_merge_ready"`
+		PRAge          string                   `json:"pr_age,omitempty"`
+		LastUpdate     string                   `json:"last_update,omitempty"`
+		ReviewCycles   int                      `json:"review_cycles,omitempty"`
+		Unresolved     int                      `json:"unresolved"`
+		CheckStatus    string                   `json:"check_status"`
+		PassCount      int                      `json:"pass_count"`
+		FailCount      int                      `json:"fail_count"`
+		ChecksFallback string                   `json:"checks_fallback,omitempty"`
+		Threads        []compactThread          `json:"threads,omitempty"`
+		FailedChecks   []compactFailedCheck     `json:"failed_checks,omitempty"`
+		StaleReviews   []compactReview          `json:"stale_reviews,omitempty"`
+		ReviewMonitor  *domain.ReviewMonitor    `json:"review_monitor,omitempty"`
+		ReviewSettled  *domain.ReviewSettlement `json:"review_settled,omitempty"`
 	}
 
 	compact := compactStatus{
-		PRNumber:      result.PRNumber,
-		IsMergeReady:  result.IsMergeReady,
-		PRAge:         result.PRAge,
-		LastUpdate:    result.LastUpdate,
-		ReviewCycles:  result.ReviewCycles,
-		Unresolved:    result.Comments.UnresolvedCount,
-		CheckStatus:   string(result.Checks.OverallStatus),
-		PassCount:     result.Checks.PassCount,
-		FailCount:     result.Checks.FailCount,
-		ReviewMonitor: result.ReviewMonitor,
-		ReviewSettled: result.ReviewSettled,
+		PRNumber:       result.PRNumber,
+		IsMergeReady:   result.IsMergeReady,
+		PRAge:          result.PRAge,
+		LastUpdate:     result.LastUpdate,
+		ReviewCycles:   result.ReviewCycles,
+		Unresolved:     result.Comments.UnresolvedCount,
+		CheckStatus:    string(result.Checks.OverallStatus),
+		PassCount:      result.Checks.PassCount,
+		FailCount:      result.Checks.FailCount,
+		ChecksFallback: result.Checks.Fallback,
+		ReviewMonitor:  result.ReviewMonitor,
+		ReviewSettled:  result.ReviewSettled,
 	}
 
 	for _, t := range result.Comments.Threads {

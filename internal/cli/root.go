@@ -24,6 +24,10 @@ func GitHubClient() *github.Client {
 	return ghClient
 }
 
+// needsPRAnnotation marks subcommands that act on a PR; --pr is resolved to
+// a number for them before RunE.
+const needsPRAnnotation = "ghent/needs-pr"
+
 // NewRootCmd creates the root ghent command.
 func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -32,7 +36,7 @@ func NewRootCmd() *cobra.Command {
 		Long: `ghent is a GitHub CLI extension for agentic PR monitoring.
 
 Interactive Bubble Tea TUI for humans, structured output (json/md/xml)
-for AI agents. Works wherever gh is authenticated — zero config.
+for AI agents. Uses GH_TOKEN / GITHUB_TOKEN or your gh auth — no gh needed.
 
   TTY detected  → launches interactive TUI (j/k navigation, tabs, views)
   Piped / no-tui → outputs structured data (default: json)`,
@@ -68,7 +72,7 @@ for AI agents. Works wherever gh is authenticated — zero config.
 			if err != nil {
 				return err
 			}
-			Flags.PR, err = f.GetInt("pr")
+			prArg, err := f.GetString("pr")
 			if err != nil {
 				return err
 			}
@@ -113,6 +117,17 @@ for AI agents. Works wherever gh is authenticated — zero config.
 				}
 			}
 
+			if cmd.Annotations[needsPRAnnotation] != "" {
+				owner, repo, err := resolveRepo(Flags.Repo)
+				if err != nil {
+					return err
+				}
+				Flags.PR, err = resolvePR(cmd.Context(), ghClient, gitCurrentBranch, owner, repo, prArg)
+				if err != nil {
+					return err
+				}
+			}
+
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -129,7 +144,7 @@ for AI agents. Works wherever gh is authenticated — zero config.
 	cmd.PersistentFlags().Bool("no-tui", false, "force pipe mode even in TTY (for agents)")
 	cmd.PersistentFlags().Bool("debug", false, "enable debug logging to stderr")
 	cmd.PersistentFlags().Bool("solo", false, "skip approval requirement for single-maintainer repos (or set GH_GHENT_SOLO=1)")
-	cmd.PersistentFlags().Int("pr", 0, "pull request number (required by subcommands)")
+	cmd.PersistentFlags().String("pr", "", "pull request: number, BRANCH, or OWNER:BRANCH (default: open PR for the current branch)")
 	cmd.PersistentFlags().String("since", "", "filter by timestamp (ISO 8601 or relative: 1h, 30m, 2d)")
 
 	// Subcommands

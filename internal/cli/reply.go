@@ -13,8 +13,9 @@ import (
 
 func newReplyCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "reply",
-		Short: "Reply to a review thread",
+		Use:         "reply",
+		Annotations: map[string]string{needsPRAnnotation: "true"},
+		Short:       "Reply to a review thread",
 		Long: `Reply to a specific review thread on a pull request.
 
 Post a comment in an existing review thread. Designed primarily for
@@ -40,10 +41,6 @@ Exit codes: 0 = success, 1 = thread not found, 2 = error, 4 = reply posted but r
   # JSON confirmation
   gh ghent reply --pr 42 --thread PRRT_abc123 --body "Done" --format json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if Flags.PR == 0 {
-				return fmt.Errorf("--pr flag is required")
-			}
-
 			threadID, err := cmd.Flags().GetString("thread")
 			if err != nil {
 				return err

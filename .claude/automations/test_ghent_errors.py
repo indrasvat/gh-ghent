@@ -13,7 +13,7 @@ ghent Error Handling Visual Test: Verify user-friendly error messages and exit c
 Tests:
     1. Nonexistent repo: User-friendly "not found" message, not a stack trace
     2. Invalid PR number: "PR #99999 not found" style message
-    3. Missing --pr flag: "--pr flag is required" error
+    3. Missing --pr flag: "--pr is required" error
     4. Valid request still works after hardening
 
 Verification Strategy:
@@ -179,12 +179,13 @@ async def run_test(connection):
     # Test 3: Missing --pr flag
     print("\n--- Test 3: Missing --pr Flag ---")
     await session.async_send_text(
-        f"{BINARY} comments --format json 2>&1; echo NOPR_EXIT=$?\n"
+        # Outside a checkout there is no current branch to look the PR up by.
+        f"(cd /tmp && {BINARY} comments -R indrasvat/tbgs --format json 2>&1); echo NOPR_EXIT=$?\n"
     )
     await asyncio.sleep(3.0)
 
-    if await verify_screen_contains(session, "--pr flag is required", "pr required"):
-        log_result("Missing --pr error", "PASS", "--pr flag is required")
+    if await verify_screen_contains(session, "--pr is required", "pr required"):
+        log_result("Missing --pr error", "PASS", "--pr is required")
     else:
         log_result("Missing --pr error", "FAIL", "Expected error message not found")
 

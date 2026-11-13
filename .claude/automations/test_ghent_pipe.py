@@ -209,11 +209,12 @@ async def run_test(connection):
     # Test 4: --pr required
     print("\n--- Test 4: --pr Required ---")
     await session.async_send_text(
-        f"{BINARY} comments --format json 2>&1; echo NOPR_EXIT=$?\n"
+        # Outside a checkout there is no current branch to look the PR up by.
+        f"(cd /tmp && {BINARY} comments -R indrasvat/tbgs --format json 2>&1); echo NOPR_EXIT=$?\n"
     )
     await asyncio.sleep(3.0)
 
-    if await verify_screen_contains(session, "--pr flag is required", "pr required error"):
+    if await verify_screen_contains(session, "--pr is required", "pr required error"):
         log_result("--pr required check", "PASS")
     else:
         log_result("--pr required check", "SKIP", "Error message not found")

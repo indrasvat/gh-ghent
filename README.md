@@ -7,7 +7,7 @@
   <br><br>
   <a href="https://gh-ghent.pages.dev"><strong>gh-ghent.pages.dev</strong></a>
   <br><br>
-  <a href="#install">Install</a> · <a href="#quick-start">Quick Start</a> · <a href="#how-it-works">How It Works</a> · <a href="#commands">Commands</a> · <a href="#global-flags">Global Flags</a> · <a href="#agent-integration">Agent Integration</a> · <a href="#for-ai-agents-agent-skill">Agent Skill</a> · <a href="#development">Development</a>
+  <a href="#install">Install</a> · <a href="#quick-start">Quick Start</a> · <a href="#how-it-works">How It Works</a> · <a href="#cloud-sessions-and-ci">Cloud Sessions</a> · <a href="#commands">Commands</a> · <a href="#global-flags">Global Flags</a> · <a href="#agent-integration">Agent Integration</a> · <a href="#for-ai-agents-agent-skill">Agent Skill</a> · <a href="#development">Development</a>
 </p>
 
 ## Install
@@ -17,6 +17,9 @@ Requires [GitHub CLI](https://cli.github.com/) (`gh`) v2.0+.
 ```bash
 gh extension install indrasvat/gh-ghent
 ```
+
+No `gh`? (cloud sessions, CI, containers) Install the prebuilt binary and run
+it as `gh-ghent` — see [Cloud Sessions and CI](#cloud-sessions-and-ci).
 
 ## Quick Start
 
@@ -41,7 +44,47 @@ ghent detects your environment automatically:
 - **TTY** (interactive terminal) — launches a Bubble Tea TUI with keyboard navigation, tabs, and expandable views
 - **Piped / `--no-tui`** — outputs structured data (JSON by default) for scripts and AI agents
 
-No configuration needed. Authentication is inherited from `gh auth`.
+No configuration needed. The token comes from `GH_TOKEN` / `GITHUB_TOKEN`, or
+from `gh auth` when those are unset.
+
+A token is required even for public repos: review threads come from GitHub's
+GraphQL API, which rejects anonymous requests.
+
+## Cloud Sessions and CI
+
+ghent runs without `gh` and without a terminal. In a fresh cloud VM:
+
+```bash
+# 1. Prebuilt binary (linux/darwin, amd64/arm64, checksum-verified) into ~/.local/bin
+curl -fsSL https://raw.githubusercontent.com/indrasvat/gh-ghent/main/install.sh | bash
+
+# 2. A token. GH_TOKEN or GITHUB_TOKEN; no `gh auth login` needed.
+export GH_TOKEN=...
+
+# 3. If your token comes from a vault or egress proxy that swaps the real token
+#    in only on `Authorization: Bearer` requests, switch the auth scheme:
+export GH_GHENT_AUTH_SCHEME=bearer   # default: token (what gh sends)
+
+# 4. From the repo checkout, on the PR branch — ghent finds the PR itself:
+gh-ghent status --await-review --solo --logs --format json --no-tui
+```
+
+`--pr` takes a number, a branch name, or `OWNER:BRANCH` for a PR opened from a
+fork. Without `--pr`, ghent looks up the open PR whose head is the current
+branch in the target repo. It never guesses: no match or more than one match is
+an error that says what to pass instead.
+
+**Least-privilege tokens.** Fine-grained tokens have no Checks permission to
+grant, so on private repos GitHub denies check runs (403). ghent then rebuilds
+the checks from GitHub Actions jobs and commit statuses (needs `actions: read`
+and `commit statuses: read`) and says so in a `fallback` field. Check runs from
+other apps (not Actions) and annotations are not visible that way, so
+`is_merge_ready` stays `false` while the fallback is in use; job logs still
+work.
+
+**Errors say which problem you hit** (all exit `2`): no token found; token
+rejected (401, with the Bearer hint); or token valid but missing a permission
+(403, with GitHub's message).
 
 ## Commands
 
@@ -57,7 +100,7 @@ gh ghent comments --pr 42 --format json | jq '.unresolved_count'
 
 | Flag | Description |
 |------|-------------|
-| `--pr` | Pull request number (required) |
+| `--pr` | PR number, `BRANCH`, or `OWNER:BRANCH` (default: the open PR for the current branch) |
 
 Exit codes: `0` = no unresolved threads, `1` = has unresolved threads.
 
@@ -74,7 +117,7 @@ gh ghent checks --pr 42 --format json | jq '.overall_status'
 
 | Flag | Description |
 |------|-------------|
-| `--pr` | Pull request number (required) |
+| `--pr` | PR number, `BRANCH`, or `OWNER:BRANCH` (default: the open PR for the current branch) |
 | `--logs` | Include failing job log excerpts in output |
 | `--watch` | Poll until all checks complete, fail-fast on failure |
 
@@ -92,7 +135,7 @@ gh ghent resolve --pr 42 --thread PRRT_abc123 --unresolve  # Reopen
 
 | Flag | Description |
 |------|-------------|
-| `--pr` | Pull request number (required) |
+| `--pr` | PR number, `BRANCH`, or `OWNER:BRANCH` (default: the open PR for the current branch) |
 | `--thread` | Thread ID to resolve (PRRT_... node ID) |
 | `--all` | Resolve all unresolved threads |
 | `--unresolve` | Unresolve instead of resolve |
@@ -111,7 +154,7 @@ echo "Acknowledged" | gh ghent reply --pr 42 --thread PRRT_abc123 --body-file -
 
 | Flag | Description |
 |------|-------------|
-| `--pr` | Pull request number (required) |
+| `--pr` | PR number, `BRANCH`, or `OWNER:BRANCH` (default: the open PR for the current branch) |
 | `--thread` | Thread ID to reply to (required) |
 | `--body` | Reply body text (supports markdown) |
 | `--body-file` | Read reply body from file (`-` for stdin) |
@@ -136,7 +179,7 @@ This command is intentionally narrow:
 
 | Flag | Description |
 |------|-------------|
-| `--pr` | Pull request number (required) |
+| `--pr` | PR number, `BRANCH`, or `OWNER:BRANCH` (default: the open PR for the current branch) |
 | `--review` | Review node ID or numeric review ID to dismiss |
 | `--author` | Limit to one review author |
 | `--bots-only` | Limit to stale blocking bot reviews |
@@ -161,7 +204,7 @@ gh ghent status --pr 42 --format json | jq '.stale_reviews'
 
 | Flag | Description |
 |------|-------------|
-| `--pr` | Pull request number (required) |
+| `--pr` | PR number, `BRANCH`, or `OWNER:BRANCH` (default: the open PR for the current branch) |
 | `--logs` | Include failing job log excerpts and annotations |
 | `--watch` | Poll until CI completes, then output full status |
 | `--await-review` | After CI completes, wait for bounded review stabilization (implies `--watch`) |
@@ -195,7 +238,7 @@ These flags work with all commands:
 | `--verbose` | | Show additional context | `false` |
 | `--debug` | | Debug logging to stderr | `false` |
 | `--solo` | | Skip approval requirement (`GH_GHENT_SOLO=1`) | `false` |
-| `--pr` | | Pull request number | |
+| `--pr` | | PR number, `BRANCH`, or `OWNER:BRANCH` for a PR from a fork | open PR for the current branch |
 
 Set `GH_REPO=owner/repo` to target one repo for a whole session without
 passing `-R` every time. (`GH_GHENT_REPO` is unrelated: it overrides the

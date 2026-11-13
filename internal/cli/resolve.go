@@ -16,8 +16,9 @@ import (
 
 func newResolveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "resolve",
-		Short: "Resolve review threads",
+		Use:         "resolve",
+		Annotations: map[string]string{needsPRAnnotation: "true"},
+		Short:       "Resolve review threads",
 		Long: `Resolve or unresolve PR review threads.
 
 Use --thread to resolve a single thread by ID, or --all to resolve
@@ -68,10 +69,6 @@ Exit codes: 0 = all success, 1 = partial failure, 2 = total failure.`,
 }
 
 func runResolve(cmd *cobra.Command, _ []string) error {
-	if Flags.PR == 0 {
-		return fmt.Errorf("--pr flag is required")
-	}
-
 	threadID, err := cmd.Flags().GetString("thread")
 	if err != nil {
 		return err

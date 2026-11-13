@@ -123,6 +123,7 @@ func TestDismissLocalFlags(t *testing.T) {
 }
 
 func TestReplyThreadRequired(t *testing.T) {
+	isolateFromPR(t)
 	cmd := NewRootCmd()
 	cmd.SetArgs([]string{"reply", "--body", "hello"})
 
@@ -145,6 +146,7 @@ func TestSubcommandStubsReturnNotImplemented(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			isolateFromPR(t)
 			cmd := NewRootCmd()
 			cmd.SetArgs(tt.args)
 
@@ -159,6 +161,7 @@ func TestSubcommandStubsReturnNotImplemented(t *testing.T) {
 func TestNoTUIOverridesIsTTY(t *testing.T) {
 	// Reset global state before test
 	Flags = GlobalFlags{}
+	isolateFromPR(t)
 
 	cmd := NewRootCmd()
 	cmd.SetArgs([]string{"--no-tui", "comments"})
@@ -172,4 +175,13 @@ func TestNoTUIOverridesIsTTY(t *testing.T) {
 	if !Flags.NoTUI {
 		t.Error("NoTUI should be true when --no-tui is set")
 	}
+}
+
+// isolateFromPR runs a command test outside any checkout with no GH_REPO, so
+// a missing --pr can't be resolved from this repo's current branch (which may
+// have an open PR) and the command fails before any API call.
+func isolateFromPR(t *testing.T) {
+	t.Helper()
+	chdirOutsideCheckout(t)
+	t.Setenv("GH_REPO", "")
 }

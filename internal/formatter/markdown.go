@@ -79,6 +79,7 @@ func (f *MarkdownFormatter) FormatChecks(w io.Writer, result *domain.ChecksResul
 	}
 	fmt.Fprintf(w, "**Status:** %s | **Pass:** %d | **Fail:** %d | **Pending:** %d\n\n",
 		result.OverallStatus, result.PassCount, result.FailCount, result.PendingCount)
+	writeChecksFallback(w, result)
 	fmt.Fprintf(w, "| Check | Status | Conclusion |\n")
 	fmt.Fprintf(w, "|-------|--------|------------|\n")
 	for _, ch := range result.Checks {
@@ -187,6 +188,9 @@ func (f *MarkdownFormatter) FormatCompactStatus(w io.Writer, result *domain.Stat
 		result.Checks.OverallStatus,
 		result.Checks.PassCount, result.Checks.FailCount)
 
+	if result.Checks.Fallback != "" {
+		fmt.Fprintf(w, " checks-fallback:%q", result.Checks.Fallback)
+	}
 	if result.PRAge != "" {
 		fmt.Fprintf(w, " age:%s", result.PRAge)
 	}
@@ -243,6 +247,9 @@ func (f *MarkdownFormatter) FormatWatchStatus(w io.Writer, status *domain.WatchS
 	for _, ev := range status.Events {
 		fmt.Fprintf(w, " | %s→%s", ev.Name, ev.Conclusion)
 	}
+	if status.Fallback != "" {
+		fmt.Fprintf(w, " checks-fallback:%q", status.Fallback)
+	}
 	if status.ReviewPhase != "" {
 		fmt.Fprintf(w, " review:%s", status.ReviewPhase)
 		if status.ReviewConfidence != "" {
@@ -289,6 +296,7 @@ func (f *MarkdownFormatter) FormatStatus(w io.Writer, result *domain.StatusResul
 	fmt.Fprintf(w, "## CI Checks\n\n")
 	fmt.Fprintf(w, "**Status:** %s | **Pass:** %d | **Fail:** %d | **Pending:** %d\n\n",
 		result.Checks.OverallStatus, result.Checks.PassCount, result.Checks.FailCount, result.Checks.PendingCount)
+	writeChecksFallback(w, &result.Checks)
 
 	// Failed check details (annotations + log excerpts).
 	for _, ch := range result.Checks.Checks {
@@ -367,4 +375,12 @@ func formatSettlementDuration(secs int) string {
 		return fmt.Sprintf("%dm", m)
 	}
 	return fmt.Sprintf("%dm%ds", m, s)
+}
+
+// writeChecksFallback notes that checks came from Actions jobs and commit
+// statuses because check runs were not readable.
+func writeChecksFallback(w io.Writer, result *domain.ChecksResult) {
+	if result.Fallback != "" {
+		fmt.Fprintf(w, "> **Fallback:** %s\n\n", result.Fallback)
+	}
 }

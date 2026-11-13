@@ -146,6 +146,16 @@ func TestStatusMergeReady(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			name: "fallback checks never show READY",
+			model: statusModel{
+				comments: &domain.CommentsResult{UnresolvedCount: 0},
+				checks:   &domain.ChecksResult{OverallStatus: domain.StatusPass, Fallback: "check runs denied"},
+				reviews:  []domain.Review{},
+				solo:     true,
+			},
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {

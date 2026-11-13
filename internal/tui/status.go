@@ -93,7 +93,8 @@ func (m statusModel) isMergeReady() bool {
 	if m.comments != nil && m.comments.UnresolvedCount > 0 {
 		return false
 	}
-	if m.checks != nil && m.checks.OverallStatus != domain.StatusPass {
+	if m.checks != nil && (m.checks.OverallStatus != domain.StatusPass || m.checks.Fallback != "") {
+		// Fallback checks can't see other apps' check runs (see cli.IsMergeReady).
 		return false
 	}
 	if m.reviews != nil {

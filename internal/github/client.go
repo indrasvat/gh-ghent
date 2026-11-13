@@ -3,11 +3,14 @@ package github
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/cli/go-gh/v2/pkg/auth"
 
 	"github.com/indrasvat/gh-ghent/internal/debug"
 	"github.com/indrasvat/gh-ghent/internal/domain"
@@ -60,6 +63,37 @@ func WithRESTClient(c *api.RESTClient) Option {
 	}
 }
 
+// AuthSchemeEnv selects the Authorization scheme: "token" (default, what
+// gh sends) or "bearer", for credential vaults that only swap the real token
+// into Bearer headers.
+const AuthSchemeEnv = "GH_GHENT_AUTH_SCHEME"
+
+// clientOptions resolves the host and token the way gh does.
+func clientOptions() (api.ClientOptions, error) {
+	host, _ := auth.DefaultHost()
+	token, _ := auth.TokenForHost(host)
+	if token == "" {
+		return api.ClientOptions{}, &AuthError{NoToken: true, Err: fmt.Errorf("no token for host %s", host)}
+	}
+	opts := api.ClientOptions{Host: host, AuthToken: token}
+	switch scheme := os.Getenv(AuthSchemeEnv); strings.ToLower(scheme) {
+	case "", "token":
+		// go-gh sends "token <token>" itself.
+	case "bearer":
+		// go-gh never overrides a preset Authorization header, and still only
+		// sends it to the resolved host.
+		opts.Headers = map[string]string{"Authorization": "Bearer " + token}
+	default:
+		return api.ClientOptions{}, fmt.Errorf("%s=%q is not supported: use \"token\" or \"bearer\"", AuthSchemeEnv, scheme)
+	}
+	if debug.Enabled() {
+		opts.Log = os.Stderr
+		opts.LogVerboseHTTP = true
+		opts.LogColorize = true
+	}
+	return opts, nil
+}
+
 // New creates a GitHub client with defaults from go-gh.
 // Use options to inject mock clients for testing.
 func New(opts ...Option) (*Client, error) {
@@ -67,13 +101,14 @@ func New(opts ...Option) (*Client, error) {
 	for _, opt := range opts {
 		opt(c)
 	}
+	if c.gql != nil && c.rest != nil {
+		return c, nil
+	}
+	clientOpts, err := clientOptions()
+	if err != nil {
+		return nil, err
+	}
 	if c.gql == nil {
-		clientOpts := api.ClientOptions{}
-		if debug.Enabled() {
-			clientOpts.Log = os.Stderr
-			clientOpts.LogVerboseHTTP = true
-			clientOpts.LogColorize = true
-		}
 		gql, err := api.NewGraphQLClient(clientOpts)
 		if err != nil {
 			return nil, classifyError(err)
@@ -81,12 +116,6 @@ func New(opts ...Option) (*Client, error) {
 		c.gql = gql
 	}
 	if c.rest == nil {
-		clientOpts := api.ClientOptions{}
-		if debug.Enabled() {
-			clientOpts.Log = os.Stderr
-			clientOpts.LogVerboseHTTP = true
-			clientOpts.LogColorize = true
-		}
 		rest, err := api.NewRESTClient(clientOpts)
 		if err != nil {
 			return nil, classifyError(err)

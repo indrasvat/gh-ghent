@@ -11,22 +11,24 @@ description: >
 
 # gh-ghent — Agentic PR Monitoring
 
-**Prerequisite:** `gh extension install indrasvat/gh-ghent`
+**Prerequisite:** `gh extension install indrasvat/gh-ghent` — or, with no `gh`
+(cloud session, CI), the prebuilt binary run as `gh-ghent` (see
+[Cloud sessions](#cloud-sessions-no-gh-vault-tokens)).
 
-**All commands require:** `--pr <N> --format json --no-tui`
+**All commands take:** `--format json --no-tui`
 
-Get PR number: `gh pr view --json number -q .number`
+**PR selection:** run from the PR branch's checkout and ghent finds the open PR
+itself. Otherwise pass `--pr <N>`, `--pr <branch>`, or `--pr <fork-owner>:<branch>`.
+(Needs gh-ghent v0.12+; older versions require `--pr <N>`.)
 
-Working in another repo? Add `-R owner/repo` to every command — and give
-`gh pr view` the branch too (see
+Working in another repo? Add `-R owner/repo` to every command (see
 [Targeting another repository](#targeting-another-repository)).
 
 ## First Command After PR Creation Or Review-Fix Push
 
 ```bash
-PR=$(gh pr view --json number -q .number)
-gh ghent status --pr $PR --await-review --solo --logs --format json --no-tui
-# In another repo: -R owner/repo on the ghent line; gh pr view also needs the branch (see "Targeting another repository")
+gh ghent status --await-review --solo --logs --format json --no-tui
+# Not on the PR branch, or another repo: add --pr <N|branch|owner:branch> and/or -R owner/repo
 ```
 
 This is the **single blessed command** for PR review handling.
@@ -67,29 +69,18 @@ another repo — no checkout needed — pass `-R owner/repo` to every command:
 gh ghent status -R oven-sh/bun --pr <N> --await-review --logs --format json --no-tui
 ```
 
-Get the PR number for that repo with `gh pr view` pointed at it:
+`--pr` picks the PR in that repo. A number always works. A branch name works
+too, and ghent looks the PR up by head branch, filtered by head owner:
 
 ```bash
-PR=$(gh pr view -R oven-sh/bun "$(git branch --show-current)" --json number -q .number)
+gh ghent status -R oven-sh/bun --pr my-branch ...              # PR from oven-sh/bun:my-branch
+gh ghent status -R oven-sh/bun --pr my-fork:my-branch ...      # PR opened from a fork
 ```
 
-That form works in a checkout of the repo, on the PR branch. `-R` with no
-PR argument fails (`argument required when using the --repo flag`), so
-always pass the branch (or a number). From anywhere else (no checkout of
-that repo), discover the number instead:
-
-```bash
-PR=$(gh pr list -R oven-sh/bun --head <branch> --json number,headRepositoryOwner -q '[.[] | select(.headRepositoryOwner.login == "<fork-owner>")] | if length == 1 then .[0].number else error("expected exactly one PR for head branch <branch> from <fork-owner>, found \(length)") end')
-```
-
-Different forks can share a branch name, so filter by the owner of the
-fork that opened the PR first (`<fork-owner>` — the repo owner, e.g.
-`oven-sh`, for a PR from the repo itself), then require exactly one match.
-A single match from the wrong fork is still the wrong PR, so the owner
-check comes before the count check — never take the first match unfiltered.
-
-Or just use a PR number you already know — `-R` is the only part that
-matters.
+Different forks can share a branch name, so a bare branch means "head owned
+by the repo owner". For a PR from a fork, always say whose fork. ghent never
+takes a first match: no open PR, or more than one, is an error naming what
+to pass instead.
 
 Repo resolution order: `-R` flag beats the `GH_REPO` environment variable,
 which beats the git remote. `GH_REPO` is handy for a whole session aimed at
@@ -102,6 +93,26 @@ gh ghent status --pr <N> --await-review --logs --format json --no-tui
 
 Do not use `GH_GHENT_REPO` for this — that variable is unrelated (it
 overrides the release repo in `install.sh`).
+
+## Cloud sessions (no gh, vault tokens)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/indrasvat/gh-ghent/main/install.sh | bash   # → ~/.local/bin/gh-ghent
+export GH_TOKEN=...                      # or GITHUB_TOKEN; no gh auth login needed
+export GH_GHENT_AUTH_SCHEME=bearer       # only if a vault/proxy swaps the real token into Bearer headers only
+gh-ghent status --await-review --solo --logs --format json --no-tui
+```
+
+Branch on the error text (all exit `2`):
+
+- `No GitHub token found` — set `GH_TOKEN`. A token is required even for public repos.
+- `GitHub rejected the token (401 ...)` — behind a Bearer-only vault, set `GH_GHENT_AUTH_SCHEME=bearer`; otherwise the token is wrong.
+- `GitHub denied the request (403: ...)` — token valid, missing a permission. Don't retry; report it.
+
+If `checks.fallback` is present, check runs were denied (fine-grained token on a
+private repo) and checks came from Actions jobs + commit statuses. Third-party
+check runs and annotations are missing, so `is_merge_ready` stays false. Don't
+call CI green on that alone; ask for a token with Checks access or check the PR page.
 
 ## Response Shape (status)
 

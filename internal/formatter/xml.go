@@ -108,6 +108,7 @@ func (f *XMLFormatter) FormatChecks(w io.Writer, result *domain.ChecksResult) er
 		FailCount:     result.FailCount,
 		PendingCount:  result.PendingCount,
 		Since:         result.Since,
+		Fallback:      result.Fallback,
 	}
 	for _, ch := range result.Checks {
 		xc := xmlCheckRun{
@@ -236,6 +237,7 @@ func (f *XMLFormatter) FormatStatus(w io.Writer, result *domain.StatusResult) er
 			PassCount:     result.Checks.PassCount,
 			FailCount:     result.Checks.FailCount,
 			PendingCount:  result.Checks.PendingCount,
+			Fallback:      result.Checks.Fallback,
 		},
 	}
 	if result.ReviewSettled != nil {
@@ -356,6 +358,7 @@ func (f *XMLFormatter) FormatCompactStatus(w io.Writer, result *domain.StatusRes
 		CheckStatus:  string(result.Checks.OverallStatus),
 		PassCount:    result.Checks.PassCount,
 		FailCount:    result.Checks.FailCount,
+		Fallback:     result.Checks.Fallback,
 	}
 
 	for _, t := range result.Comments.Threads {
@@ -435,6 +438,7 @@ func (f *XMLFormatter) FormatWatchStatus(w io.Writer, status *domain.WatchStatus
 		FailCount:        status.FailCount,
 		PendingCount:     status.PendingCount,
 		Final:            status.Final,
+		Fallback:         status.Fallback,
 		ReviewPhase:      string(status.ReviewPhase),
 		ReviewConfidence: string(status.ReviewConfidence),
 		ReviewIdleSecs:   status.ReviewIdleSecs,
@@ -476,6 +480,7 @@ type xmlWatchStatus struct {
 	ReviewIdleSecs   int             `xml:"review_idle_secs,attr,omitempty"`
 	ReviewTimeoutIn  int             `xml:"review_timeout_in,attr,omitempty"`
 	ReviewTailProbes int             `xml:"review_tail_probes,attr,omitempty"`
+	Fallback         string          `xml:"fallback,omitempty"`
 	Events           []xmlWatchEvent `xml:"event,omitempty"`
 }
 
@@ -541,6 +546,7 @@ type xmlChecks struct {
 	FailCount     int           `xml:"fail_count,attr"`
 	PendingCount  int           `xml:"pending_count,attr"`
 	Since         string        `xml:"since,attr,omitempty"`
+	Fallback      string        `xml:"fallback,omitempty"`
 	Checks        []xmlCheckRun `xml:"check"`
 }
 
@@ -645,6 +651,7 @@ type xmlStatusChecks struct {
 	PassCount     int           `xml:"pass_count,attr"`
 	FailCount     int           `xml:"fail_count,attr"`
 	PendingCount  int           `xml:"pending_count,attr"`
+	Fallback      string        `xml:"fallback,omitempty"`
 	FailedChecks  []xmlCheckRun `xml:"failed_check,omitempty"`
 }
 
@@ -671,6 +678,7 @@ type xmlCompactStatus struct {
 	CheckStatus  string             `xml:"check_status,attr"`
 	PassCount    int                `xml:"pass_count,attr"`
 	FailCount    int                `xml:"fail_count,attr"`
+	Fallback     string             `xml:"checks_fallback,omitempty"`
 	Threads      []xmlCompactThread `xml:"thread,omitempty"`
 	FailedChecks []xmlCheckRun      `xml:"failed_check,omitempty"`
 	StaleReviews []xmlReview        `xml:"stale_review,omitempty"`

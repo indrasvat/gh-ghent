@@ -53,6 +53,16 @@ func TestIsMergeReady(t *testing.T) {
 			want:    true,
 		},
 		{
+			// Under the Actions/statuses fallback, a failing check from
+			// another app is invisible, so "pass" is not proof of green CI.
+			name:    "visible checks pass but came from the fallback",
+			threads: threadsClean,
+			checks:  &domain.ChecksResult{OverallStatus: domain.StatusPass, Fallback: "check runs denied"},
+			reviews: reviewsApproved,
+			solo:    true,
+			want:    false,
+		},
+		{
 			name:    "unresolved threads",
 			threads: threadsDirty,
 			checks:  checksPass,

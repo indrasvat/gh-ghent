@@ -11,7 +11,10 @@ import (
 
 // AuthError indicates an authentication problem with the GitHub API.
 type AuthError struct {
-	Err error
+	// NoToken is set when no token was found at all, as opposed to GitHub
+	// rejecting the one that was sent.
+	NoToken bool
+	Err     error
 }
 
 func (e *AuthError) Error() string {
@@ -19,6 +22,21 @@ func (e *AuthError) Error() string {
 }
 
 func (e *AuthError) Unwrap() error {
+	return e.Err
+}
+
+// PermissionError is a 403 that is not a rate limit: the token was accepted
+// but lacks a permission the request needs.
+type PermissionError struct {
+	Message string // GitHub's message, e.g. "Resource not accessible by integration"
+	Err     error
+}
+
+func (e *PermissionError) Error() string {
+	return "permission denied: " + e.Message
+}
+
+func (e *PermissionError) Unwrap() error {
 	return e.Err
 }
 
@@ -80,7 +98,7 @@ func classifyError(err error) error {
 					Err:     err,
 				}
 			}
-			return &AuthError{Err: err}
+			return &PermissionError{Message: httpErr.Message, Err: err}
 		case 404:
 			return &NotFoundError{Err: err}
 		case 429:

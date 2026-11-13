@@ -136,6 +136,9 @@ type ChecksResult struct {
 	FailCount     int           `json:"fail_count"`
 	PendingCount  int           `json:"pending_count"`
 	Since         string        `json:"since,omitempty"`
+	// Fallback says why checks were rebuilt from Actions jobs and commit
+	// statuses instead of check runs. Empty when check runs were readable.
+	Fallback string `json:"fallback,omitempty"`
 }
 
 // ReviewState represents the state of a PR review.
@@ -356,6 +359,7 @@ type WatchStatus struct {
 	PendingCount  int           `json:"pending_count"`
 	Events        []WatchEvent  `json:"events,omitempty"`
 	Final         bool          `json:"final"`
+	Fallback      string        `json:"fallback,omitempty"` // see ChecksResult.Fallback
 
 	// Review-await phase fields (populated only during --await-review).
 	ReviewPhase      ReviewWatchPhase `json:"review_phase,omitempty"`
