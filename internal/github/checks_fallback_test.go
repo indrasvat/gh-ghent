@@ -131,3 +131,33 @@ func TestWatchStatusCarriesFallback(t *testing.T) {
 		t.Errorf("WatchStatus.Fallback = %q, want %q", got.Fallback, result.Fallback)
 	}
 }
+
+// GitHub can list a queued run before it has any jobs. Dropping it would let
+// the fallback report "pass" (and --watch stop) while that workflow is unstarted.
+func TestFetchChecksFallbackKeepsRunsWithoutJobs(t *testing.T) {
+	routes := fallbackRoutes(t)
+	routes[fbRuns] = fakeResponse{200, `{"total_count":2,"workflow_runs":[` +
+		`{"id":43348095280,"name":"ci","status":"completed","conclusion":"success","html_url":"u1"},` +
+		`{"id":77,"name":"deploy","status":"queued","conclusion":null,"html_url":"https://github.com/o/r/actions/runs/77"}]}`}
+	routes["repos/o/r/actions/runs/77/jobs?per_page=100&page=1"] = fakeResponse{200, `{"total_count":0,"jobs":[]}`}
+	routes[fbStatus] = fakeResponse{200, `{"total_count":0,"statuses":[]}`}
+	routes[fbJobs] = fakeResponse{200, `{"total_count":1,"jobs":[{"id":1,"name":"build","status":"completed","conclusion":"success","started_at":"2026-11-13T01:52:39Z","completed_at":"2026-11-13T01:52:44Z"}]}`}
+	c, _ := newFakeClient(t, routes)
+
+	got, err := c.FetchChecks(context.Background(), "o", "r", 1)
+	if err != nil {
+		t.Fatalf("FetchChecks: %v", err)
+	}
+	if got.OverallStatus != domain.StatusPending || got.PendingCount != 1 {
+		t.Fatalf("overall=%s pending=%d, want pending with the job-less run counted", got.OverallStatus, got.PendingCount)
+	}
+	var found bool
+	for _, ch := range got.Checks {
+		if ch.Name == "deploy" && ch.Status == "queued" && ch.HTMLURL == "https://github.com/o/r/actions/runs/77" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("job-less queued run missing from checks: %+v", got.Checks)
+	}
+}

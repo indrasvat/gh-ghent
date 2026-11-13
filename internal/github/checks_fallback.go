@@ -9,10 +9,8 @@ import (
 )
 
 type workflowRunsResponse struct {
-	TotalCount   int `json:"total_count"`
-	WorkflowRuns []struct {
-		ID int64 `json:"id"`
-	} `json:"workflow_runs"`
+	TotalCount   int            `json:"total_count"`
+	WorkflowRuns []checkRunNode `json:"workflow_runs"` // id, name, status, conclusion, html_url
 }
 
 // jobsResponse lists a workflow run's jobs. A job carries the same fields as
@@ -72,23 +70,22 @@ func fallbackError(denied *PermissionError, source, permission string, err error
 }
 
 func (c *Client) fetchActionsJobs(ctx context.Context, owner, repo, sha string) ([]checkRunNode, error) {
-	var runIDs []int64
+	var runs []checkRunNode
 	for page := 1; ; page++ {
 		path := fmt.Sprintf("repos/%s/%s/actions/runs?head_sha=%s&per_page=100&page=%d", owner, repo, sha, page)
 		var resp workflowRunsResponse
 		if err := doWithRetry(func() error { return c.rest.DoWithContext(ctx, "GET", path, nil, &resp) }); err != nil {
 			return nil, classifyError(err)
 		}
-		for _, r := range resp.WorkflowRuns {
-			runIDs = append(runIDs, r.ID)
-		}
-		if len(resp.WorkflowRuns) == 0 || len(runIDs) >= resp.TotalCount {
+		runs = append(runs, resp.WorkflowRuns...)
+		if len(resp.WorkflowRuns) == 0 || len(runs) >= resp.TotalCount {
 			break
 		}
 	}
 
 	var nodes []checkRunNode
-	for _, runID := range runIDs {
+	for _, run := range runs {
+		runID := run.ID
 		seen := 0
 		for page := 1; ; page++ {
 			// The default filter=latest returns each job's most recent attempt,
@@ -103,6 +100,11 @@ func (c *Client) fetchActionsJobs(ctx context.Context, owner, repo, sha string) 
 			if len(resp.Jobs) == 0 || seen >= resp.TotalCount {
 				break
 			}
+		}
+		// A run can be queued before it has jobs, or fail at startup with
+		// none. Keep it as one check so it still counts as pending or failed.
+		if seen == 0 {
+			nodes = append(nodes, run)
 		}
 	}
 	return nodes, nil
