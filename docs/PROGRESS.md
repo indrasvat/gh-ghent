@@ -7,10 +7,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current Phase** | Phase 15: Repo-flag agent surface |
-| **Current Task** | Task 038 IN PROGRESS: `-R` / `--repo` in the agent surface (SKILL.md, README, tests) for issue #21. |
+| **Current Phase** | Phase 16: Cloud sessions |
+| **Current Task** | Task 039 DONE: cloud sessions (issue #23). |
 | **Blocker** | None |
-| **Last Action** | `resolveRepo` hardened + unit-tested; SKILL.md / README / command-reference now teach `-R` and `GH_REPO`; `scripts/test-binary.sh` Repo Flag Tests 8/8 with no auth. Cold-context review (2026-11-12): added `-R` comment to the blessed command, README default column now matches command-reference, flag-beats-`GH_REPO` precedence test added; `make ci` green. Authenticated JSON verification (issue Done items 1–2) still pending — needs one-time GH creds. |
+| **Last Action** | Bearer auth opt-in, distinct no-token/401/403 errors, `--pr` branch lookup (defaults to current branch), checks fallback to Actions jobs + commit statuses on 403, release `checksums.txt`. Verified in a vault-proxy container sim and a real least-privilege Actions token. |
 | **Last Updated** | 2026-11-12 |
 
 ## How to Resume
@@ -102,11 +102,19 @@
 ### Phase 15: Repo-flag agent surface
 - [ ] Task 15.1: `-R` / `--repo` in the agent surface (skill, docs, tests) → `docs/tasks/038-repo-flag-agent-surface.md`
 
+### Phase 16: Cloud sessions
+- [x] Task 16.1: Vault tokens, auth errors, PR lookup, checks fallback → `docs/tasks/039-cloud-sessions.md`
+
 ## Blockers
 
 (None currently)
 
 ## Session Log
+
+### 2026-11-12 (Phase 16: Task 039 cloud sessions)
+- **Issue:** #23 — friction running ghent from a cloud session.
+- Bearer scheme (`GH_GHENT_AUTH_SCHEME`), no-token / 401 / 403 errors, `--pr BRANCH|OWNER:BRANCH` with current-branch default, checks fallback, release checksums.
+- Reproduced each row first: mitmproxy vault sim (container, no gh/Go) and a private repo whose Actions token lacks `checks`.
 
 ### 2026-11-12 (Phase 15: Task 038 repo-flag agent surface)
 - **Issue:** #21 — `-R` / `--repo` works in the released binary but is missing from the agent surface.

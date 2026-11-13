@@ -6,7 +6,7 @@ Complete reference for all gh-ghent commands, flags, and output schemas.
 
 | Flag | Short | Type | Default | Description |
 |------|-------|------|---------|-------------|
-| `--pr` | | int | (required) | Pull request number |
+| `--pr` | | string | open PR for the current branch | PR number, `BRANCH`, or `OWNER:BRANCH` (PR from a fork) |
 | `--repo` | `-R` | string | current repo (`GH_REPO` if set) | Repository in `OWNER/REPO` format |
 | `--format` | `-f` | string | `json` | Output format: `json`, `md`, `xml` |
 | `--no-tui` | | bool | `false` | Force pipe mode even in TTY |
@@ -22,6 +22,33 @@ commands fail with `could not determine repository: ... (use -R owner/repo)`.
 
 `GH_GHENT_REPO` does not select the target repo — it overrides the release
 repo in `install.sh`.
+
+### PR resolution
+
+- A number is used as-is.
+- `BRANCH` looks up the open PR whose head is `<repo owner>:BRANCH` in the
+  target repo; `OWNER:BRANCH` sets the head owner, for a PR opened from a fork.
+- No `--pr`: the current git branch, looked up the same way.
+- Exactly one open PR must match. Zero matches or several fail with a message
+  saying what to pass (`--pr <number>` or `--pr <fork-owner>:BRANCH`). A
+  detached HEAD with no `--pr` fails with `--pr is required`.
+
+### Authentication
+
+| Variable | Effect |
+|----------|--------|
+| `GH_TOKEN` / `GITHUB_TOKEN` | Token to use (else `gh auth`'s stored token) |
+| `GH_HOST` | GitHub Enterprise host |
+| `GH_GHENT_AUTH_SCHEME` | `token` (default) or `bearer` — send `Authorization: Bearer <token>`, for vaults/proxies that only swap Bearer headers |
+
+A token is required even for public repos (GraphQL rejects anonymous
+requests). Auth failures exit `2` with one of three messages:
+
+| Message starts with | Meaning |
+|---------------------|---------|
+| `No GitHub token found` | Nothing in `GH_TOKEN`, `GITHUB_TOKEN`, or gh's config |
+| `GitHub rejected the token (401 ...)` | Token sent but invalid. Behind a Bearer-only vault, set `GH_GHENT_AUTH_SCHEME=bearer` |
+| `GitHub denied the request (403: ...)` | Token valid, missing a permission; GitHub's message is included |
 
 ---
 
@@ -178,6 +205,11 @@ Show CI check runs, their status, annotations, and log excerpts.
 - `checks[].annotations[]` — structured lint/build errors with file:line
 - `checks[].log_excerpt` — error-relevant lines from CI logs (only with `--logs`)
 - `checks[].html_url` — link to the check run in GitHub
+- `fallback` — present only when check runs were denied (403, e.g. a
+  fine-grained token on a private repo) and checks were rebuilt from Actions
+  jobs and commit statuses. Check runs from other apps and annotations are
+  missing then; treat the list as incomplete. (`checks_fallback` in
+  `status --compact`.)
 
 ### Watch Mode (--watch)
 

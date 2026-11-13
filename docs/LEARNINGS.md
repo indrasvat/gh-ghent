@@ -55,7 +55,16 @@
 - **2026-03-29 (task 035):** iTerm2 visual tests for watch/TUI startup must wait for the first rendered token (`watching`, `Event Log`, etc.) before capturing screenshots. Taking a screenshot immediately after `async_send_text()` can capture the shell instead of the TUI and produce a false visual pass.
 - **2026-03-29 (task 035):** TUI polling loops must cap by the **remaining deadline**, not the configured total timeout. Comparing `reviewTimeout` to the poll interval is dead code once the watch has already been running.
 
+## GitHub API / Auth
+
+- **2026-11-12 (task 039):** go-gh's header round-tripper never overwrites a preset `Authorization` header and drops it for other hosts, so `ClientOptions.Headers["Authorization"] = "Bearer "+token` switches the scheme safely with no fork. `httpretty` (`--debug`) redacts it either way.
+- **2026-11-12 (task 039):** A fine-grained PAT or a restricted Actions token gets **403 "Resource not accessible by …"** on `commits/{sha}/check-runs` for private repos, while `actions/runs?head_sha=` + `runs/{id}/jobs` and `commits/{sha}/status` stay readable. A job's ID is its check run's ID, so job logs still resolve.
+- **2026-11-12 (task 039):** Anonymous GitHub REST is 60 requests/hour per IP. On a shared egress IP that ran out after five calls, so anonymous mode is not a real option for `status`.
+- **2026-11-12 (task 039):** `cli/gh-extension-precompile@v2` writes `checksums.txt` only when `GPG_FINGERPRINT` is set, but uploads every file in `dist/`. Write checksums in the build script.
+
 ## Testing
+
+- **2026-11-12 (task 039):** Git hooks export `GIT_DIR`, so a test that `t.Chdir`s into a temp dir still sees the repo under lefthook's pre-push. Unset `GIT_DIR`/`GIT_WORK_TREE` in such tests.
 
 - **2026-02-22 (tasks 005/007/008):** `make install` symlinks bin/gh-ghent into gh extensions dir — always use `gh ghent` (not `./bin/gh-ghent`) for L3 testing to match real user experience
 - **2026-02-22 (task 017):** L4 iterm2-driver tests may fail to find JSON markers if output is very long and scrolls off screen — check for multiple possible markers including end-of-output fields

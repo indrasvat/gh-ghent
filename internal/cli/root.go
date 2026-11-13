@@ -36,7 +36,7 @@ func NewRootCmd() *cobra.Command {
 		Long: `ghent is a GitHub CLI extension for agentic PR monitoring.
 
 Interactive Bubble Tea TUI for humans, structured output (json/md/xml)
-for AI agents. Works wherever gh is authenticated — zero config.
+for AI agents. Uses GH_TOKEN / GITHUB_TOKEN or your gh auth — no gh needed.
 
   TTY detected  → launches interactive TUI (j/k navigation, tabs, views)
   Piped / no-tui → outputs structured data (default: json)`,
